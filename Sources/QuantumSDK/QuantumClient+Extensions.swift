@@ -175,3 +175,21 @@ extension QuantumClient {
         return try await pollJob(jobId: job.jobId, intervalMs: 5000, maxAttempts: 120)
     }
 }
+
+// MARK: - Realtime Session With Config
+
+extension QuantumClient {
+    /// Request a realtime session with full configuration (voice, prompt, tools for ElevenLabs ConvAI).
+    public func realtimeSessionWith(_ body: [String: AnyCodable]) async throws -> RealtimeSession {
+        struct Wrapper: Encodable {
+            let body: [String: AnyCodable]
+            func encode(to encoder: Encoder) throws {
+                try body.encode(to: encoder)
+            }
+        }
+        let (data, _): (RealtimeSession, _) = try await http.doJSON(
+            method: "POST", path: "/qai/v1/realtime/session", body: Wrapper(body: body)
+        )
+        return data
+    }
+}
