@@ -132,3 +132,46 @@ extension QuantumClient {
         return try await pollJob(jobId: job.jobId, intervalMs: 5000, maxAttempts: 120)
     }
 }
+
+// MARK: - Retexture
+
+public struct RetextureRequest: Codable, Sendable {
+    public var inputTaskId: String?
+    public var modelUrl: String?
+    public var textStylePrompt: String?
+    public var imageStyleUrl: String?
+    public var aiModel: String?
+    public var enableOriginalUv: Bool?
+    public var enablePbr: Bool?
+    public var removeLighting: Bool?
+    public var targetFormats: [String]?
+
+    enum CodingKeys: String, CodingKey {
+        case inputTaskId = "input_task_id"; case modelUrl = "model_url"
+        case textStylePrompt = "text_style_prompt"; case imageStyleUrl = "image_style_url"
+        case aiModel = "ai_model"; case enableOriginalUv = "enable_original_uv"
+        case enablePbr = "enable_pbr"; case removeLighting = "remove_lighting"
+        case targetFormats = "target_formats"
+    }
+
+    public init(inputTaskId: String? = nil, modelUrl: String? = nil,
+                textStylePrompt: String? = nil, imageStyleUrl: String? = nil,
+                aiModel: String? = nil, enableOriginalUv: Bool? = nil,
+                enablePbr: Bool? = nil, removeLighting: Bool? = nil,
+                targetFormats: [String]? = nil) {
+        self.inputTaskId = inputTaskId; self.modelUrl = modelUrl
+        self.textStylePrompt = textStylePrompt; self.imageStyleUrl = imageStyleUrl
+        self.aiModel = aiModel; self.enableOriginalUv = enableOriginalUv
+        self.enablePbr = enablePbr; self.removeLighting = removeLighting
+        self.targetFormats = targetFormats
+    }
+}
+
+extension QuantumClient {
+    /// Retexture a 3D model with AI-generated textures from text or image.
+    public func retexture(_ request: RetextureRequest) async throws -> JobStatusResponse {
+        let params = try JSONDecoder().decode([String: AnyCodable].self, from: JSONEncoder().encode(request))
+        let job = try await createJob(type: "3d/retexture", params: params)
+        return try await pollJob(jobId: job.jobId, intervalMs: 5000, maxAttempts: 120)
+    }
+}
