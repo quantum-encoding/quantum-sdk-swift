@@ -1,19 +1,15 @@
 import Foundation
 
 /// Internal HTTP client wrapping URLSession with authentication.
-actor HTTPClient {
+final class HTTPClient: Sendable {
     private let session: URLSession
     private let baseURLString: String
     private let apiKey: String
-    private let decoder: JSONDecoder
-    private let encoder: JSONEncoder
 
     init(baseURL: URL, apiKey: String, session: URLSession = .shared) {
         self.baseURLString = baseURL.absoluteString
         self.apiKey = apiKey
         self.session = session
-        self.decoder = JSONDecoder()
-        self.encoder = JSONEncoder()
     }
 
     // MARK: - Response Metadata
@@ -30,7 +26,7 @@ actor HTTPClient {
     func doJSON<T: Decodable>(
         method: String,
         path: String,
-        body: (any Encodable & Sendable)? = nil
+        body: (any Encodable)? = nil
     ) async throws -> (data: T, meta: ResponseMeta) {
         guard let url = URL(string: baseURLString + path) else {
             throw QuantumError.invalidArgument("Invalid path: \(path)")
@@ -41,6 +37,7 @@ actor HTTPClient {
 
         if let body {
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            let encoder = JSONEncoder()
             request.httpBody = try encoder.encode(EncodableWrapper(body))
         }
 
@@ -58,6 +55,7 @@ actor HTTPClient {
         }
 
         do {
+            let decoder = JSONDecoder()
             let decoded = try decoder.decode(T.self, from: data)
             return (decoded, meta)
         } catch {
@@ -70,7 +68,7 @@ actor HTTPClient {
     /// Send a JSON request expecting an SSE response. Returns the raw byte stream.
     func doStreamRequest(
         path: String,
-        body: any Encodable & Sendable
+        body: any Encodable
     ) async throws -> (URLSession.AsyncBytes, HTTPURLResponse) {
         guard let url = URL(string: baseURLString + path) else {
             throw QuantumError.invalidArgument("Invalid path: \(path)")
@@ -80,6 +78,7 @@ actor HTTPClient {
         request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("text/event-stream", forHTTPHeaderField: "Accept")
+        let encoder = JSONEncoder()
         request.httpBody = try encoder.encode(EncodableWrapper(body))
 
         let (bytes, response) = try await session.bytes(for: request)
@@ -114,6 +113,7 @@ actor HTTPClient {
         var code = HTTPURLResponse.localizedString(forStatusCode: statusCode)
         var message = String(data: data, encoding: .utf8) ?? "Unknown error"
 
+        let decoder = JSONDecoder()
         if let body = try? decoder.decode(APIErrorBody.self, from: data) {
             message = body.error.message
             if let errorCode = body.error.code {

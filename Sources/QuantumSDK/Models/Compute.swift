@@ -179,3 +179,77 @@ public struct DeleteResponse: Codable, Sendable {
         case costTicks = "cost_ticks"
     }
 }
+
+// MARK: - Compute Billing
+
+/// Request body for querying compute billing.
+public struct BillingRequest: Codable, Sendable {
+    /// Filter by instance ID.
+    public var instanceId: String?
+
+    /// Start date for billing period (ISO 8601).
+    public var startDate: String?
+
+    /// End date for billing period (ISO 8601).
+    public var endDate: String?
+
+    public init(instanceId: String? = nil, startDate: String? = nil, endDate: String? = nil) {
+        self.instanceId = instanceId
+        self.startDate = startDate
+        self.endDate = endDate
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case instanceId = "instance_id"
+        case startDate = "start_date"
+        case endDate = "end_date"
+    }
+}
+
+/// A single billing line item.
+public struct BillingEntry: Codable, Sendable {
+    /// Instance identifier.
+    public var instanceId: String
+
+    /// Instance name.
+    public var instanceName: String?
+
+    /// Total cost in USD.
+    public var costUsd: Double
+
+    /// Usage duration in hours.
+    public var usageHours: Double?
+
+    /// SKU description.
+    public var skuDescription: String?
+
+    /// Billing period start.
+    public var startTime: String?
+
+    /// Billing period end.
+    public var endTime: String?
+
+    enum CodingKeys: String, CodingKey {
+        case instanceId = "instance_id"
+        case instanceName = "instance_name"
+        case costUsd = "cost_usd"
+        case usageHours = "usage_hours"
+        case skuDescription = "sku_description"
+        case startTime = "start_time"
+        case endTime = "end_time"
+    }
+}
+
+/// Response from a compute billing query.
+public struct BillingResponse: Codable, Sendable {
+    /// Individual billing entries.
+    public var entries: [BillingEntry]
+
+    /// Total cost across all entries.
+    public var totalCostUsd: Double
+
+    enum CodingKeys: String, CodingKey {
+        case entries
+        case totalCostUsd = "total_cost_usd"
+    }
+}

@@ -632,6 +632,32 @@ public final class QuantumClient: Sendable {
         return data
     }
 
+    // MARK: - Search (Brave)
+
+    /// Perform a web search. Returns web results, news, videos, infobox, discussions.
+    public func webSearch(_ request: WebSearchRequest) async throws -> WebSearchResponse {
+        let (data, _): (WebSearchResponse, _) = try await http.doJSON(
+            method: "POST", path: "/qai/v1/search/web", body: request
+        )
+        return data
+    }
+
+    /// Get LLM-optimized content chunks for grounding.
+    public func searchContext(_ request: SearchContextRequest) async throws -> SearchContextResponse {
+        let (data, _): (SearchContextResponse, _) = try await http.doJSON(
+            method: "POST", path: "/qai/v1/search/context", body: request
+        )
+        return data
+    }
+
+    /// Get a grounded AI answer with citations.
+    public func searchAnswer(_ request: SearchAnswerRequest) async throws -> SearchAnswerResponse {
+        let (data, _): (SearchAnswerResponse, _) = try await http.doJSON(
+            method: "POST", path: "/qai/v1/search/answer", body: request
+        )
+        return data
+    }
+
     // MARK: - Models
 
     /// List all available models with provider and pricing information.
