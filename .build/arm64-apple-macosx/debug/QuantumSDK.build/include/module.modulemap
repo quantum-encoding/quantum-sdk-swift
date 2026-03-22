@@ -1,0 +1,3 @@
+module QuantumSDK {
+    header "/Users/director/work/tauri_apps/qe-sdk-collection/swift_projects/quantum-sdk/.build/arm64-apple-macosx/debug/QuantumSDK.build/include/QuantumSDK-Swift.h"
+}
