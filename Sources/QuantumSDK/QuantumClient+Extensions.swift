@@ -38,3 +38,97 @@ extension QuantumClient {
         return data
     }
 }
+
+// MARK: - 3D Mesh Operations
+
+public struct RemeshRequest: Codable, Sendable {
+    public var inputTaskId: String?
+    public var modelUrl: String?
+    public var targetFormats: [String]?
+    public var topology: String?
+    public var targetPolycount: Int?
+    public var resizeHeight: Double?
+    public var originAt: String?
+    public var convertFormatOnly: Bool?
+
+    enum CodingKeys: String, CodingKey {
+        case inputTaskId = "input_task_id"
+        case modelUrl = "model_url"
+        case targetFormats = "target_formats"
+        case topology
+        case targetPolycount = "target_polycount"
+        case resizeHeight = "resize_height"
+        case originAt = "origin_at"
+        case convertFormatOnly = "convert_format_only"
+    }
+
+    public init(inputTaskId: String? = nil, modelUrl: String? = nil, targetFormats: [String]? = nil,
+                topology: String? = nil, targetPolycount: Int? = nil, resizeHeight: Double? = nil,
+                originAt: String? = nil, convertFormatOnly: Bool? = nil) {
+        self.inputTaskId = inputTaskId; self.modelUrl = modelUrl; self.targetFormats = targetFormats
+        self.topology = topology; self.targetPolycount = targetPolycount; self.resizeHeight = resizeHeight
+        self.originAt = originAt; self.convertFormatOnly = convertFormatOnly
+    }
+}
+
+public struct RigRequest: Codable, Sendable {
+    public var inputTaskId: String?
+    public var modelUrl: String?
+    public var heightMeters: Double?
+    public var textureImageUrl: String?
+
+    enum CodingKeys: String, CodingKey {
+        case inputTaskId = "input_task_id"
+        case modelUrl = "model_url"
+        case heightMeters = "height_meters"
+        case textureImageUrl = "texture_image_url"
+    }
+
+    public init(inputTaskId: String? = nil, modelUrl: String? = nil,
+                heightMeters: Double? = nil, textureImageUrl: String? = nil) {
+        self.inputTaskId = inputTaskId; self.modelUrl = modelUrl
+        self.heightMeters = heightMeters; self.textureImageUrl = textureImageUrl
+    }
+}
+
+public struct AnimateRequest: Codable, Sendable {
+    public var rigTaskId: String
+    public var actionId: Int
+    public var postProcess: PostProcessOptions?
+
+    public struct PostProcessOptions: Codable, Sendable {
+        public var operationType: String
+        public var fps: Int?
+        enum CodingKeys: String, CodingKey { case operationType = "operation_type"; case fps }
+        public init(operationType: String, fps: Int? = nil) { self.operationType = operationType; self.fps = fps }
+    }
+
+    enum CodingKeys: String, CodingKey { case rigTaskId = "rig_task_id"; case actionId = "action_id"; case postProcess = "post_process" }
+
+    public init(rigTaskId: String, actionId: Int, postProcess: PostProcessOptions? = nil) {
+        self.rigTaskId = rigTaskId; self.actionId = actionId; self.postProcess = postProcess
+    }
+}
+
+extension QuantumClient {
+    /// Remesh a 3D model. Submits job and polls to completion.
+    public func remesh(_ request: RemeshRequest) async throws -> JobStatusResponse {
+        let params = try JSONDecoder().decode([String: AnyCodable].self, from: JSONEncoder().encode(request))
+        let job = try await createJob(type: "3d/remesh", params: params)
+        return try await pollJob(jobId: job.jobId, intervalMs: 5000, maxAttempts: 120)
+    }
+
+    /// Rig a humanoid 3D model. Returns rigged character + basic walk/run animations.
+    public func rig(_ request: RigRequest) async throws -> JobStatusResponse {
+        let params = try JSONDecoder().decode([String: AnyCodable].self, from: JSONEncoder().encode(request))
+        let job = try await createJob(type: "3d/rig", params: params)
+        return try await pollJob(jobId: job.jobId, intervalMs: 5000, maxAttempts: 120)
+    }
+
+    /// Apply an animation to a rigged character.
+    public func animate(_ request: AnimateRequest) async throws -> JobStatusResponse {
+        let params = try JSONDecoder().decode([String: AnyCodable].self, from: JSONEncoder().encode(request))
+        let job = try await createJob(type: "3d/animate", params: params)
+        return try await pollJob(jobId: job.jobId, intervalMs: 5000, maxAttempts: 120)
+    }
+}
