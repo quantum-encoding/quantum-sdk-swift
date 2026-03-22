@@ -117,7 +117,17 @@ public struct BatchJobInfo: Codable, Sendable {
 }
 
 /// Response from listing batch jobs.
-public struct BatchJobsResponse: Codable, Sendable {
+public struct BatchJobsResponse: Sendable {
     /// Batch jobs.
     public var jobs: [BatchJobInfo]
 }
+
+extension BatchJobsResponse: Decodable {
+    enum CodingKeys: String, CodingKey { case jobs }
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.jobs = (try? container.decode([BatchJobInfo].self, forKey: .jobs)) ?? []
+    }
+}
+
+extension BatchJobsResponse: Encodable {}
