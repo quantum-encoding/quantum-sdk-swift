@@ -123,7 +123,7 @@ public struct ChatMessage: Codable, Sendable {
 /// A structured content block in a chat message or response.
 public struct ContentBlock: Codable, Sendable {
     /// Block type (e.g. "text", "thinking", "tool_use").
-    public var type: String
+    public var blockType: String
 
     /// Text content for text/thinking blocks.
     public var text: String?
@@ -137,6 +137,26 @@ public struct ContentBlock: Codable, Sendable {
     /// Tool input arguments for tool_use blocks.
     public var input: [String: AnyCodable]?
 
+    /// Gemini thought signature -- must be echoed back with tool results.
+    public var thoughtSignature: String?
+
+    public init(
+        blockType: String,
+        text: String? = nil,
+        id: String? = nil,
+        name: String? = nil,
+        input: [String: AnyCodable]? = nil,
+        thoughtSignature: String? = nil
+    ) {
+        self.blockType = blockType
+        self.text = text
+        self.id = id
+        self.name = name
+        self.input = input
+        self.thoughtSignature = thoughtSignature
+    }
+
+    /// Legacy convenience init using `type` parameter name.
     public init(
         type: String,
         text: String? = nil,
@@ -144,11 +164,24 @@ public struct ContentBlock: Codable, Sendable {
         name: String? = nil,
         input: [String: AnyCodable]? = nil
     ) {
-        self.type = type
+        self.blockType = type
         self.text = text
         self.id = id
         self.name = name
         self.input = input
+        self.thoughtSignature = nil
+    }
+
+    /// Legacy accessor for blockType.
+    public var type: String {
+        get { blockType }
+        set { blockType = newValue }
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case text, id, name, input
+        case blockType = "type"
+        case thoughtSignature = "thought_signature"
     }
 }
 
@@ -235,7 +268,7 @@ public struct ChatResponse: Codable, Sendable {
     /// Concatenated text content, ignoring thinking and tool_use blocks.
     public var text: String {
         content
-            .filter { $0.type == "text" }
+            .filter { $0.blockType == "text" }
             .compactMap(\.text)
             .joined()
     }
@@ -243,14 +276,14 @@ public struct ChatResponse: Codable, Sendable {
     /// Concatenated thinking content.
     public var thinking: String {
         content
-            .filter { $0.type == "thinking" }
+            .filter { $0.blockType == "thinking" }
             .compactMap(\.text)
             .joined()
     }
 
     /// All tool_use blocks from the response.
     public var toolCalls: [ContentBlock] {
-        content.filter { $0.type == "tool_use" }
+        content.filter { $0.blockType == "tool_use" }
     }
 }
 
@@ -277,7 +310,7 @@ public struct StreamToolUse: Codable, Sendable {
 /// A single event from a streaming chat response.
 public struct StreamEvent: Sendable {
     /// Event type (e.g. "content_delta", "thinking_delta", "tool_use", "usage", "done", "error").
-    public var type: String
+    public var eventType: String
 
     /// Text delta for content_delta/thinking_delta events.
     public var delta: StreamDelta?
@@ -295,6 +328,23 @@ public struct StreamEvent: Sendable {
     public var done: Bool
 
     public init(
+        eventType: String,
+        delta: StreamDelta? = nil,
+        toolUse: StreamToolUse? = nil,
+        usage: ChatUsage? = nil,
+        error: String? = nil,
+        done: Bool = false
+    ) {
+        self.eventType = eventType
+        self.delta = delta
+        self.toolUse = toolUse
+        self.usage = usage
+        self.error = error
+        self.done = done
+    }
+
+    /// Backward-compatible init using `type` parameter name.
+    public init(
         type: String,
         delta: StreamDelta? = nil,
         toolUse: StreamToolUse? = nil,
@@ -302,12 +352,18 @@ public struct StreamEvent: Sendable {
         error: String? = nil,
         done: Bool = false
     ) {
-        self.type = type
+        self.eventType = type
         self.delta = delta
         self.toolUse = toolUse
         self.usage = usage
         self.error = error
         self.done = done
+    }
+
+    /// Legacy accessor for eventType.
+    public var type: String {
+        get { eventType }
+        set { eventType = newValue }
     }
 }
 
@@ -323,8 +379,6 @@ struct RawStreamEvent: Decodable {
     var inputTokens: Int?
     var outputTokens: Int?
     var costTicks: Int?
-
-    // tool_use fields use the same top-level id/name/input
 
     enum CodingKeys: String, CodingKey {
         case type, delta, id, name, input, message

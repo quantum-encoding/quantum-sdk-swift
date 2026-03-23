@@ -2,17 +2,22 @@ import Foundation
 
 // MARK: - Job Create
 
-/// Request body for the `/qai/v1/jobs` endpoint.
+/// Request to create an async job.
 public struct JobCreateRequest: Codable, Sendable {
-    /// Job type (e.g. "3d/generate", "video/generate").
-    public var type: String
+    /// Job type (e.g. "video/generate", "audio/music").
+    public var jobType: String
 
-    /// Job parameters.
-    public var params: [String: AnyCodable]
+    /// Job parameters (model-specific).
+    public var params: AnyCodable
 
-    public init(type: String, params: [String: AnyCodable]) {
-        self.type = type
+    public init(jobType: String, params: AnyCodable) {
+        self.jobType = jobType
         self.params = params
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case params
+        case jobType = "type"
     }
 }
 
@@ -47,14 +52,14 @@ public struct JobStatusResponse: Codable, Sendable {
     public var error: String?
 
     /// Cost in ticks.
-    public var costTicks: Int
+    public var costTicks: Int64
 
     public init(
         jobId: String,
         status: String,
         result: AnyCodable? = nil,
         error: String? = nil,
-        costTicks: Int = 0
+        costTicks: Int64 = 0
     ) {
         self.jobId = jobId
         self.status = status
@@ -70,10 +75,10 @@ public struct JobStatusResponse: Codable, Sendable {
     }
 }
 
-// MARK: - Job List
+// MARK: - Job Summary
 
-/// A single job in the jobs list.
-public struct JobListItem: Codable, Sendable {
+/// Summary of a job in the list response.
+public struct JobSummary: Codable, Sendable {
     /// Job ID.
     public var jobId: String
 
@@ -81,7 +86,7 @@ public struct JobListItem: Codable, Sendable {
     public var status: String
 
     /// Job type.
-    public var type: String?
+    public var jobType: String?
 
     /// Creation timestamp.
     public var createdAt: String?
@@ -90,11 +95,12 @@ public struct JobListItem: Codable, Sendable {
     public var completedAt: String?
 
     /// Cost in ticks.
-    public var costTicks: Int
+    public var costTicks: Int64
 
     enum CodingKeys: String, CodingKey {
-        case status, type
+        case status
         case jobId = "job_id"
+        case jobType = "type"
         case createdAt = "created_at"
         case completedAt = "completed_at"
         case costTicks = "cost_ticks"
@@ -102,9 +108,9 @@ public struct JobListItem: Codable, Sendable {
 }
 
 /// Response from listing jobs.
-public struct JobListResponse: Codable, Sendable {
+public struct ListJobsResponse: Codable, Sendable {
     /// Jobs.
-    public var jobs: [JobListItem]
+    public var jobs: [JobSummary]
 }
 
 // MARK: - 3D Generation

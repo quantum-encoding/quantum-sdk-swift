@@ -8,13 +8,13 @@ public struct BalanceResponse: Codable, Sendable {
     public var userId: String
 
     /// Credit balance in ticks.
-    public var creditTicks: Int
+    public var creditTicks: Int64
 
     /// Credit balance in USD.
     public var creditUsd: Double
 
     /// Conversion rate (ticks per USD).
-    public var ticksPerUsd: Int
+    public var ticksPerUsd: Int64
 
     enum CodingKeys: String, CodingKey {
         case userId = "user_id"
@@ -44,16 +44,16 @@ public struct UsageEntry: Codable, Sendable {
     public var endpoint: String?
 
     /// Cost delta in ticks.
-    public var deltaTicks: Int?
+    public var deltaTicks: Int64?
 
     /// Balance after this entry.
-    public var balanceAfter: Int?
+    public var balanceAfter: Int64?
 
     /// Input tokens.
-    public var inputTokens: Int?
+    public var inputTokens: Int64?
 
     /// Output tokens.
-    public var outputTokens: Int?
+    public var outputTokens: Int64?
 
     /// Timestamp.
     public var createdAt: String?
@@ -88,7 +88,7 @@ public struct UsageResponse: Codable, Sendable {
 }
 
 /// Query parameters for usage history.
-public struct UsageQuery: Sendable {
+public struct UsageQuery: Codable, Sendable {
     /// Maximum number of entries.
     public var limit: Int?
 
@@ -98,6 +98,11 @@ public struct UsageQuery: Sendable {
     public init(limit: Int? = nil, startAfter: String? = nil) {
         self.limit = limit
         self.startAfter = startAfter
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case limit
+        case startAfter = "start_after"
     }
 }
 
@@ -109,13 +114,13 @@ public struct UsageSummaryMonth: Codable, Sendable {
     public var month: String
 
     /// Total requests.
-    public var totalRequests: Int
+    public var totalRequests: Int64
 
     /// Total input tokens.
-    public var totalInputTokens: Int
+    public var totalInputTokens: Int64
 
     /// Total output tokens.
-    public var totalOutputTokens: Int
+    public var totalOutputTokens: Int64
 
     /// Total cost in USD.
     public var totalCostUsd: Double
@@ -148,38 +153,40 @@ public struct UsageSummaryResponse: Codable, Sendable {
 /// A pricing entry for a model.
 public struct PricingEntry: Codable, Sendable {
     /// Provider name.
-    public var provider: String
+    public var provider: String?
 
     /// Model ID.
-    public var model: String
+    public var model: String?
 
     /// Display name.
-    public var displayName: String
+    public var displayName: String?
 
     /// Input cost per million tokens.
-    public var inputPerMillion: Double
+    public var inputPerMillion: Double?
 
     /// Output cost per million tokens.
-    public var outputPerMillion: Double
+    public var outputPerMillion: Double?
 
     /// Cached input cost per million tokens.
     public var cachedPerMillion: Double?
 
     enum CodingKeys: String, CodingKey {
-        case provider = "Provider"
-        case model = "Model"
-        case displayName = "DisplayName"
-        case inputPerMillion = "InputPerMillion"
-        case outputPerMillion = "OutputPerMillion"
-        case cachedPerMillion = "CachedPerMillion"
+        case provider, model
+        case displayName = "display_name"
+        case inputPerMillion = "input_per_million"
+        case outputPerMillion = "output_per_million"
+        case cachedPerMillion = "cached_per_million"
     }
 }
 
-/// Response from the account pricing endpoint.
-public struct AccountPricingResponse: Codable, Sendable {
-    /// Pricing map (model ID -> pricing entry).
+/// Pricing response (map of model_id to entry).
+public struct PricingResponse: Codable, Sendable {
+    /// Pricing map.
     public var pricing: [String: PricingEntry]
 }
+
+/// Legacy alias.
+public typealias AccountPricingResponse = PricingResponse
 
 // MARK: - Model Info
 
@@ -239,6 +246,9 @@ public struct PricingInfo: Codable, Sendable {
 public struct StatusResponse: Codable, Sendable {
     /// Status string (e.g. "revoked", "deleted", "alive", "sent").
     public var status: String
+
+    /// Optional human-readable message.
+    public var message: String?
 }
 
 // MARK: - Contact
@@ -251,12 +261,16 @@ public struct ContactRequest: Codable, Sendable {
     /// Sender email address.
     public var email: String
 
+    /// Message subject.
+    public var subject: String?
+
     /// Message body.
     public var message: String
 
-    public init(name: String, email: String, message: String) {
+    public init(name: String, email: String, message: String, subject: String? = nil) {
         self.name = name
         self.email = email
         self.message = message
+        self.subject = subject
     }
 }

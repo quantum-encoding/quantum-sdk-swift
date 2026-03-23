@@ -2,432 +2,484 @@ import Foundation
 
 // MARK: - TTS
 
-/// Request body for the `/qai/v1/audio/tts` endpoint.
-public struct TTSRequest: Codable, Sendable {
-    /// Model for text-to-speech.
-    public var model: String?
+/// Request body for text-to-speech.
+public struct TtsRequest: Codable, Sendable {
+    /// TTS model (e.g. "tts-1", "eleven_multilingual_v2", "grok-3-tts").
+    public var model: String
 
-    /// Text to speak.
+    /// Text to synthesise into speech.
     public var text: String
 
-    /// Voice ID.
+    /// Voice to use (e.g. "alloy", "echo", "nova", "Rachel").
     public var voice: String?
 
-    /// Output format (e.g. "mp3", "wav").
-    public var format: String?
+    /// Audio format (e.g. "mp3", "wav", "opus"). Default: "mp3".
+    public var outputFormat: String?
 
-    /// Speaking speed.
+    /// Speech rate (provider-dependent).
     public var speed: Double?
 
-    public init(text: String, model: String? = nil, voice: String? = nil, format: String? = nil, speed: Double? = nil) {
-        self.text = text
+    public init(model: String, text: String, voice: String? = nil, outputFormat: String? = nil, speed: Double? = nil) {
         self.model = model
+        self.text = text
         self.voice = voice
-        self.format = format
+        self.outputFormat = outputFormat
         self.speed = speed
     }
-}
-
-/// Response from the `/qai/v1/audio/tts` endpoint.
-public struct TTSResponse: Codable, Sendable {
-    /// URL of the generated audio.
-    public var audioUrl: String
-
-    /// Audio format.
-    public var format: String
-
-    /// Duration in seconds.
-    public var durationSeconds: Double
-
-    /// Unique request ID.
-    public var requestId: String
-
-    /// Cost in ticks.
-    public var costTicks: Int
 
     enum CodingKeys: String, CodingKey {
-        case format
-        case audioUrl = "audio_url"
-        case durationSeconds = "duration_seconds"
-        case requestId = "request_id"
-        case costTicks = "cost_ticks"
+        case model, text, voice, speed
+        case outputFormat = "format"
     }
 }
+
+/// Legacy alias.
+public typealias TTSRequest = TtsRequest
+
+/// Response from text-to-speech.
+public struct TtsResponse: Codable, Sendable {
+    /// Base64-encoded audio data.
+    public var audioBase64: String
+
+    /// Audio format (e.g. "mp3").
+    public var format: String
+
+    /// Audio file size.
+    public var sizeBytes: Int64
+
+    /// Model that generated the audio.
+    public var model: String
+
+    /// Total cost in ticks.
+    public var costTicks: Int64
+
+    /// Unique request identifier.
+    public var requestId: String
+
+    enum CodingKeys: String, CodingKey {
+        case format, model
+        case audioBase64 = "audio_base64"
+        case sizeBytes = "size_bytes"
+        case costTicks = "cost_ticks"
+        case requestId = "request_id"
+    }
+}
+
+/// Legacy alias.
+public typealias TTSResponse = TtsResponse
 
 // MARK: - STT
 
-/// Request body for the `/qai/v1/audio/stt` endpoint.
-public struct STTRequest: Codable, Sendable {
-    /// Model for speech-to-text.
-    public var model: String?
+/// Request body for speech-to-text.
+public struct SttRequest: Codable, Sendable {
+    /// STT model (e.g. "whisper-1", "scribe_v2").
+    public var model: String
 
     /// Base64-encoded audio data.
-    public var audio: String
+    public var audioBase64: String
 
-    /// Audio format (e.g. "wav", "mp3").
-    public var format: String?
+    /// Original filename (helps with format detection).
+    public var filename: String?
 
-    /// BCP-47 language code.
+    /// BCP-47 language code hint (e.g. "en", "de").
     public var language: String?
 
-    public init(audio: String, model: String? = nil, format: String? = nil, language: String? = nil) {
-        self.audio = audio
+    public init(model: String, audioBase64: String, filename: String? = nil, language: String? = nil) {
         self.model = model
-        self.format = format
+        self.audioBase64 = audioBase64
+        self.filename = filename
         self.language = language
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case model, filename, language
+        case audioBase64 = "audio_base64"
     }
 }
 
-/// Response from the `/qai/v1/audio/stt` endpoint.
-public struct STTResponse: Codable, Sendable {
+/// Legacy alias.
+public typealias STTRequest = SttRequest
+
+/// Response from speech-to-text.
+public struct SttResponse: Codable, Sendable {
     /// Transcribed text.
     public var text: String
 
-    /// Detected language.
-    public var language: String
+    /// Model that performed transcription.
+    public var model: String
 
-    /// Duration in seconds.
-    public var durationSeconds: Double
+    /// Total cost in ticks.
+    public var costTicks: Int64
 
-    /// Unique request ID.
+    /// Unique request identifier.
     public var requestId: String
 
-    /// Cost in ticks.
-    public var costTicks: Int
-
     enum CodingKeys: String, CodingKey {
-        case text, language
-        case durationSeconds = "duration_seconds"
-        case requestId = "request_id"
+        case text, model
         case costTicks = "cost_ticks"
+        case requestId = "request_id"
     }
 }
+
+/// Legacy alias.
+public typealias STTResponse = SttResponse
 
 // MARK: - Music
 
 /// Request body for the `/qai/v1/audio/music` endpoint.
 public struct MusicRequest: Codable, Sendable {
-    /// Text prompt describing the music.
+    /// Music generation model (e.g. "lyria").
+    public var model: String
+
+    /// Describes the music to generate.
     public var prompt: String
 
-    /// Duration in seconds.
-    public var duration: Int?
+    /// Target duration in seconds (default 30).
+    public var durationSeconds: Int?
 
-    /// Model to use for music generation.
-    public var model: String?
-
-    public init(prompt: String, duration: Int? = nil, model: String? = nil) {
-        self.prompt = prompt
-        self.duration = duration
+    public init(model: String, prompt: String, durationSeconds: Int? = nil) {
         self.model = model
+        self.prompt = prompt
+        self.durationSeconds = durationSeconds
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case model, prompt
+        case durationSeconds = "duration_seconds"
     }
 }
 
 /// A single generated music clip.
 public struct MusicClip: Codable, Sendable {
-    /// URL of the generated audio.
-    public var audioUrl: String
+    /// Base64-encoded audio data.
+    public var base64: String?
 
-    /// Title of the clip.
-    public var title: String?
+    /// Audio format (e.g. "mp3", "wav").
+    public var format: String?
 
-    /// Tags describing the clip.
-    public var tags: String?
+    /// Audio file size.
+    public var sizeBytes: Int64?
 
-    /// Duration in seconds.
-    public var durationSeconds: Double
+    /// Clip index within the batch.
+    public var index: Int?
 
     enum CodingKeys: String, CodingKey {
-        case title, tags
-        case audioUrl = "audio_url"
-        case durationSeconds = "duration_seconds"
+        case base64, format, index
+        case sizeBytes = "size_bytes"
     }
 }
 
 /// Response from the `/qai/v1/audio/music` endpoint.
 public struct MusicResponse: Codable, Sendable {
     /// Generated music clips.
-    public var clips: [MusicClip]
+    public var audioClips: [MusicClip]?
 
-    /// Unique request ID.
+    /// Model that generated the music.
+    public var model: String?
+
+    /// Total cost in ticks.
+    public var costTicks: Int64
+
+    /// Unique request identifier.
     public var requestId: String
 
-    /// Cost in ticks.
-    public var costTicks: Int
-
     enum CodingKeys: String, CodingKey {
-        case clips
-        case requestId = "request_id"
+        case model
+        case audioClips = "audio_clips"
         case costTicks = "cost_ticks"
+        case requestId = "request_id"
     }
 }
 
 // MARK: - Sound Effects
 
-/// Request body for the `/qai/v1/audio/sound-effects` endpoint.
+/// Request body for sound effects generation.
 public struct SoundEffectRequest: Codable, Sendable {
     /// Text prompt describing the sound effect.
-    public var text: String
+    public var prompt: String
 
-    /// Duration in seconds.
+    /// Optional duration in seconds.
     public var durationSeconds: Double?
 
-    /// Prompt influence factor.
-    public var promptInfluence: Double?
-
-    public init(text: String, durationSeconds: Double? = nil, promptInfluence: Double? = nil) {
-        self.text = text
+    public init(prompt: String, durationSeconds: Double? = nil) {
+        self.prompt = prompt
         self.durationSeconds = durationSeconds
-        self.promptInfluence = promptInfluence
     }
 
     enum CodingKeys: String, CodingKey {
-        case text
+        case prompt
         case durationSeconds = "duration_seconds"
-        case promptInfluence = "prompt_influence"
     }
 }
 
-/// Response from the `/qai/v1/audio/sound-effects` endpoint.
+/// Response from sound effects generation.
 public struct SoundEffectResponse: Codable, Sendable {
-    /// URL of the generated audio.
-    public var audioUrl: String
+    /// Base64-encoded audio data.
+    public var audioBase64: String?
 
-    /// Unique request ID.
+    /// Audio format (e.g. "mp3").
+    public var format: String?
+
+    /// File size in bytes.
+    public var sizeBytes: Int64?
+
+    /// Model used.
+    public var model: String?
+
+    /// Total cost in ticks.
+    public var costTicks: Int64
+
+    /// Unique request identifier.
     public var requestId: String
 
-    /// Cost in ticks.
-    public var costTicks: Int
+    enum CodingKeys: String, CodingKey {
+        case format, model
+        case audioBase64 = "audio_base64"
+        case sizeBytes = "size_bytes"
+        case costTicks = "cost_ticks"
+        case requestId = "request_id"
+    }
+}
+
+// MARK: - Audio Response (generic)
+
+/// Generic audio response used by multiple advanced audio endpoints.
+public struct AudioResponse: Codable, Sendable {
+    /// Base64-encoded audio data.
+    public var audioBase64: String?
+
+    /// Audio format (e.g. "mp3", "wav").
+    public var format: String?
+
+    /// File size in bytes.
+    public var sizeBytes: Int64?
+
+    /// Model used.
+    public var model: String?
+
+    /// Total cost in ticks.
+    public var costTicks: Int64
+
+    /// Unique request identifier.
+    public var requestId: String
 
     enum CodingKeys: String, CodingKey {
-        case audioUrl = "audio_url"
-        case requestId = "request_id"
+        case format, model
+        case audioBase64 = "audio_base64"
+        case sizeBytes = "size_bytes"
         case costTicks = "cost_ticks"
+        case requestId = "request_id"
     }
 }
 
 // MARK: - Dialogue
 
-/// Request body for the `/qai/v1/audio/dialogue` endpoint.
-public struct DialogueRequest: Codable, Sendable {
-    /// Script with speaker names and lines.
-    public var script: String
+/// A single dialogue turn.
+public struct DialogueTurn: Codable, Sendable {
+    /// Speaker name or identifier.
+    public var speaker: String
 
-    /// Voice mapping (speaker name -> voice ID).
-    public var voices: [String: String]
+    /// Text for this speaker to say.
+    public var text: String
 
-    /// Model for dialogue generation.
-    public var model: String?
+    /// Voice ID to use for this speaker.
+    public var voice: String?
 
-    public init(script: String, voices: [String: String], model: String? = nil) {
-        self.script = script
-        self.voices = voices
-        self.model = model
+    public init(speaker: String, text: String, voice: String? = nil) {
+        self.speaker = speaker
+        self.text = text
+        self.voice = voice
     }
 }
 
-/// Response from the `/qai/v1/audio/dialogue` endpoint.
-public struct DialogueResponse: Codable, Sendable {
-    /// URL of the generated audio.
-    public var audioUrl: String
+/// Voice mapping for ElevenLabs dialogue.
+public struct DialogueVoice: Codable, Sendable {
+    public var voiceId: String
+    public var name: String
 
-    /// Duration in seconds.
-    public var durationSeconds: Double
-
-    /// Unique request ID.
-    public var requestId: String
-
-    /// Cost in ticks.
-    public var costTicks: Int
+    public init(voiceId: String, name: String) {
+        self.voiceId = voiceId
+        self.name = name
+    }
 
     enum CodingKeys: String, CodingKey {
-        case audioUrl = "audio_url"
-        case durationSeconds = "duration_seconds"
-        case requestId = "request_id"
-        case costTicks = "cost_ticks"
+        case name
+        case voiceId = "voice_id"
+    }
+}
+
+/// Request body for dialogue generation.
+public struct DialogueRequest: Codable, Sendable {
+    /// Full dialogue script.
+    public var text: String
+
+    /// Voice mappings -- each speaker name mapped to a voice_id.
+    public var voices: [DialogueVoice]
+
+    /// Dialogue model.
+    public var model: String?
+
+    /// Output audio format.
+    public var outputFormat: String?
+
+    /// Seed for reproducible generation.
+    public var seed: Int?
+
+    public init(text: String, voices: [DialogueVoice], model: String? = nil, outputFormat: String? = nil, seed: Int? = nil) {
+        self.text = text
+        self.voices = voices
+        self.model = model
+        self.outputFormat = outputFormat
+        self.seed = seed
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case text, voices, model, seed
+        case outputFormat = "output_format"
     }
 }
 
 // MARK: - Speech to Speech
 
-/// Request body for the `/qai/v1/audio/speech-to-speech` endpoint.
+/// Request body for speech-to-speech conversion.
 public struct SpeechToSpeechRequest: Codable, Sendable {
-    /// Base64-encoded source audio.
-    public var audio: String
-
-    /// Target voice ID.
-    public var voiceId: String
-
-    /// Model for voice conversion.
+    /// Model for conversion.
     public var model: String?
 
-    public init(audio: String, voiceId: String, model: String? = nil) {
-        self.audio = audio
-        self.voiceId = voiceId
+    /// Base64-encoded source audio.
+    public var audioBase64: String
+
+    /// Target voice.
+    public var voice: String?
+
+    /// Output audio format.
+    public var outputFormat: String?
+
+    public init(audioBase64: String, model: String? = nil, voice: String? = nil, outputFormat: String? = nil) {
+        self.audioBase64 = audioBase64
         self.model = model
+        self.voice = voice
+        self.outputFormat = outputFormat
     }
 
     enum CodingKeys: String, CodingKey {
-        case audio, model
-        case voiceId = "voice_id"
-    }
-}
-
-/// Response from the `/qai/v1/audio/speech-to-speech` endpoint.
-public struct SpeechToSpeechResponse: Codable, Sendable {
-    /// URL of the generated audio.
-    public var audioUrl: String
-
-    /// Duration in seconds.
-    public var durationSeconds: Double
-
-    /// Unique request ID.
-    public var requestId: String
-
-    /// Cost in ticks.
-    public var costTicks: Int
-
-    enum CodingKeys: String, CodingKey {
-        case audioUrl = "audio_url"
-        case durationSeconds = "duration_seconds"
-        case requestId = "request_id"
-        case costTicks = "cost_ticks"
+        case model, voice
+        case audioBase64 = "audio_base64"
+        case outputFormat = "format"
     }
 }
 
 // MARK: - Voice Isolation
 
-/// Request body for the `/qai/v1/audio/isolate` endpoint.
-public struct IsolateVoiceRequest: Codable, Sendable {
-    /// Base64-encoded audio.
-    public var audio: String
+/// Request body for voice isolation.
+public struct IsolateRequest: Codable, Sendable {
+    /// Base64-encoded audio to isolate voice from.
+    public var audioBase64: String
 
-    public init(audio: String) {
-        self.audio = audio
+    /// Output audio format.
+    public var outputFormat: String?
+
+    public init(audioBase64: String, outputFormat: String? = nil) {
+        self.audioBase64 = audioBase64
+        self.outputFormat = outputFormat
     }
-}
-
-/// Response from the `/qai/v1/audio/isolate` endpoint.
-public struct IsolateVoiceResponse: Codable, Sendable {
-    /// URL of the isolated audio.
-    public var audioUrl: String
-
-    /// Unique request ID.
-    public var requestId: String
-
-    /// Cost in ticks.
-    public var costTicks: Int
 
     enum CodingKeys: String, CodingKey {
-        case audioUrl = "audio_url"
-        case requestId = "request_id"
-        case costTicks = "cost_ticks"
+        case audioBase64 = "audio_base64"
+        case outputFormat = "format"
     }
 }
 
 // MARK: - Voice Remix
 
-/// Request body for the `/qai/v1/audio/remix` endpoint.
-public struct RemixVoiceRequest: Codable, Sendable {
-    /// Base64-encoded audio.
-    public var audio: String
+/// Request body for voice remixing.
+public struct RemixRequest: Codable, Sendable {
+    /// Base64-encoded source audio.
+    public var audioBase64: String
 
-    /// Target voice ID.
-    public var voiceId: String
+    /// Target voice for the remix.
+    public var voice: String?
 
-    public init(audio: String, voiceId: String) {
-        self.audio = audio
-        self.voiceId = voiceId
+    /// Model for remixing.
+    public var model: String?
+
+    /// Output audio format.
+    public var outputFormat: String?
+
+    public init(audioBase64: String, voice: String? = nil, model: String? = nil, outputFormat: String? = nil) {
+        self.audioBase64 = audioBase64
+        self.voice = voice
+        self.model = model
+        self.outputFormat = outputFormat
     }
 
     enum CodingKeys: String, CodingKey {
-        case audio
-        case voiceId = "voice_id"
-    }
-}
-
-/// Response from the `/qai/v1/audio/remix` endpoint.
-public struct RemixVoiceResponse: Codable, Sendable {
-    /// URL of the remixed audio.
-    public var audioUrl: String
-
-    /// Unique request ID.
-    public var requestId: String
-
-    /// Cost in ticks.
-    public var costTicks: Int
-
-    enum CodingKeys: String, CodingKey {
-        case audioUrl = "audio_url"
-        case requestId = "request_id"
-        case costTicks = "cost_ticks"
+        case voice, model
+        case audioBase64 = "audio_base64"
+        case outputFormat = "format"
     }
 }
 
 // MARK: - Dubbing
 
-/// Request body for the `/qai/v1/audio/dub` endpoint.
+/// Request body for audio dubbing.
 public struct DubRequest: Codable, Sendable {
-    /// Base64-encoded audio/video to dub.
-    public var audio: String
+    /// Base64-encoded source audio or video.
+    public var audioBase64: String
 
-    /// Target language code.
-    public var targetLang: String
+    /// Original filename (helps detect format).
+    public var filename: String?
 
-    /// Source language code.
-    public var sourceLang: String?
+    /// Target language (BCP-47 code, e.g. "es", "de").
+    public var targetLanguage: String
 
-    public init(audio: String, targetLang: String, sourceLang: String? = nil) {
-        self.audio = audio
-        self.targetLang = targetLang
-        self.sourceLang = sourceLang
+    /// Source language (auto-detected if omitted).
+    public var sourceLanguage: String?
+
+    public init(audioBase64: String, targetLanguage: String, filename: String? = nil, sourceLanguage: String? = nil) {
+        self.audioBase64 = audioBase64
+        self.targetLanguage = targetLanguage
+        self.filename = filename
+        self.sourceLanguage = sourceLanguage
     }
 
     enum CodingKeys: String, CodingKey {
-        case audio
-        case targetLang = "target_lang"
-        case sourceLang = "source_lang"
-    }
-}
-
-/// Response from the `/qai/v1/audio/dub` endpoint.
-public struct DubResponse: Codable, Sendable {
-    /// URL of the dubbed audio.
-    public var audioUrl: String
-
-    /// Unique request ID.
-    public var requestId: String
-
-    /// Cost in ticks.
-    public var costTicks: Int
-
-    enum CodingKeys: String, CodingKey {
-        case audioUrl = "audio_url"
-        case requestId = "request_id"
-        case costTicks = "cost_ticks"
+        case filename
+        case audioBase64 = "audio_base64"
+        case targetLanguage = "target_language"
+        case sourceLanguage = "source_language"
     }
 }
 
 // MARK: - Alignment
 
-/// Request body for the `/qai/v1/audio/align` endpoint.
+/// Request body for audio alignment / forced alignment.
 public struct AlignRequest: Codable, Sendable {
-    /// Base64-encoded audio.
-    public var audio: String
+    /// Base64-encoded audio data.
+    public var audioBase64: String
 
-    /// Text to align against the audio.
+    /// Transcript text to align against the audio.
     public var text: String
 
-    public init(audio: String, text: String) {
-        self.audio = audio
+    /// Language code.
+    public var language: String?
+
+    public init(audioBase64: String, text: String, language: String? = nil) {
+        self.audioBase64 = audioBase64
         self.text = text
+        self.language = language
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case text, language
+        case audioBase64 = "audio_base64"
     }
 }
 
-/// A word with timestamp alignment.
-public struct AlignedWord: Codable, Sendable {
-    /// The word.
-    public var word: String
+/// A single alignment segment.
+public struct AlignmentSegment: Codable, Sendable {
+    /// Aligned text.
+    public var text: String
 
     /// Start time in seconds.
     public var start: Double
@@ -436,174 +488,180 @@ public struct AlignedWord: Codable, Sendable {
     public var end: Double
 }
 
-/// Response from the `/qai/v1/audio/align` endpoint.
+/// Response from audio alignment.
 public struct AlignResponse: Codable, Sendable {
-    /// Aligned words with timestamps.
-    public var words: [AlignedWord]
+    /// Aligned segments.
+    public var segments: [AlignmentSegment]?
 
-    /// Unique request ID.
+    /// Total cost in ticks.
+    public var costTicks: Int64
+
+    /// Unique request identifier.
     public var requestId: String
 
-    /// Cost in ticks.
-    public var costTicks: Int
-
     enum CodingKeys: String, CodingKey {
-        case words
-        case requestId = "request_id"
+        case segments
         case costTicks = "cost_ticks"
+        case requestId = "request_id"
     }
 }
 
 // MARK: - Voice Design
 
-/// Request body for the `/qai/v1/audio/voice-design` endpoint.
+/// Request body for voice design (generating a voice from a description).
 public struct VoiceDesignRequest: Codable, Sendable {
     /// Text description of the desired voice.
     public var description: String
 
-    /// Text to preview the voice with.
-    public var previewText: String?
+    /// Sample text to speak with the designed voice.
+    public var text: String?
 
-    public init(description: String, previewText: String? = nil) {
+    /// Output audio format.
+    public var outputFormat: String?
+
+    public init(description: String, text: String? = nil, outputFormat: String? = nil) {
         self.description = description
-        self.previewText = previewText
+        self.text = text
+        self.outputFormat = outputFormat
     }
 
     enum CodingKeys: String, CodingKey {
         case description
-        case previewText = "preview_text"
-    }
-}
-
-/// A single voice preview.
-public struct VoicePreview: Codable, Sendable {
-    /// URL of the preview audio.
-    public var audioUrl: String
-
-    /// Voice ID.
-    public var voiceId: String
-
-    enum CodingKeys: String, CodingKey {
-        case audioUrl = "audio_url"
-        case voiceId = "voice_id"
-    }
-}
-
-/// Response from the `/qai/v1/audio/voice-design` endpoint.
-public struct VoiceDesignResponse: Codable, Sendable {
-    /// Generated voice previews.
-    public var previews: [VoicePreview]
-
-    /// Unique request ID.
-    public var requestId: String
-
-    /// Cost in ticks.
-    public var costTicks: Int
-
-    enum CodingKeys: String, CodingKey {
-        case previews
-        case requestId = "request_id"
-        case costTicks = "cost_ticks"
+        case text = "sample_text"
+        case outputFormat = "format"
     }
 }
 
 // MARK: - Starfish TTS
 
-/// Request body for the `/qai/v1/audio/starfish-tts` endpoint.
+/// Request body for Starfish TTS.
 public struct StarfishTTSRequest: Codable, Sendable {
-    /// Text to speak.
+    /// Text to synthesise.
     public var text: String
 
-    /// Base64-encoded reference audio for voice cloning.
-    public var referenceAudio: String?
+    /// Voice identifier.
+    public var voice: String?
 
-    public init(text: String, referenceAudio: String? = nil) {
+    /// Output audio format.
+    public var outputFormat: String?
+
+    /// Speech speed multiplier.
+    public var speed: Double?
+
+    public init(text: String, voice: String? = nil, outputFormat: String? = nil, speed: Double? = nil) {
         self.text = text
-        self.referenceAudio = referenceAudio
+        self.voice = voice
+        self.outputFormat = outputFormat
+        self.speed = speed
     }
 
     enum CodingKeys: String, CodingKey {
-        case text
-        case referenceAudio = "reference_audio"
+        case text, voice, speed
+        case outputFormat = "format"
     }
 }
 
-/// Response from the `/qai/v1/audio/starfish-tts` endpoint.
-public struct StarfishTTSResponse: Codable, Sendable {
-    /// URL of the generated audio.
-    public var audioUrl: String
+// MARK: - Eleven Music
 
-    /// Duration in seconds.
-    public var durationSeconds: Double
+/// A section within an Eleven Music generation request.
+public struct MusicSection: Codable, Sendable {
+    public var sectionType: String
+    public var lyrics: String?
+    public var style: String?
+    public var styleExclude: String?
 
-    /// Unique request ID.
-    public var requestId: String
-
-    /// Cost in ticks.
-    public var costTicks: Int
+    public init(sectionType: String, lyrics: String? = nil, style: String? = nil, styleExclude: String? = nil) {
+        self.sectionType = sectionType
+        self.lyrics = lyrics
+        self.style = style
+        self.styleExclude = styleExclude
+    }
 
     enum CodingKeys: String, CodingKey {
-        case audioUrl = "audio_url"
-        case durationSeconds = "duration_seconds"
-        case requestId = "request_id"
-        case costTicks = "cost_ticks"
+        case lyrics, style
+        case sectionType = "section_type"
+        case styleExclude = "style_exclude"
     }
 }
 
-// MARK: - Advanced Music
-
-/// Request body for the `/qai/v1/audio/music/advanced` endpoint.
-public struct MusicAdvancedRequest: Codable, Sendable {
-    /// Prompt describing the music to generate.
+/// Request body for advanced music generation (ElevenLabs Eleven Music).
+public struct ElevenMusicRequest: Codable, Sendable {
+    public var model: String
     public var prompt: String
-
-    /// Target duration in seconds.
+    public var sections: [MusicSection]?
     public var durationSeconds: Int?
-
-    /// Music generation model.
-    public var model: String?
-
-    /// Finetune ID to apply.
+    public var language: String?
+    public var vocals: Bool?
+    public var style: String?
+    public var styleExclude: String?
     public var finetuneId: String?
+    public var editReferenceId: String?
+    public var editInstruction: String?
 
-    public init(prompt: String, durationSeconds: Int? = nil, model: String? = nil, finetuneId: String? = nil) {
-        self.prompt = prompt
-        self.durationSeconds = durationSeconds
+    public init(
+        model: String,
+        prompt: String,
+        sections: [MusicSection]? = nil,
+        durationSeconds: Int? = nil,
+        language: String? = nil,
+        vocals: Bool? = nil,
+        style: String? = nil,
+        styleExclude: String? = nil,
+        finetuneId: String? = nil,
+        editReferenceId: String? = nil,
+        editInstruction: String? = nil
+    ) {
         self.model = model
+        self.prompt = prompt
+        self.sections = sections
+        self.durationSeconds = durationSeconds
+        self.language = language
+        self.vocals = vocals
+        self.style = style
+        self.styleExclude = styleExclude
         self.finetuneId = finetuneId
+        self.editReferenceId = editReferenceId
+        self.editInstruction = editInstruction
     }
 
     enum CodingKeys: String, CodingKey {
-        case prompt, model
+        case model, prompt, sections, language, vocals, style
         case durationSeconds = "duration_seconds"
+        case styleExclude = "style_exclude"
         case finetuneId = "finetune_id"
+        case editReferenceId = "edit_reference_id"
+        case editInstruction = "edit_instruction"
     }
 }
 
-/// A single clip from advanced music generation (base64 encoded).
-public struct MusicAdvancedClip: Codable, Sendable {
+/// A single music clip from advanced generation.
+public struct ElevenMusicClip: Codable, Sendable {
     /// Base64-encoded audio data.
     public var base64: String
 
-    /// Audio format.
+    /// Audio format (e.g. "mp3").
     public var format: String
 
     /// File size in bytes.
-    public var size: Int
+    public var size: Int64
+
+    enum CodingKeys: String, CodingKey {
+        case base64, format, size
+    }
 }
 
-/// Response from the `/qai/v1/audio/music/advanced` endpoint.
-public struct MusicAdvancedResponse: Codable, Sendable {
-    /// Generated clips.
-    public var clips: [MusicAdvancedClip]
+/// Response from advanced music generation.
+public struct ElevenMusicResponse: Codable, Sendable {
+    /// Generated music clips.
+    public var clips: [ElevenMusicClip]
 
     /// Model used.
     public var model: String
 
-    /// Cost in ticks.
-    public var costTicks: Int
+    /// Total cost in ticks.
+    public var costTicks: Int64
 
-    /// Unique request ID.
+    /// Unique request identifier.
     public var requestId: String
 
     enum CodingKeys: String, CodingKey {
@@ -613,56 +671,21 @@ public struct MusicAdvancedResponse: Codable, Sendable {
     }
 }
 
-// MARK: - Music Finetunes
-
-/// Information about a music finetune.
-public struct MusicFinetuneInfo: Codable, Sendable {
-    /// Finetune ID.
+/// Info about a music finetune.
+public struct FinetuneInfo: Codable, Sendable {
     public var finetuneId: String
-
-    /// Finetune name.
     public var name: String
-
-    /// Finetune description.
-    public var description: String?
-
-    /// Current status.
     public var status: String
-
-    /// Model ID.
-    public var modelId: String?
-
-    /// Creation timestamp.
     public var createdAt: String?
 
     enum CodingKeys: String, CodingKey {
-        case name, description, status
+        case name, status
         case finetuneId = "finetune_id"
-        case modelId = "model_id"
         case createdAt = "created_at"
     }
 }
 
-/// Response from listing music finetunes.
-public struct MusicFinetuneListResponse: Codable, Sendable {
-    /// Available finetunes.
-    public var finetunes: [MusicFinetuneInfo]
-}
-
-/// Request body for creating a music finetune.
-public struct MusicFinetuneCreateRequest: Codable, Sendable {
-    /// Finetune name.
-    public var name: String
-
-    /// Description.
-    public var description: String?
-
-    /// Base64-encoded audio samples.
-    public var samples: [String]
-
-    public init(name: String, description: String? = nil, samples: [String]) {
-        self.name = name
-        self.description = description
-        self.samples = samples
-    }
+/// Response from listing finetunes.
+public struct ListFinetunesResponse: Codable, Sendable {
+    public var finetunes: [FinetuneInfo]
 }

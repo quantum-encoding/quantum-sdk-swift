@@ -2,15 +2,15 @@ import Foundation
 
 // MARK: - RAG Search
 
-/// Request body for the `/qai/v1/rag/search` endpoint.
-public struct RAGSearchRequest: Codable, Sendable {
+/// Request body for Vertex AI RAG search.
+public struct RagSearchRequest: Codable, Sendable {
     /// Search query.
     public var query: String
 
-    /// Corpus name or ID (optional).
+    /// Filter by corpus name or ID (fuzzy match). Omit to search all corpora.
     public var corpus: String?
 
-    /// Maximum number of results.
+    /// Maximum number of results to return (default 10).
     public var topK: Int?
 
     public init(query: String, corpus: String? = nil, topK: Int? = nil) {
@@ -25,64 +25,99 @@ public struct RAGSearchRequest: Codable, Sendable {
     }
 }
 
-/// A single RAG search result.
-public struct RAGResult: Codable, Sendable {
-    /// Matched text content.
+/// Legacy alias.
+public typealias RAGSearchRequest = RagSearchRequest
+
+/// A single result from RAG search.
+public struct RagResult: Codable, Sendable {
+    /// Source document URI.
+    public var sourceUri: String?
+
+    /// Display name of the source.
+    public var sourceName: String?
+
+    /// Matching text chunk.
     public var text: String
 
     /// Relevance score.
     public var score: Double
 
-    /// Source document.
-    public var source: String?
-}
-
-/// Response from the `/qai/v1/rag/search` endpoint.
-public struct RAGSearchResponse: Codable, Sendable {
-    /// Search results.
-    public var results: [RAGResult]
-
-    /// Unique request ID.
-    public var requestId: String
-
-    /// Cost in ticks.
-    public var costTicks: Int
+    /// Vector distance (lower is more similar).
+    public var distance: Double?
 
     enum CodingKeys: String, CodingKey {
-        case results
-        case requestId = "request_id"
-        case costTicks = "cost_ticks"
+        case text, score, distance
+        case sourceUri = "source_uri"
+        case sourceName = "source_name"
     }
 }
 
+/// Legacy alias.
+public typealias RAGResult = RagResult
+
+/// Response from RAG search.
+public struct RagSearchResponse: Codable, Sendable {
+    /// Matching document chunks.
+    public var results: [RagResult]
+
+    /// Original search query.
+    public var query: String
+
+    /// Corpora that were searched.
+    public var corpora: [String]?
+
+    /// Total cost in ticks.
+    public var costTicks: Int64
+
+    /// Unique request identifier.
+    public var requestId: String
+
+    enum CodingKeys: String, CodingKey {
+        case results, query, corpora
+        case costTicks = "cost_ticks"
+        case requestId = "request_id"
+    }
+}
+
+/// Legacy alias.
+public typealias RAGSearchResponse = RagSearchResponse
+
 // MARK: - RAG Corpus
 
-/// A Vertex AI RAG corpus.
-public struct RAGCorpus: Codable, Sendable {
-    /// Corpus resource name.
+/// Describes an available RAG corpus.
+public struct RagCorpus: Codable, Sendable {
+    /// Full resource name.
     public var name: String
 
-    /// Display name.
+    /// Human-readable name.
     public var displayName: String
 
-    /// Description.
+    /// Describes the corpus contents.
     public var description: String
 
-    /// Current state.
+    /// Corpus state (e.g. "ACTIVE").
     public var state: String
+
+    enum CodingKeys: String, CodingKey {
+        case name, description, state
+        case displayName = "displayName"
+    }
 }
+
+/// Legacy alias.
+public typealias RAGCorpus = RagCorpus
 
 // MARK: - SurrealDB RAG
 
-/// Request body for the `/qai/v1/rag/surreal/search` endpoint.
-public struct SurrealRAGSearchRequest: Codable, Sendable {
+/// Request body for SurrealDB-backed RAG search.
+public struct SurrealRagSearchRequest: Codable, Sendable {
     /// Search query.
     public var query: String
 
-    /// Provider to search (optional).
+    /// Filter by documentation provider (e.g. "xai", "claude", "heygen").
     public var provider: String?
 
-    /// Maximum number of results.
+    /// Maximum number of results (default 10, max 50).
     public var limit: Int?
 
     public init(query: String, provider: String? = nil, limit: Int? = nil) {
@@ -92,49 +127,72 @@ public struct SurrealRAGSearchRequest: Codable, Sendable {
     }
 }
 
-/// A single SurrealDB RAG search result.
-public struct SurrealRAGResult: Codable, Sendable {
-    /// Result ID.
-    public var id: String
+/// Legacy alias.
+public typealias SurrealRAGSearchRequest = SurrealRagSearchRequest
 
-    /// Matched text.
-    public var text: String
-
-    /// Relevance score.
-    public var score: Double
-
-    /// Provider.
+/// A single result from SurrealDB RAG search.
+public struct SurrealRagResult: Codable, Sendable {
+    /// Documentation provider.
     public var provider: String
 
-    /// Source document.
-    public var source: String?
-}
+    /// Document title.
+    public var title: String
 
-/// Response from the `/qai/v1/rag/surreal/search` endpoint.
-public struct SurrealRAGSearchResponse: Codable, Sendable {
-    /// Search results.
-    public var results: [SurrealRAGResult]
+    /// Section heading.
+    public var heading: String?
 
-    /// Unique request ID.
-    public var requestId: String
+    /// Original source file path.
+    public var sourceFile: String?
 
-    /// Cost in ticks.
-    public var costTicks: Int
+    /// Matching text chunk.
+    public var content: String
+
+    /// Cosine similarity score.
+    public var score: Double
 
     enum CodingKeys: String, CodingKey {
-        case results
-        case requestId = "request_id"
-        case costTicks = "cost_ticks"
+        case provider, title, heading, content, score
+        case sourceFile = "source_file"
     }
 }
 
-/// Information about a SurrealDB RAG provider.
-public struct SurrealRAGProviderInfo: Codable, Sendable {
-    /// Provider name.
+/// Legacy alias.
+public typealias SurrealRAGResult = SurrealRagResult
+
+/// Response from SurrealDB RAG search.
+public struct SurrealRagSearchResponse: Codable, Sendable {
+    /// Matching documentation chunks.
+    public var results: [SurrealRagResult]
+
+    /// Original search query.
+    public var query: String
+
+    /// Provider filter that was applied.
+    public var provider: String?
+
+    /// Total cost in ticks.
+    public var costTicks: Int64
+
+    /// Unique request identifier.
+    public var requestId: String
+
+    enum CodingKeys: String, CodingKey {
+        case results, query, provider
+        case costTicks = "cost_ticks"
+        case requestId = "request_id"
+    }
+}
+
+/// Legacy alias.
+public typealias SurrealRAGSearchResponse = SurrealRagSearchResponse
+
+/// A SurrealDB RAG provider.
+public struct SurrealRagProvider: Codable, Sendable {
+    /// Provider identifier (e.g. "xai", "claude").
     public var provider: String
 
-    /// Number of chunks.
-    public var chunkCount: Int
+    /// Number of document chunks for this provider.
+    public var chunkCount: Int64?
 
     enum CodingKeys: String, CodingKey {
         case provider
@@ -142,8 +200,13 @@ public struct SurrealRAGProviderInfo: Codable, Sendable {
     }
 }
 
-/// Response from the `/qai/v1/rag/surreal/providers` endpoint.
-public struct SurrealRAGProvidersResponse: Codable, Sendable {
-    /// Available providers.
-    public var providers: [SurrealRAGProviderInfo]
+/// Legacy alias.
+public typealias SurrealRAGProviderInfo = SurrealRagProvider
+
+/// Response from listing SurrealDB RAG providers.
+public struct SurrealRagProvidersResponse: Codable, Sendable {
+    public var providers: [SurrealRagProvider]
 }
+
+/// Legacy alias.
+public typealias SurrealRAGProvidersResponse = SurrealRagProvidersResponse

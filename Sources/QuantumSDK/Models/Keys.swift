@@ -2,73 +2,86 @@ import Foundation
 
 // MARK: - Create Key
 
-/// Request body for the `/qai/v1/keys` endpoint.
+/// Request body for creating an API key.
 public struct CreateKeyRequest: Codable, Sendable {
-    /// Key name.
+    /// Human-readable name for the key.
     public var name: String
 
-    /// Permission scopes.
-    public var scopes: [String]?
+    /// Restrict to specific endpoints (e.g. ["chat", "images"]).
+    public var endpoints: [String]?
 
-    /// Expiration date (ISO 8601).
-    public var expiresAt: String?
+    /// Maximum spend in USD before the key is disabled.
+    public var spendCapUsd: Double?
 
-    public init(name: String, scopes: [String]? = nil, expiresAt: String? = nil) {
+    /// Rate limit in requests per minute.
+    public var rateLimit: Int?
+
+    public init(name: String, endpoints: [String]? = nil, spendCapUsd: Double? = nil, rateLimit: Int? = nil) {
         self.name = name
-        self.scopes = scopes
-        self.expiresAt = expiresAt
+        self.endpoints = endpoints
+        self.spendCapUsd = spendCapUsd
+        self.rateLimit = rateLimit
     }
 
     enum CodingKeys: String, CodingKey {
-        case name, scopes
-        case expiresAt = "expires_at"
+        case name, endpoints
+        case spendCapUsd = "spend_cap_usd"
+        case rateLimit = "rate_limit"
     }
-}
-
-/// Response from creating an API key.
-public struct CreateKeyResponse: Codable, Sendable {
-    /// The full API key (only shown once).
-    public var key: String
-
-    /// Key ID.
-    public var id: String
 }
 
 // MARK: - Key Details
 
 /// Details about an API key.
 public struct KeyDetails: Codable, Sendable {
-    /// Key ID.
+    /// Unique key identifier.
     public var id: String
 
-    /// Key name.
+    /// Human-readable name.
     public var name: String
 
-    /// Key prefix (first few characters).
-    public var prefix: String
+    /// First characters of the key for identification.
+    public var keyPrefix: String?
 
-    /// Permission scopes.
-    public var scopes: [String]?
+    /// Scope restrictions.
+    public var scope: AnyCodable?
 
-    /// Creation timestamp.
-    public var createdAt: String
+    /// Amount spent by this key in ticks.
+    public var spentTicks: Int64?
 
-    /// Expiration timestamp.
-    public var expiresAt: String?
+    /// Whether the key has been revoked.
+    public var revoked: Bool?
 
-    /// Last used timestamp.
-    public var lastUsedAt: String?
+    /// Creation timestamp (RFC 3339).
+    public var createdAt: String?
+
+    /// Last usage timestamp (RFC 3339).
+    public var lastUsed: String?
 
     enum CodingKeys: String, CodingKey {
-        case id, name, prefix, scopes
+        case id, name, scope, revoked
+        case keyPrefix = "key_prefix"
+        case spentTicks = "spent_ticks"
         case createdAt = "created_at"
-        case expiresAt = "expires_at"
-        case lastUsedAt = "last_used_at"
+        case lastUsed = "last_used"
+    }
+}
+
+/// Response from creating an API key.
+public struct CreateKeyResponse: Codable, Sendable {
+    /// The full API key (only shown once on creation).
+    public var key: String
+
+    /// Key metadata.
+    public var details: KeyDetails?
+
+    enum CodingKeys: String, CodingKey {
+        case key, details
     }
 }
 
 /// Response from listing API keys.
 public struct ListKeysResponse: Codable, Sendable {
-    /// API keys.
+    /// All keys for the account.
     public var keys: [KeyDetails]
 }

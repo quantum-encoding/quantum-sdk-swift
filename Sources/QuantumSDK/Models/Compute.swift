@@ -8,33 +8,35 @@ public struct ComputeTemplate: Codable, Sendable {
     public var id: String
 
     /// Template name.
-    public var name: String
+    public var name: String?
 
-    /// GPU type.
-    public var gpuType: String
+    /// GPU type description.
+    public var gpu: String?
 
     /// Number of GPUs.
-    public var gpuCount: Int
+    public var gpuCount: Int?
+
+    /// VRAM per GPU in GB.
+    public var vramGb: Int?
 
     /// Number of virtual CPUs.
-    public var vcpus: Int
+    public var vcpus: Int?
 
     /// RAM in GB.
-    public var ramGb: Int
-
-    /// Disk space in GB.
-    public var diskGb: Int
+    public var ramGb: Int?
 
     /// Price per hour in USD.
-    public var pricePerHour: Double
+    public var pricePerHourUsd: Double?
+
+    /// Available zones.
+    public var zones: [String]?
 
     enum CodingKeys: String, CodingKey {
-        case id, name, vcpus
-        case gpuType = "gpu_type"
+        case id, name, gpu, vcpus, zones
         case gpuCount = "gpu_count"
+        case vramGb = "vram_gb"
         case ramGb = "ram_gb"
-        case diskGb = "disk_gb"
-        case pricePerHour = "price_per_hour"
+        case pricePerHourUsd = "price_per_hour_usd"
     }
 }
 
@@ -49,23 +51,31 @@ public struct TemplatesResponse: Codable, Sendable {
 /// Request body for the `/qai/v1/compute/provision` endpoint.
 public struct ProvisionRequest: Codable, Sendable {
     /// Template ID to provision.
-    public var templateId: String
+    public var template: String
 
-    /// Preferred region.
-    public var region: String?
+    /// Preferred zone (e.g. "us-central1-a").
+    public var zone: String?
+
+    /// Use spot/preemptible pricing.
+    public var spot: Bool?
+
+    /// Auto-teardown after N minutes of inactivity.
+    public var autoTeardownMinutes: Int?
 
     /// SSH public key for access.
     public var sshPublicKey: String?
 
-    public init(templateId: String, region: String? = nil, sshPublicKey: String? = nil) {
-        self.templateId = templateId
-        self.region = region
+    public init(template: String, zone: String? = nil, spot: Bool? = nil, autoTeardownMinutes: Int? = nil, sshPublicKey: String? = nil) {
+        self.template = template
+        self.zone = zone
+        self.spot = spot
+        self.autoTeardownMinutes = autoTeardownMinutes
         self.sshPublicKey = sshPublicKey
     }
 
     enum CodingKeys: String, CodingKey {
-        case region
-        case templateId = "template_id"
+        case template, zone, spot
+        case autoTeardownMinutes = "auto_teardown_minutes"
         case sshPublicKey = "ssh_public_key"
     }
 }
@@ -78,78 +88,73 @@ public struct ProvisionResponse: Codable, Sendable {
     /// Current status.
     public var status: String
 
+    /// Template that was provisioned.
+    public var template: String?
+
+    /// Zone the instance was placed in.
+    public var zone: String?
+
+    /// SSH connection address.
+    public var sshAddress: String?
+
+    /// Estimated price per hour.
+    public var pricePerHourUsd: Double?
+
     enum CodingKeys: String, CodingKey {
-        case status
+        case status, template, zone
         case instanceId = "instance_id"
+        case sshAddress = "ssh_address"
+        case pricePerHourUsd = "price_per_hour_usd"
     }
 }
 
-// MARK: - Instances
+// MARK: - Compute Instance
 
-/// Basic compute instance information.
-public struct ComputeInstanceInfo: Codable, Sendable {
-    /// Instance ID.
+/// A running compute instance.
+public struct ComputeInstance: Codable, Sendable {
+    /// Instance identifier.
     public var id: String
 
-    /// Current status.
+    /// Current status (e.g. "running", "provisioning", "stopped").
     public var status: String
 
-    /// Template ID.
-    public var templateId: String
+    /// Template used.
+    public var template: String?
+
+    /// Zone.
+    public var zone: String?
+
+    /// SSH connection address.
+    public var sshAddress: String?
 
     /// Creation timestamp.
-    public var createdAt: String
+    public var createdAt: String?
+
+    /// Price per hour.
+    public var pricePerHourUsd: Double?
+
+    /// Auto-teardown setting in minutes.
+    public var autoTeardownMinutes: Int?
 
     enum CodingKeys: String, CodingKey {
-        case id, status
-        case templateId = "template_id"
+        case id, status, template, zone
+        case sshAddress = "ssh_address"
         case createdAt = "created_at"
+        case pricePerHourUsd = "price_per_hour_usd"
+        case autoTeardownMinutes = "auto_teardown_minutes"
     }
 }
 
 /// Response from listing compute instances.
 public struct InstancesResponse: Codable, Sendable {
     /// Active instances.
-    public var instances: [ComputeInstanceInfo]
-}
-
-/// Detailed compute instance information.
-public struct InstanceDetailInfo: Codable, Sendable {
-    /// Instance ID.
-    public var id: String
-
-    /// Current status.
-    public var status: String
-
-    /// Template ID.
-    public var templateId: String
-
-    /// Creation timestamp.
-    public var createdAt: String
-
-    /// IP address.
-    public var ipAddress: String?
-
-    /// SSH host.
-    public var sshHost: String?
-
-    /// SSH port.
-    public var sshPort: Int?
-
-    enum CodingKeys: String, CodingKey {
-        case id, status
-        case templateId = "template_id"
-        case createdAt = "created_at"
-        case ipAddress = "ip_address"
-        case sshHost = "ssh_host"
-        case sshPort = "ssh_port"
-    }
+    public var instances: [ComputeInstance]
 }
 
 /// Response from getting a single compute instance.
 public struct InstanceResponse: Codable, Sendable {
     /// Instance details.
-    public var instance: InstanceDetailInfo
+    public var instance: ComputeInstance
 }
 
 /// Request body for injecting an SSH key.
@@ -171,12 +176,12 @@ public struct DeleteResponse: Codable, Sendable {
     /// Status.
     public var status: String
 
-    /// Final cost in ticks.
-    public var costTicks: Int?
+    /// Instance that was deleted.
+    public var instanceId: String?
 
     enum CodingKeys: String, CodingKey {
         case status
-        case costTicks = "cost_ticks"
+        case instanceId = "instance_id"
     }
 }
 

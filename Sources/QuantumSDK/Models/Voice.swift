@@ -1,69 +1,80 @@
 import Foundation
 
-// MARK: - Voice Info
+// MARK: - Voice
 
-/// Information about a voice.
-public struct VoiceInfo: Codable, Sendable {
-    /// Voice ID.
+/// A voice available for TTS.
+public struct Voice: Codable, Sendable {
+    /// Voice identifier.
     public var voiceId: String
 
-    /// Voice name.
+    /// Human-readable voice name.
     public var name: String
 
-    /// Provider (e.g. "elevenlabs").
-    public var provider: String
+    /// Provider (e.g. "elevenlabs", "openai").
+    public var provider: String?
+
+    /// Language/locale codes supported.
+    public var languages: [String]?
+
+    /// Voice gender.
+    public var gender: String?
+
+    /// Whether this is a cloned voice.
+    public var isCloned: Bool?
 
     /// Preview audio URL.
     public var previewUrl: String?
 
     enum CodingKeys: String, CodingKey {
-        case name, provider
+        case name, provider, languages, gender
         case voiceId = "voice_id"
+        case isCloned = "is_cloned"
         case previewUrl = "preview_url"
     }
 }
 
-/// Response from the `/qai/v1/voices` endpoint.
+/// Legacy alias.
+public typealias VoiceInfo = Voice
+
+/// Response from listing voices.
 public struct VoicesResponse: Codable, Sendable {
     /// Available voices.
-    public var voices: [VoiceInfo]
+    public var voices: [Voice]
 }
 
 // MARK: - Clone Voice
 
-/// Request body for the `/qai/v1/voices/clone` endpoint.
-public struct CloneVoiceRequest: Codable, Sendable {
-    /// Name for the cloned voice.
-    public var name: String
+/// A file to include in a voice clone request.
+public struct CloneVoiceFile: Sendable {
+    /// Original filename (e.g. "sample.mp3").
+    public var filename: String
 
-    /// Base64-encoded audio samples.
-    public var audioSamples: [String]
+    /// Raw file bytes.
+    public var data: Data
 
-    /// Description of the voice.
-    public var description: String?
+    /// MIME type (e.g. "audio/mpeg").
+    public var mimeType: String
 
-    public init(name: String, audioSamples: [String], description: String? = nil) {
-        self.name = name
-        self.audioSamples = audioSamples
-        self.description = description
-    }
-
-    enum CodingKeys: String, CodingKey {
-        case name, description
-        case audioSamples = "audio_samples"
+    public init(filename: String, data: Data, mimeType: String) {
+        self.filename = filename
+        self.data = data
+        self.mimeType = mimeType
     }
 }
 
-/// Response from the `/qai/v1/voices/clone` endpoint.
+/// Response from cloning a voice.
 public struct CloneVoiceResponse: Codable, Sendable {
-    /// ID of the cloned voice.
+    /// The new voice identifier.
     public var voiceId: String
 
-    /// Name of the cloned voice.
+    /// The name assigned to the cloned voice.
     public var name: String
 
+    /// Status message.
+    public var status: String?
+
     enum CodingKeys: String, CodingKey {
-        case name
+        case name, status
         case voiceId = "voice_id"
     }
 }
@@ -109,7 +120,7 @@ public struct SharedVoice: Codable, Sendable {
     public var rate: Double?
 
     /// Number of clones.
-    public var clonedByCount: Int?
+    public var clonedByCount: Int64?
 
     /// Whether free users can use this voice.
     public var freeUsersAllowed: Bool?
@@ -125,7 +136,7 @@ public struct SharedVoice: Codable, Sendable {
     }
 }
 
-/// Response from the `/qai/v1/voices/library` endpoint.
+/// Response from browsing the voice library.
 public struct SharedVoicesResponse: Codable, Sendable {
     /// Shared voices.
     public var voices: [SharedVoice]
@@ -144,7 +155,7 @@ public struct SharedVoicesResponse: Codable, Sendable {
 }
 
 /// Query parameters for browsing the voice library.
-public struct VoiceLibraryQuery: Sendable {
+public struct VoiceLibraryQuery: Codable, Sendable {
     /// Search query.
     public var query: String?
 
@@ -178,9 +189,15 @@ public struct VoiceLibraryQuery: Sendable {
         self.language = language
         self.useCase = useCase
     }
+
+    enum CodingKeys: String, CodingKey {
+        case query, cursor, gender, language
+        case pageSize = "page_size"
+        case useCase = "use_case"
+    }
 }
 
-/// Request body for the `/qai/v1/voices/library/add` endpoint.
+/// Request body for adding a voice from the library.
 public struct AddVoiceFromLibraryRequest: Codable, Sendable {
     /// Public owner ID.
     public var publicOwnerId: String
@@ -204,7 +221,7 @@ public struct AddVoiceFromLibraryRequest: Codable, Sendable {
     }
 }
 
-/// Response from the `/qai/v1/voices/library/add` endpoint.
+/// Response from adding a voice from the library.
 public struct AddVoiceFromLibraryResponse: Codable, Sendable {
     /// ID of the added voice.
     public var voiceId: String

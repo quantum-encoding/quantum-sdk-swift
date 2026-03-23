@@ -1,0 +1,6030 @@
+{
+  "sdks": [
+    {
+      "name": "swift",
+      "language": "swift",
+      "dir": "Sources",
+      "scanned_at": "2026-03-23T20:48:31.533522+01:00"
+    }
+  ],
+  "types": [
+    {
+      "sdk": "swift",
+      "name": "ApiError",
+      "kind": "struct",
+      "file": "QuantumSDK/Errors.swift",
+      "fields": [
+        {
+          "name": "statusCode",
+          "type": "UInt16",
+          "optional": false,
+          "json_tag": "status_code"
+        },
+        {
+          "name": "code",
+          "type": "String",
+          "optional": false,
+          "json_tag": "code"
+        },
+        {
+          "name": "message",
+          "type": "String",
+          "optional": false,
+          "json_tag": "message"
+        },
+        {
+          "name": "requestId",
+          "type": "String",
+          "optional": false,
+          "json_tag": "request_id"
+        },
+        {
+          "name": "isRateLimit",
+          "type": "Bool",
+          "optional": false,
+          "json_tag": "isRateLimit"
+        },
+        {
+          "name": "isAuth",
+          "type": "Bool",
+          "optional": false,
+          "json_tag": "isAuth"
+        },
+        {
+          "name": "isNotFound",
+          "type": "Bool",
+          "optional": false,
+          "json_tag": "isNotFound"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "QuantumError",
+      "kind": "enum",
+      "file": "QuantumSDK/Errors.swift",
+      "fields": null
+    },
+    {
+      "sdk": "swift",
+      "name": "Error",
+      "kind": "enum",
+      "file": "QuantumSDK/Errors.swift",
+      "fields": null
+    },
+    {
+      "sdk": "swift",
+      "name": "ResponseMeta",
+      "kind": "struct",
+      "file": "QuantumSDK/Errors.swift",
+      "fields": [
+        {
+          "name": "costTicks",
+          "type": "Int64",
+          "optional": false,
+          "json_tag": "cost_ticks"
+        },
+        {
+          "name": "requestId",
+          "type": "String",
+          "optional": false,
+          "json_tag": "request_id"
+        },
+        {
+          "name": "model",
+          "type": "String",
+          "optional": false,
+          "json_tag": "model"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "BalanceResponse",
+      "kind": "struct",
+      "file": "QuantumSDK/Models/Account.swift",
+      "fields": [
+        {
+          "name": "userId",
+          "type": "String",
+          "optional": false,
+          "json_tag": "user_id"
+        },
+        {
+          "name": "creditTicks",
+          "type": "Int64",
+          "optional": false,
+          "json_tag": "credit_ticks"
+        },
+        {
+          "name": "creditUsd",
+          "type": "Double",
+          "optional": false,
+          "json_tag": "credit_usd"
+        },
+        {
+          "name": "ticksPerUsd",
+          "type": "Int64",
+          "optional": false,
+          "json_tag": "ticks_per_usd"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "UsageEntry",
+      "kind": "struct",
+      "file": "QuantumSDK/Models/Account.swift",
+      "fields": [
+        {
+          "name": "id",
+          "type": "String",
+          "optional": false,
+          "json_tag": "id"
+        },
+        {
+          "name": "requestId",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "request_id"
+        },
+        {
+          "name": "model",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "model"
+        },
+        {
+          "name": "provider",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "provider"
+        },
+        {
+          "name": "endpoint",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "endpoint"
+        },
+        {
+          "name": "deltaTicks",
+          "type": "Int64?",
+          "optional": true,
+          "json_tag": "delta_ticks"
+        },
+        {
+          "name": "balanceAfter",
+          "type": "Int64?",
+          "optional": true,
+          "json_tag": "balance_after"
+        },
+        {
+          "name": "inputTokens",
+          "type": "Int64?",
+          "optional": true,
+          "json_tag": "input_tokens"
+        },
+        {
+          "name": "outputTokens",
+          "type": "Int64?",
+          "optional": true,
+          "json_tag": "output_tokens"
+        },
+        {
+          "name": "createdAt",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "created_at"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "UsageResponse",
+      "kind": "struct",
+      "file": "QuantumSDK/Models/Account.swift",
+      "fields": [
+        {
+          "name": "entries",
+          "type": "[UsageEntry]",
+          "optional": false,
+          "json_tag": "entries"
+        },
+        {
+          "name": "hasMore",
+          "type": "Bool",
+          "optional": false,
+          "json_tag": "has_more"
+        },
+        {
+          "name": "nextCursor",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "next_cursor"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "UsageQuery",
+      "kind": "struct",
+      "file": "QuantumSDK/Models/Account.swift",
+      "fields": [
+        {
+          "name": "limit",
+          "type": "Int?",
+          "optional": true,
+          "json_tag": "limit"
+        },
+        {
+          "name": "startAfter",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "start_after"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "UsageSummaryMonth",
+      "kind": "struct",
+      "file": "QuantumSDK/Models/Account.swift",
+      "fields": [
+        {
+          "name": "month",
+          "type": "String",
+          "optional": false,
+          "json_tag": "month"
+        },
+        {
+          "name": "totalRequests",
+          "type": "Int64",
+          "optional": false,
+          "json_tag": "total_requests"
+        },
+        {
+          "name": "totalInputTokens",
+          "type": "Int64",
+          "optional": false,
+          "json_tag": "total_input_tokens"
+        },
+        {
+          "name": "totalOutputTokens",
+          "type": "Int64",
+          "optional": false,
+          "json_tag": "total_output_tokens"
+        },
+        {
+          "name": "totalCostUsd",
+          "type": "Double",
+          "optional": false,
+          "json_tag": "total_cost_usd"
+        },
+        {
+          "name": "totalMarginUsd",
+          "type": "Double",
+          "optional": false,
+          "json_tag": "total_margin_usd"
+        },
+        {
+          "name": "byProvider",
+          "type": "[AnyCodable]?",
+          "optional": true,
+          "json_tag": "by_provider"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "UsageSummaryResponse",
+      "kind": "struct",
+      "file": "QuantumSDK/Models/Account.swift",
+      "fields": [
+        {
+          "name": "months",
+          "type": "[UsageSummaryMonth]",
+          "optional": false,
+          "json_tag": "months"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "PricingEntry",
+      "kind": "struct",
+      "file": "QuantumSDK/Models/Account.swift",
+      "fields": [
+        {
+          "name": "provider",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "provider"
+        },
+        {
+          "name": "model",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "model"
+        },
+        {
+          "name": "displayName",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "display_name"
+        },
+        {
+          "name": "inputPerMillion",
+          "type": "Double?",
+          "optional": true,
+          "json_tag": "input_per_million"
+        },
+        {
+          "name": "outputPerMillion",
+          "type": "Double?",
+          "optional": true,
+          "json_tag": "output_per_million"
+        },
+        {
+          "name": "cachedPerMillion",
+          "type": "Double?",
+          "optional": true,
+          "json_tag": "cached_per_million"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "PricingResponse",
+      "kind": "struct",
+      "file": "QuantumSDK/Models/Account.swift",
+      "fields": [
+        {
+          "name": "pricing",
+          "type": "[String: PricingEntry]",
+          "optional": false,
+          "json_tag": "pricing"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "ModelInfo",
+      "kind": "struct",
+      "file": "QuantumSDK/Models/Account.swift",
+      "fields": [
+        {
+          "name": "id",
+          "type": "String",
+          "optional": false,
+          "json_tag": "id"
+        },
+        {
+          "name": "provider",
+          "type": "String",
+          "optional": false,
+          "json_tag": "provider"
+        },
+        {
+          "name": "displayName",
+          "type": "String",
+          "optional": false,
+          "json_tag": "display_name"
+        },
+        {
+          "name": "inputPerMillion",
+          "type": "Double",
+          "optional": false,
+          "json_tag": "input_per_million"
+        },
+        {
+          "name": "outputPerMillion",
+          "type": "Double",
+          "optional": false,
+          "json_tag": "output_per_million"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "PricingInfo",
+      "kind": "struct",
+      "file": "QuantumSDK/Models/Account.swift",
+      "fields": [
+        {
+          "name": "id",
+          "type": "String",
+          "optional": false,
+          "json_tag": "id"
+        },
+        {
+          "name": "provider",
+          "type": "String",
+          "optional": false,
+          "json_tag": "provider"
+        },
+        {
+          "name": "displayName",
+          "type": "String",
+          "optional": false,
+          "json_tag": "display_name"
+        },
+        {
+          "name": "inputPerMillion",
+          "type": "Double",
+          "optional": false,
+          "json_tag": "input_per_million"
+        },
+        {
+          "name": "outputPerMillion",
+          "type": "Double",
+          "optional": false,
+          "json_tag": "output_per_million"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "StatusResponse",
+      "kind": "struct",
+      "file": "QuantumSDK/Models/Account.swift",
+      "fields": [
+        {
+          "name": "status",
+          "type": "String",
+          "optional": false,
+          "json_tag": "status"
+        },
+        {
+          "name": "message",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "message"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "ContactRequest",
+      "kind": "struct",
+      "file": "QuantumSDK/Models/Account.swift",
+      "fields": [
+        {
+          "name": "name",
+          "type": "String",
+          "optional": false,
+          "json_tag": "name"
+        },
+        {
+          "name": "email",
+          "type": "String",
+          "optional": false,
+          "json_tag": "email"
+        },
+        {
+          "name": "subject",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "subject"
+        },
+        {
+          "name": "message",
+          "type": "String",
+          "optional": false,
+          "json_tag": "message"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "AgentWorker",
+      "kind": "struct",
+      "file": "QuantumSDK/Models/Agent.swift",
+      "fields": [
+        {
+          "name": "name",
+          "type": "String",
+          "optional": false,
+          "json_tag": "name"
+        },
+        {
+          "name": "model",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "model"
+        },
+        {
+          "name": "tier",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "tier"
+        },
+        {
+          "name": "description",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "description"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "AgentRequest",
+      "kind": "struct",
+      "file": "QuantumSDK/Models/Agent.swift",
+      "fields": [
+        {
+          "name": "sessionId",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "session_id"
+        },
+        {
+          "name": "task",
+          "type": "String",
+          "optional": false,
+          "json_tag": "task"
+        },
+        {
+          "name": "conductorModel",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "conductor_model"
+        },
+        {
+          "name": "workers",
+          "type": "[AgentWorker]?",
+          "optional": true,
+          "json_tag": "workers"
+        },
+        {
+          "name": "maxSteps",
+          "type": "Int?",
+          "optional": true,
+          "json_tag": "max_steps"
+        },
+        {
+          "name": "systemPrompt",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "system_prompt"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "AgentStreamEvent",
+      "kind": "struct",
+      "file": "QuantumSDK/Models/Agent.swift",
+      "fields": [
+        {
+          "name": "eventType",
+          "type": "String",
+          "optional": false,
+          "json_tag": "type"
+        },
+        {
+          "name": "data",
+          "type": "[String: AnyCodable]?",
+          "optional": true,
+          "json_tag": "data"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "AgentEvent",
+      "kind": "struct",
+      "file": "QuantumSDK/Models/Agent.swift",
+      "fields": [
+        {
+          "name": "type",
+          "type": "String",
+          "optional": false,
+          "json_tag": "type"
+        },
+        {
+          "name": "done",
+          "type": "Bool",
+          "optional": false,
+          "json_tag": "done"
+        },
+        {
+          "name": "worker",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "worker"
+        },
+        {
+          "name": "content",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "content"
+        },
+        {
+          "name": "toolUse",
+          "type": "StreamToolUse?",
+          "optional": true,
+          "json_tag": "toolUse"
+        },
+        {
+          "name": "error",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "error"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "MissionWorker",
+      "kind": "struct",
+      "file": "QuantumSDK/Models/Agent.swift",
+      "fields": [
+        {
+          "name": "model",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "model"
+        },
+        {
+          "name": "tier",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "tier"
+        },
+        {
+          "name": "description",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "description"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "MissionRequest",
+      "kind": "struct",
+      "file": "QuantumSDK/Models/Agent.swift",
+      "fields": [
+        {
+          "name": "goal",
+          "type": "String",
+          "optional": false,
+          "json_tag": "goal"
+        },
+        {
+          "name": "strategy",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "strategy"
+        },
+        {
+          "name": "conductorModel",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "conductor_model"
+        },
+        {
+          "name": "workers",
+          "type": "[String: MissionWorker]?",
+          "optional": true,
+          "json_tag": "workers"
+        },
+        {
+          "name": "maxSteps",
+          "type": "Int?",
+          "optional": true,
+          "json_tag": "max_steps"
+        },
+        {
+          "name": "systemPrompt",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "system_prompt"
+        },
+        {
+          "name": "sessionId",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "session_id"
+        },
+        {
+          "name": "autoPlan",
+          "type": "Bool?",
+          "optional": true,
+          "json_tag": "auto_plan"
+        },
+        {
+          "name": "contextConfig",
+          "type": "ContextConfig?",
+          "optional": true,
+          "json_tag": "context_config"
+        },
+        {
+          "name": "workerModel",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "worker_model"
+        },
+        {
+          "name": "deploymentId",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "deployment_id"
+        },
+        {
+          "name": "buildCommand",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "build_command"
+        },
+        {
+          "name": "workspacePath",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "workspace_path"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "MissionEvent",
+      "kind": "struct",
+      "file": "QuantumSDK/Models/Agent.swift",
+      "fields": [
+        {
+          "name": "type",
+          "type": "String",
+          "optional": false,
+          "json_tag": "type"
+        },
+        {
+          "name": "done",
+          "type": "Bool",
+          "optional": false,
+          "json_tag": "done"
+        },
+        {
+          "name": "worker",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "worker"
+        },
+        {
+          "name": "content",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "content"
+        },
+        {
+          "name": "toolUse",
+          "type": "StreamToolUse?",
+          "optional": true,
+          "json_tag": "toolUse"
+        },
+        {
+          "name": "error",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "error"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "TtsRequest",
+      "kind": "struct",
+      "file": "QuantumSDK/Models/Audio.swift",
+      "fields": [
+        {
+          "name": "model",
+          "type": "String",
+          "optional": false,
+          "json_tag": "model"
+        },
+        {
+          "name": "text",
+          "type": "String",
+          "optional": false,
+          "json_tag": "text"
+        },
+        {
+          "name": "voice",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "voice"
+        },
+        {
+          "name": "outputFormat",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "format"
+        },
+        {
+          "name": "speed",
+          "type": "Double?",
+          "optional": true,
+          "json_tag": "speed"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "TtsResponse",
+      "kind": "struct",
+      "file": "QuantumSDK/Models/Audio.swift",
+      "fields": [
+        {
+          "name": "audioBase64",
+          "type": "String",
+          "optional": false,
+          "json_tag": "audio_base64"
+        },
+        {
+          "name": "format",
+          "type": "String",
+          "optional": false,
+          "json_tag": "format"
+        },
+        {
+          "name": "sizeBytes",
+          "type": "Int64",
+          "optional": false,
+          "json_tag": "size_bytes"
+        },
+        {
+          "name": "model",
+          "type": "String",
+          "optional": false,
+          "json_tag": "model"
+        },
+        {
+          "name": "costTicks",
+          "type": "Int64",
+          "optional": false,
+          "json_tag": "cost_ticks"
+        },
+        {
+          "name": "requestId",
+          "type": "String",
+          "optional": false,
+          "json_tag": "request_id"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "SttRequest",
+      "kind": "struct",
+      "file": "QuantumSDK/Models/Audio.swift",
+      "fields": [
+        {
+          "name": "model",
+          "type": "String",
+          "optional": false,
+          "json_tag": "model"
+        },
+        {
+          "name": "audioBase64",
+          "type": "String",
+          "optional": false,
+          "json_tag": "audio_base64"
+        },
+        {
+          "name": "filename",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "filename"
+        },
+        {
+          "name": "language",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "language"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "SttResponse",
+      "kind": "struct",
+      "file": "QuantumSDK/Models/Audio.swift",
+      "fields": [
+        {
+          "name": "text",
+          "type": "String",
+          "optional": false,
+          "json_tag": "text"
+        },
+        {
+          "name": "model",
+          "type": "String",
+          "optional": false,
+          "json_tag": "model"
+        },
+        {
+          "name": "costTicks",
+          "type": "Int64",
+          "optional": false,
+          "json_tag": "cost_ticks"
+        },
+        {
+          "name": "requestId",
+          "type": "String",
+          "optional": false,
+          "json_tag": "request_id"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "MusicRequest",
+      "kind": "struct",
+      "file": "QuantumSDK/Models/Audio.swift",
+      "fields": [
+        {
+          "name": "model",
+          "type": "String",
+          "optional": false,
+          "json_tag": "model"
+        },
+        {
+          "name": "prompt",
+          "type": "String",
+          "optional": false,
+          "json_tag": "prompt"
+        },
+        {
+          "name": "durationSeconds",
+          "type": "Int?",
+          "optional": true,
+          "json_tag": "duration_seconds"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "MusicClip",
+      "kind": "struct",
+      "file": "QuantumSDK/Models/Audio.swift",
+      "fields": [
+        {
+          "name": "base64",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "base64"
+        },
+        {
+          "name": "format",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "format"
+        },
+        {
+          "name": "sizeBytes",
+          "type": "Int64?",
+          "optional": true,
+          "json_tag": "size_bytes"
+        },
+        {
+          "name": "index",
+          "type": "Int?",
+          "optional": true,
+          "json_tag": "index"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "MusicResponse",
+      "kind": "struct",
+      "file": "QuantumSDK/Models/Audio.swift",
+      "fields": [
+        {
+          "name": "audioClips",
+          "type": "[MusicClip]?",
+          "optional": true,
+          "json_tag": "audio_clips"
+        },
+        {
+          "name": "model",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "model"
+        },
+        {
+          "name": "costTicks",
+          "type": "Int64",
+          "optional": false,
+          "json_tag": "cost_ticks"
+        },
+        {
+          "name": "requestId",
+          "type": "String",
+          "optional": false,
+          "json_tag": "request_id"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "SoundEffectRequest",
+      "kind": "struct",
+      "file": "QuantumSDK/Models/Audio.swift",
+      "fields": [
+        {
+          "name": "prompt",
+          "type": "String",
+          "optional": false,
+          "json_tag": "prompt"
+        },
+        {
+          "name": "durationSeconds",
+          "type": "Double?",
+          "optional": true,
+          "json_tag": "duration_seconds"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "SoundEffectResponse",
+      "kind": "struct",
+      "file": "QuantumSDK/Models/Audio.swift",
+      "fields": [
+        {
+          "name": "audioBase64",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "audio_base64"
+        },
+        {
+          "name": "format",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "format"
+        },
+        {
+          "name": "sizeBytes",
+          "type": "Int64?",
+          "optional": true,
+          "json_tag": "size_bytes"
+        },
+        {
+          "name": "model",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "model"
+        },
+        {
+          "name": "costTicks",
+          "type": "Int64",
+          "optional": false,
+          "json_tag": "cost_ticks"
+        },
+        {
+          "name": "requestId",
+          "type": "String",
+          "optional": false,
+          "json_tag": "request_id"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "AudioResponse",
+      "kind": "struct",
+      "file": "QuantumSDK/Models/Audio.swift",
+      "fields": [
+        {
+          "name": "audioBase64",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "audio_base64"
+        },
+        {
+          "name": "format",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "format"
+        },
+        {
+          "name": "sizeBytes",
+          "type": "Int64?",
+          "optional": true,
+          "json_tag": "size_bytes"
+        },
+        {
+          "name": "model",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "model"
+        },
+        {
+          "name": "costTicks",
+          "type": "Int64",
+          "optional": false,
+          "json_tag": "cost_ticks"
+        },
+        {
+          "name": "requestId",
+          "type": "String",
+          "optional": false,
+          "json_tag": "request_id"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "DialogueTurn",
+      "kind": "struct",
+      "file": "QuantumSDK/Models/Audio.swift",
+      "fields": [
+        {
+          "name": "speaker",
+          "type": "String",
+          "optional": false,
+          "json_tag": "speaker"
+        },
+        {
+          "name": "text",
+          "type": "String",
+          "optional": false,
+          "json_tag": "text"
+        },
+        {
+          "name": "voice",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "voice"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "DialogueVoice",
+      "kind": "struct",
+      "file": "QuantumSDK/Models/Audio.swift",
+      "fields": [
+        {
+          "name": "voiceId",
+          "type": "String",
+          "optional": false,
+          "json_tag": "voice_id"
+        },
+        {
+          "name": "name",
+          "type": "String",
+          "optional": false,
+          "json_tag": "name"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "DialogueRequest",
+      "kind": "struct",
+      "file": "QuantumSDK/Models/Audio.swift",
+      "fields": [
+        {
+          "name": "text",
+          "type": "String",
+          "optional": false,
+          "json_tag": "text"
+        },
+        {
+          "name": "voices",
+          "type": "[DialogueVoice]",
+          "optional": false,
+          "json_tag": "voices"
+        },
+        {
+          "name": "model",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "model"
+        },
+        {
+          "name": "outputFormat",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "output_format"
+        },
+        {
+          "name": "seed",
+          "type": "Int?",
+          "optional": true,
+          "json_tag": "seed"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "SpeechToSpeechRequest",
+      "kind": "struct",
+      "file": "QuantumSDK/Models/Audio.swift",
+      "fields": [
+        {
+          "name": "model",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "model"
+        },
+        {
+          "name": "audioBase64",
+          "type": "String",
+          "optional": false,
+          "json_tag": "audio_base64"
+        },
+        {
+          "name": "voice",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "voice"
+        },
+        {
+          "name": "outputFormat",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "format"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "IsolateRequest",
+      "kind": "struct",
+      "file": "QuantumSDK/Models/Audio.swift",
+      "fields": [
+        {
+          "name": "audioBase64",
+          "type": "String",
+          "optional": false,
+          "json_tag": "audio_base64"
+        },
+        {
+          "name": "outputFormat",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "format"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "RemixRequest",
+      "kind": "struct",
+      "file": "QuantumSDK/Models/Audio.swift",
+      "fields": [
+        {
+          "name": "audioBase64",
+          "type": "String",
+          "optional": false,
+          "json_tag": "audio_base64"
+        },
+        {
+          "name": "voice",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "voice"
+        },
+        {
+          "name": "model",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "model"
+        },
+        {
+          "name": "outputFormat",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "format"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "DubRequest",
+      "kind": "struct",
+      "file": "QuantumSDK/Models/Audio.swift",
+      "fields": [
+        {
+          "name": "audioBase64",
+          "type": "String",
+          "optional": false,
+          "json_tag": "audio_base64"
+        },
+        {
+          "name": "filename",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "filename"
+        },
+        {
+          "name": "targetLanguage",
+          "type": "String",
+          "optional": false,
+          "json_tag": "target_language"
+        },
+        {
+          "name": "sourceLanguage",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "source_language"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "AlignRequest",
+      "kind": "struct",
+      "file": "QuantumSDK/Models/Audio.swift",
+      "fields": [
+        {
+          "name": "audioBase64",
+          "type": "String",
+          "optional": false,
+          "json_tag": "audio_base64"
+        },
+        {
+          "name": "text",
+          "type": "String",
+          "optional": false,
+          "json_tag": "text"
+        },
+        {
+          "name": "language",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "language"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "AlignmentSegment",
+      "kind": "struct",
+      "file": "QuantumSDK/Models/Audio.swift",
+      "fields": [
+        {
+          "name": "text",
+          "type": "String",
+          "optional": false,
+          "json_tag": "text"
+        },
+        {
+          "name": "start",
+          "type": "Double",
+          "optional": false,
+          "json_tag": "start"
+        },
+        {
+          "name": "end",
+          "type": "Double",
+          "optional": false,
+          "json_tag": "end"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "AlignResponse",
+      "kind": "struct",
+      "file": "QuantumSDK/Models/Audio.swift",
+      "fields": [
+        {
+          "name": "segments",
+          "type": "[AlignmentSegment]?",
+          "optional": true,
+          "json_tag": "segments"
+        },
+        {
+          "name": "costTicks",
+          "type": "Int64",
+          "optional": false,
+          "json_tag": "cost_ticks"
+        },
+        {
+          "name": "requestId",
+          "type": "String",
+          "optional": false,
+          "json_tag": "request_id"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "VoiceDesignRequest",
+      "kind": "struct",
+      "file": "QuantumSDK/Models/Audio.swift",
+      "fields": [
+        {
+          "name": "description",
+          "type": "String",
+          "optional": false,
+          "json_tag": "description"
+        },
+        {
+          "name": "text",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "sample_text"
+        },
+        {
+          "name": "outputFormat",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "format"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "StarfishTTSRequest",
+      "kind": "struct",
+      "file": "QuantumSDK/Models/Audio.swift",
+      "fields": [
+        {
+          "name": "text",
+          "type": "String",
+          "optional": false,
+          "json_tag": "text"
+        },
+        {
+          "name": "voice",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "voice"
+        },
+        {
+          "name": "outputFormat",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "format"
+        },
+        {
+          "name": "speed",
+          "type": "Double?",
+          "optional": true,
+          "json_tag": "speed"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "MusicSection",
+      "kind": "struct",
+      "file": "QuantumSDK/Models/Audio.swift",
+      "fields": [
+        {
+          "name": "sectionType",
+          "type": "String",
+          "optional": false,
+          "json_tag": "section_type"
+        },
+        {
+          "name": "lyrics",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "lyrics"
+        },
+        {
+          "name": "style",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "style"
+        },
+        {
+          "name": "styleExclude",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "style_exclude"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "ElevenMusicRequest",
+      "kind": "struct",
+      "file": "QuantumSDK/Models/Audio.swift",
+      "fields": [
+        {
+          "name": "model",
+          "type": "String",
+          "optional": false,
+          "json_tag": "model"
+        },
+        {
+          "name": "prompt",
+          "type": "String",
+          "optional": false,
+          "json_tag": "prompt"
+        },
+        {
+          "name": "sections",
+          "type": "[MusicSection]?",
+          "optional": true,
+          "json_tag": "sections"
+        },
+        {
+          "name": "durationSeconds",
+          "type": "Int?",
+          "optional": true,
+          "json_tag": "duration_seconds"
+        },
+        {
+          "name": "language",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "language"
+        },
+        {
+          "name": "vocals",
+          "type": "Bool?",
+          "optional": true,
+          "json_tag": "vocals"
+        },
+        {
+          "name": "style",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "style"
+        },
+        {
+          "name": "styleExclude",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "style_exclude"
+        },
+        {
+          "name": "finetuneId",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "finetune_id"
+        },
+        {
+          "name": "editReferenceId",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "edit_reference_id"
+        },
+        {
+          "name": "editInstruction",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "edit_instruction"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "ElevenMusicClip",
+      "kind": "struct",
+      "file": "QuantumSDK/Models/Audio.swift",
+      "fields": [
+        {
+          "name": "base64",
+          "type": "String",
+          "optional": false,
+          "json_tag": "base64"
+        },
+        {
+          "name": "format",
+          "type": "String",
+          "optional": false,
+          "json_tag": "format"
+        },
+        {
+          "name": "size",
+          "type": "Int64",
+          "optional": false,
+          "json_tag": "size"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "ElevenMusicResponse",
+      "kind": "struct",
+      "file": "QuantumSDK/Models/Audio.swift",
+      "fields": [
+        {
+          "name": "clips",
+          "type": "[ElevenMusicClip]",
+          "optional": false,
+          "json_tag": "clips"
+        },
+        {
+          "name": "model",
+          "type": "String",
+          "optional": false,
+          "json_tag": "model"
+        },
+        {
+          "name": "costTicks",
+          "type": "Int64",
+          "optional": false,
+          "json_tag": "cost_ticks"
+        },
+        {
+          "name": "requestId",
+          "type": "String",
+          "optional": false,
+          "json_tag": "request_id"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "FinetuneInfo",
+      "kind": "struct",
+      "file": "QuantumSDK/Models/Audio.swift",
+      "fields": [
+        {
+          "name": "finetuneId",
+          "type": "String",
+          "optional": false,
+          "json_tag": "finetune_id"
+        },
+        {
+          "name": "name",
+          "type": "String",
+          "optional": false,
+          "json_tag": "name"
+        },
+        {
+          "name": "status",
+          "type": "String",
+          "optional": false,
+          "json_tag": "status"
+        },
+        {
+          "name": "createdAt",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "created_at"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "ListFinetunesResponse",
+      "kind": "struct",
+      "file": "QuantumSDK/Models/Audio.swift",
+      "fields": [
+        {
+          "name": "finetunes",
+          "type": "[FinetuneInfo]",
+          "optional": false,
+          "json_tag": "finetunes"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "AuthUser",
+      "kind": "struct",
+      "file": "QuantumSDK/Models/Auth.swift",
+      "fields": [
+        {
+          "name": "id",
+          "type": "String",
+          "optional": false,
+          "json_tag": "id"
+        },
+        {
+          "name": "name",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "name"
+        },
+        {
+          "name": "email",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "email"
+        },
+        {
+          "name": "avatarUrl",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "avatar_url"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "AuthResponse",
+      "kind": "struct",
+      "file": "QuantumSDK/Models/Auth.swift",
+      "fields": [
+        {
+          "name": "token",
+          "type": "String",
+          "optional": false,
+          "json_tag": "token"
+        },
+        {
+          "name": "user",
+          "type": "AuthUser",
+          "optional": false,
+          "json_tag": "user"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "AuthAppleRequest",
+      "kind": "struct",
+      "file": "QuantumSDK/Models/Auth.swift",
+      "fields": [
+        {
+          "name": "idToken",
+          "type": "String",
+          "optional": false,
+          "json_tag": "id_token"
+        },
+        {
+          "name": "name",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "name"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "BatchJob",
+      "kind": "struct",
+      "file": "QuantumSDK/Models/Batch.swift",
+      "fields": [
+        {
+          "name": "model",
+          "type": "String",
+          "optional": false,
+          "json_tag": "model"
+        },
+        {
+          "name": "prompt",
+          "type": "String",
+          "optional": false,
+          "json_tag": "prompt"
+        },
+        {
+          "name": "title",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "title"
+        },
+        {
+          "name": "systemPrompt",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "system_prompt"
+        },
+        {
+          "name": "maxTokens",
+          "type": "Int64?",
+          "optional": true,
+          "json_tag": "max_tokens"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "BatchSubmitRequest",
+      "kind": "struct",
+      "file": "QuantumSDK/Models/Batch.swift",
+      "fields": [
+        {
+          "name": "jobs",
+          "type": "[BatchJob]",
+          "optional": false,
+          "json_tag": "jobs"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "BatchSubmitResponse",
+      "kind": "struct",
+      "file": "QuantumSDK/Models/Batch.swift",
+      "fields": [
+        {
+          "name": "jobIds",
+          "type": "[String]",
+          "optional": false,
+          "json_tag": "job_ids"
+        },
+        {
+          "name": "status",
+          "type": "String",
+          "optional": false,
+          "json_tag": "status"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "BatchJsonlResponse",
+      "kind": "struct",
+      "file": "QuantumSDK/Models/Batch.swift",
+      "fields": [
+        {
+          "name": "jobIds",
+          "type": "[String]",
+          "optional": false,
+          "json_tag": "job_ids"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "BatchJobInfo",
+      "kind": "struct",
+      "file": "QuantumSDK/Models/Batch.swift",
+      "fields": [
+        {
+          "name": "jobId",
+          "type": "String",
+          "optional": false,
+          "json_tag": "job_id"
+        },
+        {
+          "name": "status",
+          "type": "String",
+          "optional": false,
+          "json_tag": "status"
+        },
+        {
+          "name": "model",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "model"
+        },
+        {
+          "name": "title",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "title"
+        },
+        {
+          "name": "createdAt",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "created_at"
+        },
+        {
+          "name": "completedAt",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "completed_at"
+        },
+        {
+          "name": "result",
+          "type": "AnyCodable?",
+          "optional": true,
+          "json_tag": "result"
+        },
+        {
+          "name": "error",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "error"
+        },
+        {
+          "name": "costTicks",
+          "type": "Int64",
+          "optional": false,
+          "json_tag": "cost_ticks"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "BatchJobsResponse",
+      "kind": "struct",
+      "file": "QuantumSDK/Models/Batch.swift",
+      "fields": [
+        {
+          "name": "jobs",
+          "type": "[BatchJobInfo]",
+          "optional": false,
+          "json_tag": "jobs"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "ChatRequest",
+      "kind": "struct",
+      "file": "QuantumSDK/Models/Chat.swift",
+      "fields": [
+        {
+          "name": "model",
+          "type": "String",
+          "optional": false,
+          "json_tag": "model"
+        },
+        {
+          "name": "messages",
+          "type": "[ChatMessage]",
+          "optional": false,
+          "json_tag": "messages"
+        },
+        {
+          "name": "tools",
+          "type": "[ChatTool]?",
+          "optional": true,
+          "json_tag": "tools"
+        },
+        {
+          "name": "stream",
+          "type": "Bool?",
+          "optional": true,
+          "json_tag": "stream"
+        },
+        {
+          "name": "temperature",
+          "type": "Double?",
+          "optional": true,
+          "json_tag": "temperature"
+        },
+        {
+          "name": "maxTokens",
+          "type": "Int?",
+          "optional": true,
+          "json_tag": "max_tokens"
+        },
+        {
+          "name": "providerOptions",
+          "type": "[String: [String: AnyCodable]]?",
+          "optional": true,
+          "json_tag": "provider_options"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "ChatMessage",
+      "kind": "struct",
+      "file": "QuantumSDK/Models/Chat.swift",
+      "fields": [
+        {
+          "name": "role",
+          "type": "Role",
+          "optional": false,
+          "json_tag": "role"
+        },
+        {
+          "name": "content",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "content"
+        },
+        {
+          "name": "contentBlocks",
+          "type": "[ContentBlock]?",
+          "optional": true,
+          "json_tag": "content_blocks"
+        },
+        {
+          "name": "toolCallId",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "tool_call_id"
+        },
+        {
+          "name": "isError",
+          "type": "Bool?",
+          "optional": true,
+          "json_tag": "is_error"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "ContentBlock",
+      "kind": "struct",
+      "file": "QuantumSDK/Models/Chat.swift",
+      "fields": [
+        {
+          "name": "blockType",
+          "type": "String",
+          "optional": false,
+          "json_tag": "type"
+        },
+        {
+          "name": "text",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "text"
+        },
+        {
+          "name": "id",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "id"
+        },
+        {
+          "name": "name",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "name"
+        },
+        {
+          "name": "input",
+          "type": "[String: AnyCodable]?",
+          "optional": true,
+          "json_tag": "input"
+        },
+        {
+          "name": "thoughtSignature",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "thought_signature"
+        },
+        {
+          "name": "type",
+          "type": "String",
+          "optional": false,
+          "json_tag": "type"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "ChatTool",
+      "kind": "struct",
+      "file": "QuantumSDK/Models/Chat.swift",
+      "fields": [
+        {
+          "name": "type",
+          "type": "String",
+          "optional": false,
+          "json_tag": "type"
+        },
+        {
+          "name": "function",
+          "type": "FunctionDefinition",
+          "optional": false,
+          "json_tag": "function"
+        },
+        {
+          "name": "name",
+          "type": "String",
+          "optional": false,
+          "json_tag": "name"
+        },
+        {
+          "name": "description",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "description"
+        },
+        {
+          "name": "parameters",
+          "type": "[String: AnyCodable]?",
+          "optional": true,
+          "json_tag": "parameters"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "ChatUsage",
+      "kind": "struct",
+      "file": "QuantumSDK/Models/Chat.swift",
+      "fields": [
+        {
+          "name": "inputTokens",
+          "type": "Int",
+          "optional": false,
+          "json_tag": "input_tokens"
+        },
+        {
+          "name": "outputTokens",
+          "type": "Int",
+          "optional": false,
+          "json_tag": "output_tokens"
+        },
+        {
+          "name": "costTicks",
+          "type": "Int",
+          "optional": false,
+          "json_tag": "cost_ticks"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "ChatResponse",
+      "kind": "struct",
+      "file": "QuantumSDK/Models/Chat.swift",
+      "fields": [
+        {
+          "name": "id",
+          "type": "String",
+          "optional": false,
+          "json_tag": "id"
+        },
+        {
+          "name": "model",
+          "type": "String",
+          "optional": false,
+          "json_tag": "model"
+        },
+        {
+          "name": "content",
+          "type": "[ContentBlock]",
+          "optional": false,
+          "json_tag": "content"
+        },
+        {
+          "name": "usage",
+          "type": "ChatUsage",
+          "optional": false,
+          "json_tag": "usage"
+        },
+        {
+          "name": "stopReason",
+          "type": "String",
+          "optional": false,
+          "json_tag": "stop_reason"
+        },
+        {
+          "name": "requestId",
+          "type": "String",
+          "optional": false,
+          "json_tag": "request_id"
+        },
+        {
+          "name": "costTicks",
+          "type": "Int",
+          "optional": false,
+          "json_tag": "cost_ticks"
+        },
+        {
+          "name": "text",
+          "type": "String",
+          "optional": false,
+          "json_tag": "text"
+        },
+        {
+          "name": "thinking",
+          "type": "String",
+          "optional": false,
+          "json_tag": "thinking"
+        },
+        {
+          "name": "toolCalls",
+          "type": "[ContentBlock]",
+          "optional": false,
+          "json_tag": "toolCalls"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "StreamDelta",
+      "kind": "struct",
+      "file": "QuantumSDK/Models/Chat.swift",
+      "fields": [
+        {
+          "name": "text",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "text"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "StreamToolUse",
+      "kind": "struct",
+      "file": "QuantumSDK/Models/Chat.swift",
+      "fields": [
+        {
+          "name": "id",
+          "type": "String",
+          "optional": false,
+          "json_tag": "id"
+        },
+        {
+          "name": "name",
+          "type": "String",
+          "optional": false,
+          "json_tag": "name"
+        },
+        {
+          "name": "input",
+          "type": "[String: AnyCodable]",
+          "optional": false,
+          "json_tag": "input"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "StreamEvent",
+      "kind": "struct",
+      "file": "QuantumSDK/Models/Chat.swift",
+      "fields": [
+        {
+          "name": "eventType",
+          "type": "String",
+          "optional": false,
+          "json_tag": "eventType"
+        },
+        {
+          "name": "delta",
+          "type": "StreamDelta?",
+          "optional": true,
+          "json_tag": "delta"
+        },
+        {
+          "name": "toolUse",
+          "type": "StreamToolUse?",
+          "optional": true,
+          "json_tag": "toolUse"
+        },
+        {
+          "name": "usage",
+          "type": "ChatUsage?",
+          "optional": true,
+          "json_tag": "usage"
+        },
+        {
+          "name": "error",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "error"
+        },
+        {
+          "name": "done",
+          "type": "Bool",
+          "optional": false,
+          "json_tag": "done"
+        },
+        {
+          "name": "type",
+          "type": "String",
+          "optional": false,
+          "json_tag": "type"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "RawStreamEvent",
+      "kind": "struct",
+      "file": "QuantumSDK/Models/Chat.swift",
+      "fields": [
+        {
+          "name": "type",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "type"
+        },
+        {
+          "name": "delta",
+          "type": "StreamDelta?",
+          "optional": true,
+          "json_tag": "delta"
+        },
+        {
+          "name": "id",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "id"
+        },
+        {
+          "name": "name",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "name"
+        },
+        {
+          "name": "input",
+          "type": "[String: AnyCodable]?",
+          "optional": true,
+          "json_tag": "input"
+        },
+        {
+          "name": "message",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "message"
+        },
+        {
+          "name": "inputTokens",
+          "type": "Int?",
+          "optional": true,
+          "json_tag": "input_tokens"
+        },
+        {
+          "name": "outputTokens",
+          "type": "Int?",
+          "optional": true,
+          "json_tag": "output_tokens"
+        },
+        {
+          "name": "costTicks",
+          "type": "Int?",
+          "optional": true,
+          "json_tag": "cost_ticks"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "ComputeTemplate",
+      "kind": "struct",
+      "file": "QuantumSDK/Models/Compute.swift",
+      "fields": [
+        {
+          "name": "id",
+          "type": "String",
+          "optional": false,
+          "json_tag": "id"
+        },
+        {
+          "name": "name",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "name"
+        },
+        {
+          "name": "gpu",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "gpu"
+        },
+        {
+          "name": "gpuCount",
+          "type": "Int?",
+          "optional": true,
+          "json_tag": "gpu_count"
+        },
+        {
+          "name": "vramGb",
+          "type": "Int?",
+          "optional": true,
+          "json_tag": "vram_gb"
+        },
+        {
+          "name": "vcpus",
+          "type": "Int?",
+          "optional": true,
+          "json_tag": "vcpus"
+        },
+        {
+          "name": "ramGb",
+          "type": "Int?",
+          "optional": true,
+          "json_tag": "ram_gb"
+        },
+        {
+          "name": "pricePerHourUsd",
+          "type": "Double?",
+          "optional": true,
+          "json_tag": "price_per_hour_usd"
+        },
+        {
+          "name": "zones",
+          "type": "[String]?",
+          "optional": true,
+          "json_tag": "zones"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "TemplatesResponse",
+      "kind": "struct",
+      "file": "QuantumSDK/Models/Compute.swift",
+      "fields": [
+        {
+          "name": "templates",
+          "type": "[ComputeTemplate]",
+          "optional": false,
+          "json_tag": "templates"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "ProvisionRequest",
+      "kind": "struct",
+      "file": "QuantumSDK/Models/Compute.swift",
+      "fields": [
+        {
+          "name": "template",
+          "type": "String",
+          "optional": false,
+          "json_tag": "template"
+        },
+        {
+          "name": "zone",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "zone"
+        },
+        {
+          "name": "spot",
+          "type": "Bool?",
+          "optional": true,
+          "json_tag": "spot"
+        },
+        {
+          "name": "autoTeardownMinutes",
+          "type": "Int?",
+          "optional": true,
+          "json_tag": "auto_teardown_minutes"
+        },
+        {
+          "name": "sshPublicKey",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "ssh_public_key"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "ProvisionResponse",
+      "kind": "struct",
+      "file": "QuantumSDK/Models/Compute.swift",
+      "fields": [
+        {
+          "name": "instanceId",
+          "type": "String",
+          "optional": false,
+          "json_tag": "instance_id"
+        },
+        {
+          "name": "status",
+          "type": "String",
+          "optional": false,
+          "json_tag": "status"
+        },
+        {
+          "name": "template",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "template"
+        },
+        {
+          "name": "zone",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "zone"
+        },
+        {
+          "name": "sshAddress",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "ssh_address"
+        },
+        {
+          "name": "pricePerHourUsd",
+          "type": "Double?",
+          "optional": true,
+          "json_tag": "price_per_hour_usd"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "ComputeInstance",
+      "kind": "struct",
+      "file": "QuantumSDK/Models/Compute.swift",
+      "fields": [
+        {
+          "name": "id",
+          "type": "String",
+          "optional": false,
+          "json_tag": "id"
+        },
+        {
+          "name": "status",
+          "type": "String",
+          "optional": false,
+          "json_tag": "status"
+        },
+        {
+          "name": "template",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "template"
+        },
+        {
+          "name": "zone",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "zone"
+        },
+        {
+          "name": "sshAddress",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "ssh_address"
+        },
+        {
+          "name": "createdAt",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "created_at"
+        },
+        {
+          "name": "pricePerHourUsd",
+          "type": "Double?",
+          "optional": true,
+          "json_tag": "price_per_hour_usd"
+        },
+        {
+          "name": "autoTeardownMinutes",
+          "type": "Int?",
+          "optional": true,
+          "json_tag": "auto_teardown_minutes"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "InstancesResponse",
+      "kind": "struct",
+      "file": "QuantumSDK/Models/Compute.swift",
+      "fields": [
+        {
+          "name": "instances",
+          "type": "[ComputeInstance]",
+          "optional": false,
+          "json_tag": "instances"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "InstanceResponse",
+      "kind": "struct",
+      "file": "QuantumSDK/Models/Compute.swift",
+      "fields": [
+        {
+          "name": "instance",
+          "type": "ComputeInstance",
+          "optional": false,
+          "json_tag": "instance"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "SSHKeyRequest",
+      "kind": "struct",
+      "file": "QuantumSDK/Models/Compute.swift",
+      "fields": [
+        {
+          "name": "sshPublicKey",
+          "type": "String",
+          "optional": false,
+          "json_tag": "ssh_public_key"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "DeleteResponse",
+      "kind": "struct",
+      "file": "QuantumSDK/Models/Compute.swift",
+      "fields": [
+        {
+          "name": "status",
+          "type": "String",
+          "optional": false,
+          "json_tag": "status"
+        },
+        {
+          "name": "instanceId",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "instance_id"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "BillingRequest",
+      "kind": "struct",
+      "file": "QuantumSDK/Models/Compute.swift",
+      "fields": [
+        {
+          "name": "instanceId",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "instance_id"
+        },
+        {
+          "name": "startDate",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "start_date"
+        },
+        {
+          "name": "endDate",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "end_date"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "BillingEntry",
+      "kind": "struct",
+      "file": "QuantumSDK/Models/Compute.swift",
+      "fields": [
+        {
+          "name": "instanceId",
+          "type": "String",
+          "optional": false,
+          "json_tag": "instance_id"
+        },
+        {
+          "name": "instanceName",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "instance_name"
+        },
+        {
+          "name": "costUsd",
+          "type": "Double",
+          "optional": false,
+          "json_tag": "cost_usd"
+        },
+        {
+          "name": "usageHours",
+          "type": "Double?",
+          "optional": true,
+          "json_tag": "usage_hours"
+        },
+        {
+          "name": "skuDescription",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "sku_description"
+        },
+        {
+          "name": "startTime",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "start_time"
+        },
+        {
+          "name": "endTime",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "end_time"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "BillingResponse",
+      "kind": "struct",
+      "file": "QuantumSDK/Models/Compute.swift",
+      "fields": [
+        {
+          "name": "entries",
+          "type": "[BillingEntry]",
+          "optional": false,
+          "json_tag": "entries"
+        },
+        {
+          "name": "totalCostUsd",
+          "type": "Double",
+          "optional": false,
+          "json_tag": "total_cost_usd"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "CreditPack",
+      "kind": "struct",
+      "file": "QuantumSDK/Models/Credits.swift",
+      "fields": [
+        {
+          "name": "id",
+          "type": "String",
+          "optional": false,
+          "json_tag": "id"
+        },
+        {
+          "name": "name",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "name"
+        },
+        {
+          "name": "priceUsd",
+          "type": "Double",
+          "optional": false,
+          "json_tag": "price_usd"
+        },
+        {
+          "name": "creditTicks",
+          "type": "Int64",
+          "optional": false,
+          "json_tag": "credit_ticks"
+        },
+        {
+          "name": "description",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "description"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "CreditPacksResponse",
+      "kind": "struct",
+      "file": "QuantumSDK/Models/Credits.swift",
+      "fields": [
+        {
+          "name": "packs",
+          "type": "[CreditPack]",
+          "optional": false,
+          "json_tag": "packs"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "CreditPurchaseRequest",
+      "kind": "struct",
+      "file": "QuantumSDK/Models/Credits.swift",
+      "fields": [
+        {
+          "name": "packId",
+          "type": "String",
+          "optional": false,
+          "json_tag": "pack_id"
+        },
+        {
+          "name": "successUrl",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "success_url"
+        },
+        {
+          "name": "cancelUrl",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "cancel_url"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "CreditPurchaseResponse",
+      "kind": "struct",
+      "file": "QuantumSDK/Models/Credits.swift",
+      "fields": [
+        {
+          "name": "checkoutUrl",
+          "type": "String",
+          "optional": false,
+          "json_tag": "checkout_url"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "CreditBalanceResponse",
+      "kind": "struct",
+      "file": "QuantumSDK/Models/Credits.swift",
+      "fields": [
+        {
+          "name": "balanceTicks",
+          "type": "Int64",
+          "optional": false,
+          "json_tag": "balance_ticks"
+        },
+        {
+          "name": "balanceUsd",
+          "type": "Double",
+          "optional": false,
+          "json_tag": "balance_usd"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "CreditTier",
+      "kind": "struct",
+      "file": "QuantumSDK/Models/Credits.swift",
+      "fields": [
+        {
+          "name": "name",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "name"
+        },
+        {
+          "name": "minBalance",
+          "type": "Int64?",
+          "optional": true,
+          "json_tag": "min_balance"
+        },
+        {
+          "name": "discountPercent",
+          "type": "Double?",
+          "optional": true,
+          "json_tag": "discount_percent"
+        },
+        {
+          "name": "extra",
+          "type": "AnyCodable?",
+          "optional": true,
+          "json_tag": "extra"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "CreditTiersResponse",
+      "kind": "struct",
+      "file": "QuantumSDK/Models/Credits.swift",
+      "fields": [
+        {
+          "name": "tiers",
+          "type": "[CreditTier]",
+          "optional": false,
+          "json_tag": "tiers"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "DevProgramApplyRequest",
+      "kind": "struct",
+      "file": "QuantumSDK/Models/Credits.swift",
+      "fields": [
+        {
+          "name": "useCase",
+          "type": "String",
+          "optional": false,
+          "json_tag": "use_case"
+        },
+        {
+          "name": "company",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "company"
+        },
+        {
+          "name": "expectedUsd",
+          "type": "Double?",
+          "optional": true,
+          "json_tag": "expected_usd"
+        },
+        {
+          "name": "website",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "website"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "DevProgramApplyResponse",
+      "kind": "struct",
+      "file": "QuantumSDK/Models/Credits.swift",
+      "fields": [
+        {
+          "name": "status",
+          "type": "String",
+          "optional": false,
+          "json_tag": "status"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "DocumentRequest",
+      "kind": "struct",
+      "file": "QuantumSDK/Models/Documents.swift",
+      "fields": [
+        {
+          "name": "fileBase64",
+          "type": "String",
+          "optional": false,
+          "json_tag": "file_base64"
+        },
+        {
+          "name": "filename",
+          "type": "String",
+          "optional": false,
+          "json_tag": "filename"
+        },
+        {
+          "name": "outputFormat",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "output_format"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "DocumentResponse",
+      "kind": "struct",
+      "file": "QuantumSDK/Models/Documents.swift",
+      "fields": [
+        {
+          "name": "content",
+          "type": "String",
+          "optional": false,
+          "json_tag": "content"
+        },
+        {
+          "name": "format",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "format"
+        },
+        {
+          "name": "meta",
+          "type": "[String: AnyCodable]?",
+          "optional": true,
+          "json_tag": "meta"
+        },
+        {
+          "name": "costTicks",
+          "type": "Int64",
+          "optional": false,
+          "json_tag": "cost_ticks"
+        },
+        {
+          "name": "requestId",
+          "type": "String",
+          "optional": false,
+          "json_tag": "request_id"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "ChunkRequest",
+      "kind": "struct",
+      "file": "QuantumSDK/Models/Documents.swift",
+      "fields": [
+        {
+          "name": "fileBase64",
+          "type": "String",
+          "optional": false,
+          "json_tag": "file_base64"
+        },
+        {
+          "name": "filename",
+          "type": "String",
+          "optional": false,
+          "json_tag": "filename"
+        },
+        {
+          "name": "maxChunkTokens",
+          "type": "Int?",
+          "optional": true,
+          "json_tag": "max_chunk_tokens"
+        },
+        {
+          "name": "overlapTokens",
+          "type": "Int?",
+          "optional": true,
+          "json_tag": "overlap_tokens"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "DocumentChunk",
+      "kind": "struct",
+      "file": "QuantumSDK/Models/Documents.swift",
+      "fields": [
+        {
+          "name": "index",
+          "type": "Int",
+          "optional": false,
+          "json_tag": "index"
+        },
+        {
+          "name": "text",
+          "type": "String",
+          "optional": false,
+          "json_tag": "text"
+        },
+        {
+          "name": "tokenCount",
+          "type": "Int?",
+          "optional": true,
+          "json_tag": "token_count"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "ChunkResponse",
+      "kind": "struct",
+      "file": "QuantumSDK/Models/Documents.swift",
+      "fields": [
+        {
+          "name": "chunks",
+          "type": "[DocumentChunk]",
+          "optional": false,
+          "json_tag": "chunks"
+        },
+        {
+          "name": "totalChunks",
+          "type": "Int?",
+          "optional": true,
+          "json_tag": "total_chunks"
+        },
+        {
+          "name": "costTicks",
+          "type": "Int64",
+          "optional": false,
+          "json_tag": "cost_ticks"
+        },
+        {
+          "name": "requestId",
+          "type": "String",
+          "optional": false,
+          "json_tag": "request_id"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "ProcessRequest",
+      "kind": "struct",
+      "file": "QuantumSDK/Models/Documents.swift",
+      "fields": [
+        {
+          "name": "fileBase64",
+          "type": "String",
+          "optional": false,
+          "json_tag": "file_base64"
+        },
+        {
+          "name": "filename",
+          "type": "String",
+          "optional": false,
+          "json_tag": "filename"
+        },
+        {
+          "name": "prompt",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "prompt"
+        },
+        {
+          "name": "model",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "model"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "ProcessResponse",
+      "kind": "struct",
+      "file": "QuantumSDK/Models/Documents.swift",
+      "fields": [
+        {
+          "name": "content",
+          "type": "String",
+          "optional": false,
+          "json_tag": "content"
+        },
+        {
+          "name": "model",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "model"
+        },
+        {
+          "name": "costTicks",
+          "type": "Int64",
+          "optional": false,
+          "json_tag": "cost_ticks"
+        },
+        {
+          "name": "requestId",
+          "type": "String",
+          "optional": false,
+          "json_tag": "request_id"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "EmbedRequest",
+      "kind": "struct",
+      "file": "QuantumSDK/Models/Embeddings.swift",
+      "fields": [
+        {
+          "name": "model",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "model"
+        },
+        {
+          "name": "input",
+          "type": "EmbedInput",
+          "optional": false,
+          "json_tag": "input"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "EmbedInput",
+      "kind": "enum",
+      "file": "QuantumSDK/Models/Embeddings.swift",
+      "fields": null
+    },
+    {
+      "sdk": "swift",
+      "name": "EmbedResponse",
+      "kind": "struct",
+      "file": "QuantumSDK/Models/Embeddings.swift",
+      "fields": [
+        {
+          "name": "embeddings",
+          "type": "[[Double]]",
+          "optional": false,
+          "json_tag": "embeddings"
+        },
+        {
+          "name": "model",
+          "type": "String",
+          "optional": false,
+          "json_tag": "model"
+        },
+        {
+          "name": "requestId",
+          "type": "String",
+          "optional": false,
+          "json_tag": "request_id"
+        },
+        {
+          "name": "costTicks",
+          "type": "Int",
+          "optional": false,
+          "json_tag": "cost_ticks"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "ImageRequest",
+      "kind": "struct",
+      "file": "QuantumSDK/Models/Image.swift",
+      "fields": [
+        {
+          "name": "model",
+          "type": "String",
+          "optional": false,
+          "json_tag": "model"
+        },
+        {
+          "name": "prompt",
+          "type": "String",
+          "optional": false,
+          "json_tag": "prompt"
+        },
+        {
+          "name": "count",
+          "type": "Int?",
+          "optional": true,
+          "json_tag": "count"
+        },
+        {
+          "name": "size",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "size"
+        },
+        {
+          "name": "aspectRatio",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "aspect_ratio"
+        },
+        {
+          "name": "quality",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "quality"
+        },
+        {
+          "name": "outputFormat",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "output_format"
+        },
+        {
+          "name": "style",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "style"
+        },
+        {
+          "name": "background",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "background"
+        },
+        {
+          "name": "imageUrl",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "image_url"
+        },
+        {
+          "name": "topology",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "topology"
+        },
+        {
+          "name": "targetPolycount",
+          "type": "Int?",
+          "optional": true,
+          "json_tag": "target_polycount"
+        },
+        {
+          "name": "symmetryMode",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "symmetry_mode"
+        },
+        {
+          "name": "poseMode",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "pose_mode"
+        },
+        {
+          "name": "enablePbr",
+          "type": "Bool?",
+          "optional": true,
+          "json_tag": "enable_pbr"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "GeneratedImage",
+      "kind": "struct",
+      "file": "QuantumSDK/Models/Image.swift",
+      "fields": [
+        {
+          "name": "base64",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "base64"
+        },
+        {
+          "name": "format",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "format"
+        },
+        {
+          "name": "index",
+          "type": "Int?",
+          "optional": true,
+          "json_tag": "index"
+        },
+        {
+          "name": "url",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "url"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "ImageResponse",
+      "kind": "struct",
+      "file": "QuantumSDK/Models/Image.swift",
+      "fields": [
+        {
+          "name": "images",
+          "type": "[GeneratedImage]",
+          "optional": false,
+          "json_tag": "images"
+        },
+        {
+          "name": "model",
+          "type": "String",
+          "optional": false,
+          "json_tag": "model"
+        },
+        {
+          "name": "costTicks",
+          "type": "Int64",
+          "optional": false,
+          "json_tag": "cost_ticks"
+        },
+        {
+          "name": "requestId",
+          "type": "String",
+          "optional": false,
+          "json_tag": "request_id"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "ImageEditRequest",
+      "kind": "struct",
+      "file": "QuantumSDK/Models/Image.swift",
+      "fields": [
+        {
+          "name": "model",
+          "type": "String",
+          "optional": false,
+          "json_tag": "model"
+        },
+        {
+          "name": "prompt",
+          "type": "String",
+          "optional": false,
+          "json_tag": "prompt"
+        },
+        {
+          "name": "inputImages",
+          "type": "[String]?",
+          "optional": true,
+          "json_tag": "input_images"
+        },
+        {
+          "name": "count",
+          "type": "Int?",
+          "optional": true,
+          "json_tag": "count"
+        },
+        {
+          "name": "size",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "size"
+        },
+        {
+          "name": "image",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "image"
+        },
+        {
+          "name": "mask",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "mask"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "JobCreateRequest",
+      "kind": "struct",
+      "file": "QuantumSDK/Models/Jobs.swift",
+      "fields": [
+        {
+          "name": "jobType",
+          "type": "String",
+          "optional": false,
+          "json_tag": "type"
+        },
+        {
+          "name": "params",
+          "type": "AnyCodable",
+          "optional": false,
+          "json_tag": "params"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "JobCreateResponse",
+      "kind": "struct",
+      "file": "QuantumSDK/Models/Jobs.swift",
+      "fields": [
+        {
+          "name": "jobId",
+          "type": "String",
+          "optional": false,
+          "json_tag": "job_id"
+        },
+        {
+          "name": "status",
+          "type": "String",
+          "optional": false,
+          "json_tag": "status"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "JobStatusResponse",
+      "kind": "struct",
+      "file": "QuantumSDK/Models/Jobs.swift",
+      "fields": [
+        {
+          "name": "jobId",
+          "type": "String",
+          "optional": false,
+          "json_tag": "job_id"
+        },
+        {
+          "name": "status",
+          "type": "String",
+          "optional": false,
+          "json_tag": "status"
+        },
+        {
+          "name": "result",
+          "type": "AnyCodable?",
+          "optional": true,
+          "json_tag": "result"
+        },
+        {
+          "name": "error",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "error"
+        },
+        {
+          "name": "costTicks",
+          "type": "Int64",
+          "optional": false,
+          "json_tag": "cost_ticks"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "JobSummary",
+      "kind": "struct",
+      "file": "QuantumSDK/Models/Jobs.swift",
+      "fields": [
+        {
+          "name": "jobId",
+          "type": "String",
+          "optional": false,
+          "json_tag": "job_id"
+        },
+        {
+          "name": "status",
+          "type": "String",
+          "optional": false,
+          "json_tag": "status"
+        },
+        {
+          "name": "jobType",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "type"
+        },
+        {
+          "name": "createdAt",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "created_at"
+        },
+        {
+          "name": "completedAt",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "completed_at"
+        },
+        {
+          "name": "costTicks",
+          "type": "Int64",
+          "optional": false,
+          "json_tag": "cost_ticks"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "ListJobsResponse",
+      "kind": "struct",
+      "file": "QuantumSDK/Models/Jobs.swift",
+      "fields": [
+        {
+          "name": "jobs",
+          "type": "[JobSummary]",
+          "optional": false,
+          "json_tag": "jobs"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "Generate3DRequest",
+      "kind": "struct",
+      "file": "QuantumSDK/Models/Jobs.swift",
+      "fields": [
+        {
+          "name": "model",
+          "type": "String",
+          "optional": false,
+          "json_tag": "model"
+        },
+        {
+          "name": "prompt",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "prompt"
+        },
+        {
+          "name": "imageUrl",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "image_url"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "CreateKeyRequest",
+      "kind": "struct",
+      "file": "QuantumSDK/Models/Keys.swift",
+      "fields": [
+        {
+          "name": "name",
+          "type": "String",
+          "optional": false,
+          "json_tag": "name"
+        },
+        {
+          "name": "endpoints",
+          "type": "[String]?",
+          "optional": true,
+          "json_tag": "endpoints"
+        },
+        {
+          "name": "spendCapUsd",
+          "type": "Double?",
+          "optional": true,
+          "json_tag": "spend_cap_usd"
+        },
+        {
+          "name": "rateLimit",
+          "type": "Int?",
+          "optional": true,
+          "json_tag": "rate_limit"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "KeyDetails",
+      "kind": "struct",
+      "file": "QuantumSDK/Models/Keys.swift",
+      "fields": [
+        {
+          "name": "id",
+          "type": "String",
+          "optional": false,
+          "json_tag": "id"
+        },
+        {
+          "name": "name",
+          "type": "String",
+          "optional": false,
+          "json_tag": "name"
+        },
+        {
+          "name": "keyPrefix",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "key_prefix"
+        },
+        {
+          "name": "scope",
+          "type": "AnyCodable?",
+          "optional": true,
+          "json_tag": "scope"
+        },
+        {
+          "name": "spentTicks",
+          "type": "Int64?",
+          "optional": true,
+          "json_tag": "spent_ticks"
+        },
+        {
+          "name": "revoked",
+          "type": "Bool?",
+          "optional": true,
+          "json_tag": "revoked"
+        },
+        {
+          "name": "createdAt",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "created_at"
+        },
+        {
+          "name": "lastUsed",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "last_used"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "CreateKeyResponse",
+      "kind": "struct",
+      "file": "QuantumSDK/Models/Keys.swift",
+      "fields": [
+        {
+          "name": "key",
+          "type": "String",
+          "optional": false,
+          "json_tag": "key"
+        },
+        {
+          "name": "details",
+          "type": "KeyDetails?",
+          "optional": true,
+          "json_tag": "details"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "ListKeysResponse",
+      "kind": "struct",
+      "file": "QuantumSDK/Models/Keys.swift",
+      "fields": [
+        {
+          "name": "keys",
+          "type": "[KeyDetails]",
+          "optional": false,
+          "json_tag": "keys"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "RemeshRequest",
+      "kind": "struct",
+      "file": "QuantumSDK/Models/Mesh.swift",
+      "fields": [
+        {
+          "name": "inputTaskId",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "input_task_id"
+        },
+        {
+          "name": "modelUrl",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "model_url"
+        },
+        {
+          "name": "targetFormats",
+          "type": "[String]?",
+          "optional": true,
+          "json_tag": "target_formats"
+        },
+        {
+          "name": "topology",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "topology"
+        },
+        {
+          "name": "targetPolycount",
+          "type": "Int?",
+          "optional": true,
+          "json_tag": "target_polycount"
+        },
+        {
+          "name": "resizeHeight",
+          "type": "Double?",
+          "optional": true,
+          "json_tag": "resize_height"
+        },
+        {
+          "name": "originAt",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "origin_at"
+        },
+        {
+          "name": "convertFormatOnly",
+          "type": "Bool?",
+          "optional": true,
+          "json_tag": "convert_format_only"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "ModelUrls",
+      "kind": "struct",
+      "file": "QuantumSDK/Models/Mesh.swift",
+      "fields": [
+        {
+          "name": "glb",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "glb"
+        },
+        {
+          "name": "fbx",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "fbx"
+        },
+        {
+          "name": "obj",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "obj"
+        },
+        {
+          "name": "usdz",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "usdz"
+        },
+        {
+          "name": "stl",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "stl"
+        },
+        {
+          "name": "blend",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "blend"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "RetextureRequest",
+      "kind": "struct",
+      "file": "QuantumSDK/Models/Mesh.swift",
+      "fields": [
+        {
+          "name": "inputTaskId",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "input_task_id"
+        },
+        {
+          "name": "modelUrl",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "model_url"
+        },
+        {
+          "name": "prompt",
+          "type": "String",
+          "optional": false,
+          "json_tag": "prompt"
+        },
+        {
+          "name": "enablePbr",
+          "type": "Bool?",
+          "optional": true,
+          "json_tag": "enable_pbr"
+        },
+        {
+          "name": "aiModel",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "ai_model"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "RigRequest",
+      "kind": "struct",
+      "file": "QuantumSDK/Models/Mesh.swift",
+      "fields": [
+        {
+          "name": "inputTaskId",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "input_task_id"
+        },
+        {
+          "name": "modelUrl",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "model_url"
+        },
+        {
+          "name": "heightMeters",
+          "type": "Double?",
+          "optional": true,
+          "json_tag": "height_meters"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "AnimateRequest",
+      "kind": "struct",
+      "file": "QuantumSDK/Models/Mesh.swift",
+      "fields": [
+        {
+          "name": "rigTaskId",
+          "type": "String",
+          "optional": false,
+          "json_tag": "rig_task_id"
+        },
+        {
+          "name": "actionId",
+          "type": "Int",
+          "optional": false,
+          "json_tag": "action_id"
+        },
+        {
+          "name": "postProcess",
+          "type": "AnimationPostProcess?",
+          "optional": true,
+          "json_tag": "post_process"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "AnimationPostProcess",
+      "kind": "struct",
+      "file": "QuantumSDK/Models/Mesh.swift",
+      "fields": [
+        {
+          "name": "operationType",
+          "type": "String",
+          "optional": false,
+          "json_tag": "operation_type"
+        },
+        {
+          "name": "fps",
+          "type": "Int?",
+          "optional": true,
+          "json_tag": "fps"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "RagSearchRequest",
+      "kind": "struct",
+      "file": "QuantumSDK/Models/RAG.swift",
+      "fields": [
+        {
+          "name": "query",
+          "type": "String",
+          "optional": false,
+          "json_tag": "query"
+        },
+        {
+          "name": "corpus",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "corpus"
+        },
+        {
+          "name": "topK",
+          "type": "Int?",
+          "optional": true,
+          "json_tag": "top_k"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "RagResult",
+      "kind": "struct",
+      "file": "QuantumSDK/Models/RAG.swift",
+      "fields": [
+        {
+          "name": "sourceUri",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "source_uri"
+        },
+        {
+          "name": "sourceName",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "source_name"
+        },
+        {
+          "name": "text",
+          "type": "String",
+          "optional": false,
+          "json_tag": "text"
+        },
+        {
+          "name": "score",
+          "type": "Double",
+          "optional": false,
+          "json_tag": "score"
+        },
+        {
+          "name": "distance",
+          "type": "Double?",
+          "optional": true,
+          "json_tag": "distance"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "RagSearchResponse",
+      "kind": "struct",
+      "file": "QuantumSDK/Models/RAG.swift",
+      "fields": [
+        {
+          "name": "results",
+          "type": "[RagResult]",
+          "optional": false,
+          "json_tag": "results"
+        },
+        {
+          "name": "query",
+          "type": "String",
+          "optional": false,
+          "json_tag": "query"
+        },
+        {
+          "name": "corpora",
+          "type": "[String]?",
+          "optional": true,
+          "json_tag": "corpora"
+        },
+        {
+          "name": "costTicks",
+          "type": "Int64",
+          "optional": false,
+          "json_tag": "cost_ticks"
+        },
+        {
+          "name": "requestId",
+          "type": "String",
+          "optional": false,
+          "json_tag": "request_id"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "RagCorpus",
+      "kind": "struct",
+      "file": "QuantumSDK/Models/RAG.swift",
+      "fields": [
+        {
+          "name": "name",
+          "type": "String",
+          "optional": false,
+          "json_tag": "name"
+        },
+        {
+          "name": "displayName",
+          "type": "String",
+          "optional": false,
+          "json_tag": "displayName"
+        },
+        {
+          "name": "description",
+          "type": "String",
+          "optional": false,
+          "json_tag": "description"
+        },
+        {
+          "name": "state",
+          "type": "String",
+          "optional": false,
+          "json_tag": "state"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "SurrealRagSearchRequest",
+      "kind": "struct",
+      "file": "QuantumSDK/Models/RAG.swift",
+      "fields": [
+        {
+          "name": "query",
+          "type": "String",
+          "optional": false,
+          "json_tag": "query"
+        },
+        {
+          "name": "provider",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "provider"
+        },
+        {
+          "name": "limit",
+          "type": "Int?",
+          "optional": true,
+          "json_tag": "limit"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "SurrealRagResult",
+      "kind": "struct",
+      "file": "QuantumSDK/Models/RAG.swift",
+      "fields": [
+        {
+          "name": "provider",
+          "type": "String",
+          "optional": false,
+          "json_tag": "provider"
+        },
+        {
+          "name": "title",
+          "type": "String",
+          "optional": false,
+          "json_tag": "title"
+        },
+        {
+          "name": "heading",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "heading"
+        },
+        {
+          "name": "sourceFile",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "source_file"
+        },
+        {
+          "name": "content",
+          "type": "String",
+          "optional": false,
+          "json_tag": "content"
+        },
+        {
+          "name": "score",
+          "type": "Double",
+          "optional": false,
+          "json_tag": "score"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "SurrealRagSearchResponse",
+      "kind": "struct",
+      "file": "QuantumSDK/Models/RAG.swift",
+      "fields": [
+        {
+          "name": "results",
+          "type": "[SurrealRagResult]",
+          "optional": false,
+          "json_tag": "results"
+        },
+        {
+          "name": "query",
+          "type": "String",
+          "optional": false,
+          "json_tag": "query"
+        },
+        {
+          "name": "provider",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "provider"
+        },
+        {
+          "name": "costTicks",
+          "type": "Int64",
+          "optional": false,
+          "json_tag": "cost_ticks"
+        },
+        {
+          "name": "requestId",
+          "type": "String",
+          "optional": false,
+          "json_tag": "request_id"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "SurrealRagProvider",
+      "kind": "struct",
+      "file": "QuantumSDK/Models/RAG.swift",
+      "fields": [
+        {
+          "name": "provider",
+          "type": "String",
+          "optional": false,
+          "json_tag": "provider"
+        },
+        {
+          "name": "chunkCount",
+          "type": "Int64?",
+          "optional": true,
+          "json_tag": "chunk_count"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "SurrealRagProvidersResponse",
+      "kind": "struct",
+      "file": "QuantumSDK/Models/RAG.swift",
+      "fields": [
+        {
+          "name": "providers",
+          "type": "[SurrealRagProvider]",
+          "optional": false,
+          "json_tag": "providers"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "RealtimeSession",
+      "kind": "struct",
+      "file": "QuantumSDK/Models/Realtime.swift",
+      "fields": [
+        {
+          "name": "ephemeralToken",
+          "type": "String",
+          "optional": false,
+          "json_tag": "ephemeral_token"
+        },
+        {
+          "name": "url",
+          "type": "String",
+          "optional": false,
+          "json_tag": "url"
+        },
+        {
+          "name": "signedUrl",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "signed_url"
+        },
+        {
+          "name": "sessionId",
+          "type": "String",
+          "optional": false,
+          "json_tag": "session_id"
+        },
+        {
+          "name": "provider",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "provider"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "RealtimeConfig",
+      "kind": "struct",
+      "file": "QuantumSDK/Models/Realtime.swift",
+      "fields": [
+        {
+          "name": "voice",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "voice"
+        },
+        {
+          "name": "instructions",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "instructions"
+        },
+        {
+          "name": "model",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "model"
+        },
+        {
+          "name": "sampleRate",
+          "type": "Int?",
+          "optional": true,
+          "json_tag": "sample_rate"
+        },
+        {
+          "name": "tools",
+          "type": "[AnyCodable]?",
+          "optional": true,
+          "json_tag": "tools"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "RealtimeEvent",
+      "kind": "enum",
+      "file": "QuantumSDK/Models/Realtime.swift",
+      "fields": null
+    },
+    {
+      "sdk": "swift",
+      "name": "WebSearchRequest",
+      "kind": "struct",
+      "file": "QuantumSDK/Models/Search.swift",
+      "fields": [
+        {
+          "name": "query",
+          "type": "String",
+          "optional": false,
+          "json_tag": "query"
+        },
+        {
+          "name": "count",
+          "type": "Int?",
+          "optional": true,
+          "json_tag": "count"
+        },
+        {
+          "name": "offset",
+          "type": "Int?",
+          "optional": true,
+          "json_tag": "offset"
+        },
+        {
+          "name": "country",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "country"
+        },
+        {
+          "name": "language",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "language"
+        },
+        {
+          "name": "freshness",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "freshness"
+        },
+        {
+          "name": "safesearch",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "safesearch"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "WebResult",
+      "kind": "struct",
+      "file": "QuantumSDK/Models/Search.swift",
+      "fields": [
+        {
+          "name": "title",
+          "type": "String",
+          "optional": false,
+          "json_tag": "title"
+        },
+        {
+          "name": "url",
+          "type": "String",
+          "optional": false,
+          "json_tag": "url"
+        },
+        {
+          "name": "description",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "description"
+        },
+        {
+          "name": "age",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "age"
+        },
+        {
+          "name": "favicon",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "favicon"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "NewsResult",
+      "kind": "struct",
+      "file": "QuantumSDK/Models/Search.swift",
+      "fields": [
+        {
+          "name": "title",
+          "type": "String",
+          "optional": false,
+          "json_tag": "title"
+        },
+        {
+          "name": "url",
+          "type": "String",
+          "optional": false,
+          "json_tag": "url"
+        },
+        {
+          "name": "description",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "description"
+        },
+        {
+          "name": "age",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "age"
+        },
+        {
+          "name": "source",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "source"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "VideoResult",
+      "kind": "struct",
+      "file": "QuantumSDK/Models/Search.swift",
+      "fields": [
+        {
+          "name": "title",
+          "type": "String",
+          "optional": false,
+          "json_tag": "title"
+        },
+        {
+          "name": "url",
+          "type": "String",
+          "optional": false,
+          "json_tag": "url"
+        },
+        {
+          "name": "description",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "description"
+        },
+        {
+          "name": "thumbnail",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "thumbnail"
+        },
+        {
+          "name": "age",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "age"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "InfoboxResult",
+      "kind": "struct",
+      "file": "QuantumSDK/Models/Search.swift",
+      "fields": [
+        {
+          "name": "title",
+          "type": "String",
+          "optional": false,
+          "json_tag": "title"
+        },
+        {
+          "name": "description",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "description"
+        },
+        {
+          "name": "url",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "url"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "DiscussionResult",
+      "kind": "struct",
+      "file": "QuantumSDK/Models/Search.swift",
+      "fields": [
+        {
+          "name": "title",
+          "type": "String",
+          "optional": false,
+          "json_tag": "title"
+        },
+        {
+          "name": "url",
+          "type": "String",
+          "optional": false,
+          "json_tag": "url"
+        },
+        {
+          "name": "description",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "description"
+        },
+        {
+          "name": "age",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "age"
+        },
+        {
+          "name": "forum",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "forum"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "WebSearchResponse",
+      "kind": "struct",
+      "file": "QuantumSDK/Models/Search.swift",
+      "fields": [
+        {
+          "name": "query",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "query"
+        },
+        {
+          "name": "web",
+          "type": "[WebResult]?",
+          "optional": true,
+          "json_tag": "web"
+        },
+        {
+          "name": "news",
+          "type": "[NewsResult]?",
+          "optional": true,
+          "json_tag": "news"
+        },
+        {
+          "name": "videos",
+          "type": "[VideoResult]?",
+          "optional": true,
+          "json_tag": "videos"
+        },
+        {
+          "name": "infobox",
+          "type": "[InfoboxResult]?",
+          "optional": true,
+          "json_tag": "infobox"
+        },
+        {
+          "name": "discussions",
+          "type": "[DiscussionResult]?",
+          "optional": true,
+          "json_tag": "discussions"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "SearchContextRequest",
+      "kind": "struct",
+      "file": "QuantumSDK/Models/Search.swift",
+      "fields": [
+        {
+          "name": "query",
+          "type": "String",
+          "optional": false,
+          "json_tag": "query"
+        },
+        {
+          "name": "count",
+          "type": "Int?",
+          "optional": true,
+          "json_tag": "count"
+        },
+        {
+          "name": "country",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "country"
+        },
+        {
+          "name": "language",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "language"
+        },
+        {
+          "name": "freshness",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "freshness"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "SearchContextChunk",
+      "kind": "struct",
+      "file": "QuantumSDK/Models/Search.swift",
+      "fields": [
+        {
+          "name": "content",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "content"
+        },
+        {
+          "name": "url",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "url"
+        },
+        {
+          "name": "title",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "title"
+        },
+        {
+          "name": "score",
+          "type": "Double?",
+          "optional": true,
+          "json_tag": "score"
+        },
+        {
+          "name": "contentType",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "content_type"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "SearchContextSource",
+      "kind": "struct",
+      "file": "QuantumSDK/Models/Search.swift",
+      "fields": [
+        {
+          "name": "url",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "url"
+        },
+        {
+          "name": "title",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "title"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "SearchContextResponse",
+      "kind": "struct",
+      "file": "QuantumSDK/Models/Search.swift",
+      "fields": [
+        {
+          "name": "chunks",
+          "type": "[SearchContextChunk]?",
+          "optional": true,
+          "json_tag": "chunks"
+        },
+        {
+          "name": "sources",
+          "type": "[SearchContextSource]?",
+          "optional": true,
+          "json_tag": "sources"
+        },
+        {
+          "name": "query",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "query"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "SearchAnswerMessage",
+      "kind": "struct",
+      "file": "QuantumSDK/Models/Search.swift",
+      "fields": [
+        {
+          "name": "role",
+          "type": "String",
+          "optional": false,
+          "json_tag": "role"
+        },
+        {
+          "name": "content",
+          "type": "String",
+          "optional": false,
+          "json_tag": "content"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "SearchAnswerRequest",
+      "kind": "struct",
+      "file": "QuantumSDK/Models/Search.swift",
+      "fields": [
+        {
+          "name": "messages",
+          "type": "[SearchAnswerMessage]",
+          "optional": false,
+          "json_tag": "messages"
+        },
+        {
+          "name": "model",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "model"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "SearchAnswerCitation",
+      "kind": "struct",
+      "file": "QuantumSDK/Models/Search.swift",
+      "fields": [
+        {
+          "name": "url",
+          "type": "String",
+          "optional": false,
+          "json_tag": "url"
+        },
+        {
+          "name": "title",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "title"
+        },
+        {
+          "name": "snippet",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "snippet"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "SearchAnswerChoice",
+      "kind": "struct",
+      "file": "QuantumSDK/Models/Search.swift",
+      "fields": [
+        {
+          "name": "index",
+          "type": "Int",
+          "optional": false,
+          "json_tag": "index"
+        },
+        {
+          "name": "message",
+          "type": "SearchAnswerMessage?",
+          "optional": true,
+          "json_tag": "message"
+        },
+        {
+          "name": "finishReason",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "finish_reason"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "SearchAnswerResponse",
+      "kind": "struct",
+      "file": "QuantumSDK/Models/Search.swift",
+      "fields": [
+        {
+          "name": "choices",
+          "type": "[SearchAnswerChoice]",
+          "optional": false,
+          "json_tag": "choices"
+        },
+        {
+          "name": "model",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "model"
+        },
+        {
+          "name": "id",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "id"
+        },
+        {
+          "name": "citations",
+          "type": "[SearchAnswerCitation]?",
+          "optional": true,
+          "json_tag": "citations"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "ToolResult",
+      "kind": "struct",
+      "file": "QuantumSDK/Models/Session.swift",
+      "fields": [
+        {
+          "name": "toolCallId",
+          "type": "String",
+          "optional": false,
+          "json_tag": "tool_call_id"
+        },
+        {
+          "name": "content",
+          "type": "String",
+          "optional": false,
+          "json_tag": "content"
+        },
+        {
+          "name": "isError",
+          "type": "Bool?",
+          "optional": true,
+          "json_tag": "is_error"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "SessionChatRequest",
+      "kind": "struct",
+      "file": "QuantumSDK/Models/Session.swift",
+      "fields": [
+        {
+          "name": "sessionId",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "session_id"
+        },
+        {
+          "name": "model",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "model"
+        },
+        {
+          "name": "message",
+          "type": "String",
+          "optional": false,
+          "json_tag": "message"
+        },
+        {
+          "name": "tools",
+          "type": "[ChatTool]?",
+          "optional": true,
+          "json_tag": "tools"
+        },
+        {
+          "name": "toolResults",
+          "type": "[ToolResult]?",
+          "optional": true,
+          "json_tag": "tool_results"
+        },
+        {
+          "name": "stream",
+          "type": "Bool?",
+          "optional": true,
+          "json_tag": "stream"
+        },
+        {
+          "name": "systemPrompt",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "system_prompt"
+        },
+        {
+          "name": "contextConfig",
+          "type": "ContextConfig?",
+          "optional": true,
+          "json_tag": "context_config"
+        },
+        {
+          "name": "providerOptions",
+          "type": "[String: [String: AnyCodable]]?",
+          "optional": true,
+          "json_tag": "provider_options"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "ContextConfig",
+      "kind": "struct",
+      "file": "QuantumSDK/Models/Session.swift",
+      "fields": [
+        {
+          "name": "maxTokens",
+          "type": "Int64?",
+          "optional": true,
+          "json_tag": "max_tokens"
+        },
+        {
+          "name": "autoCompact",
+          "type": "Bool?",
+          "optional": true,
+          "json_tag": "auto_compact"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "SessionContext",
+      "kind": "struct",
+      "file": "QuantumSDK/Models/Session.swift",
+      "fields": [
+        {
+          "name": "turnCount",
+          "type": "Int64",
+          "optional": false,
+          "json_tag": "turn_count"
+        },
+        {
+          "name": "estimatedTokens",
+          "type": "Int64",
+          "optional": false,
+          "json_tag": "estimated_tokens"
+        },
+        {
+          "name": "compacted",
+          "type": "Bool",
+          "optional": false,
+          "json_tag": "compacted"
+        },
+        {
+          "name": "compactionNote",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "compaction_note"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "SessionChatResponse",
+      "kind": "struct",
+      "file": "QuantumSDK/Models/Session.swift",
+      "fields": [
+        {
+          "name": "sessionId",
+          "type": "String",
+          "optional": false,
+          "json_tag": "session_id"
+        },
+        {
+          "name": "response",
+          "type": "ChatResponse",
+          "optional": false,
+          "json_tag": "response"
+        },
+        {
+          "name": "context",
+          "type": "SessionContext",
+          "optional": false,
+          "json_tag": "context"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "VideoRequest",
+      "kind": "struct",
+      "file": "QuantumSDK/Models/Video.swift",
+      "fields": [
+        {
+          "name": "model",
+          "type": "String",
+          "optional": false,
+          "json_tag": "model"
+        },
+        {
+          "name": "prompt",
+          "type": "String",
+          "optional": false,
+          "json_tag": "prompt"
+        },
+        {
+          "name": "durationSeconds",
+          "type": "Int?",
+          "optional": true,
+          "json_tag": "duration_seconds"
+        },
+        {
+          "name": "aspectRatio",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "aspect_ratio"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "GeneratedVideo",
+      "kind": "struct",
+      "file": "QuantumSDK/Models/Video.swift",
+      "fields": [
+        {
+          "name": "base64",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "base64"
+        },
+        {
+          "name": "format",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "format"
+        },
+        {
+          "name": "sizeBytes",
+          "type": "Int64?",
+          "optional": true,
+          "json_tag": "size_bytes"
+        },
+        {
+          "name": "index",
+          "type": "Int?",
+          "optional": true,
+          "json_tag": "index"
+        },
+        {
+          "name": "url",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "url"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "VideoResponse",
+      "kind": "struct",
+      "file": "QuantumSDK/Models/Video.swift",
+      "fields": [
+        {
+          "name": "videos",
+          "type": "[GeneratedVideo]",
+          "optional": false,
+          "json_tag": "videos"
+        },
+        {
+          "name": "model",
+          "type": "String",
+          "optional": false,
+          "json_tag": "model"
+        },
+        {
+          "name": "costTicks",
+          "type": "Int64",
+          "optional": false,
+          "json_tag": "cost_ticks"
+        },
+        {
+          "name": "requestId",
+          "type": "String",
+          "optional": false,
+          "json_tag": "request_id"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "JobResponse",
+      "kind": "struct",
+      "file": "QuantumSDK/Models/Video.swift",
+      "fields": [
+        {
+          "name": "jobId",
+          "type": "String",
+          "optional": false,
+          "json_tag": "job_id"
+        },
+        {
+          "name": "status",
+          "type": "String",
+          "optional": false,
+          "json_tag": "status"
+        },
+        {
+          "name": "costTicks",
+          "type": "Int64",
+          "optional": false,
+          "json_tag": "cost_ticks"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "StudioClip",
+      "kind": "struct",
+      "file": "QuantumSDK/Models/Video.swift",
+      "fields": [
+        {
+          "name": "avatarId",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "avatar_id"
+        },
+        {
+          "name": "voiceId",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "voice_id"
+        },
+        {
+          "name": "script",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "script"
+        },
+        {
+          "name": "background",
+          "type": "AnyCodable?",
+          "optional": true,
+          "json_tag": "background"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "StudioVideoRequest",
+      "kind": "struct",
+      "file": "QuantumSDK/Models/Video.swift",
+      "fields": [
+        {
+          "name": "title",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "title"
+        },
+        {
+          "name": "clips",
+          "type": "[StudioClip]",
+          "optional": false,
+          "json_tag": "clips"
+        },
+        {
+          "name": "dimension",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "dimension"
+        },
+        {
+          "name": "aspectRatio",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "aspect_ratio"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "TranslateRequest",
+      "kind": "struct",
+      "file": "QuantumSDK/Models/Video.swift",
+      "fields": [
+        {
+          "name": "videoUrl",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "video_url"
+        },
+        {
+          "name": "videoBase64",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "video_base64"
+        },
+        {
+          "name": "targetLanguage",
+          "type": "String",
+          "optional": false,
+          "json_tag": "target_language"
+        },
+        {
+          "name": "sourceLanguage",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "source_language"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "PhotoAvatarRequest",
+      "kind": "struct",
+      "file": "QuantumSDK/Models/Video.swift",
+      "fields": [
+        {
+          "name": "photoBase64",
+          "type": "String",
+          "optional": false,
+          "json_tag": "photo_base64"
+        },
+        {
+          "name": "script",
+          "type": "String",
+          "optional": false,
+          "json_tag": "script"
+        },
+        {
+          "name": "voiceId",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "voice_id"
+        },
+        {
+          "name": "aspectRatio",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "aspect_ratio"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "DigitalTwinRequest",
+      "kind": "struct",
+      "file": "QuantumSDK/Models/Video.swift",
+      "fields": [
+        {
+          "name": "avatarId",
+          "type": "String",
+          "optional": false,
+          "json_tag": "avatar_id"
+        },
+        {
+          "name": "script",
+          "type": "String",
+          "optional": false,
+          "json_tag": "script"
+        },
+        {
+          "name": "voiceId",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "voice_id"
+        },
+        {
+          "name": "aspectRatio",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "aspect_ratio"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "Avatar",
+      "kind": "struct",
+      "file": "QuantumSDK/Models/Video.swift",
+      "fields": [
+        {
+          "name": "avatarId",
+          "type": "String",
+          "optional": false,
+          "json_tag": "avatar_id"
+        },
+        {
+          "name": "name",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "name"
+        },
+        {
+          "name": "gender",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "gender"
+        },
+        {
+          "name": "previewUrl",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "preview_url"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "AvatarsResponse",
+      "kind": "struct",
+      "file": "QuantumSDK/Models/Video.swift",
+      "fields": [
+        {
+          "name": "avatars",
+          "type": "[Avatar]",
+          "optional": false,
+          "json_tag": "avatars"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "VideoTemplate",
+      "kind": "struct",
+      "file": "QuantumSDK/Models/Video.swift",
+      "fields": [
+        {
+          "name": "templateId",
+          "type": "String",
+          "optional": false,
+          "json_tag": "template_id"
+        },
+        {
+          "name": "name",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "name"
+        },
+        {
+          "name": "previewUrl",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "preview_url"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "VideoTemplatesResponse",
+      "kind": "struct",
+      "file": "QuantumSDK/Models/Video.swift",
+      "fields": [
+        {
+          "name": "templates",
+          "type": "[VideoTemplate]",
+          "optional": false,
+          "json_tag": "templates"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "HeyGenVoice",
+      "kind": "struct",
+      "file": "QuantumSDK/Models/Video.swift",
+      "fields": [
+        {
+          "name": "voiceId",
+          "type": "String",
+          "optional": false,
+          "json_tag": "voice_id"
+        },
+        {
+          "name": "name",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "name"
+        },
+        {
+          "name": "language",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "language"
+        },
+        {
+          "name": "gender",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "gender"
+        },
+        {
+          "name": "extra",
+          "type": "[String: AnyCodable]?",
+          "optional": true,
+          "json_tag": "extra"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "HeyGenVoicesResponse",
+      "kind": "struct",
+      "file": "QuantumSDK/Models/Video.swift",
+      "fields": [
+        {
+          "name": "voices",
+          "type": "[HeyGenVoice]",
+          "optional": false,
+          "json_tag": "voices"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "Voice",
+      "kind": "struct",
+      "file": "QuantumSDK/Models/Voice.swift",
+      "fields": [
+        {
+          "name": "voiceId",
+          "type": "String",
+          "optional": false,
+          "json_tag": "voice_id"
+        },
+        {
+          "name": "name",
+          "type": "String",
+          "optional": false,
+          "json_tag": "name"
+        },
+        {
+          "name": "provider",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "provider"
+        },
+        {
+          "name": "languages",
+          "type": "[String]?",
+          "optional": true,
+          "json_tag": "languages"
+        },
+        {
+          "name": "gender",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "gender"
+        },
+        {
+          "name": "isCloned",
+          "type": "Bool?",
+          "optional": true,
+          "json_tag": "is_cloned"
+        },
+        {
+          "name": "previewUrl",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "preview_url"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "VoicesResponse",
+      "kind": "struct",
+      "file": "QuantumSDK/Models/Voice.swift",
+      "fields": [
+        {
+          "name": "voices",
+          "type": "[Voice]",
+          "optional": false,
+          "json_tag": "voices"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "CloneVoiceFile",
+      "kind": "struct",
+      "file": "QuantumSDK/Models/Voice.swift",
+      "fields": [
+        {
+          "name": "filename",
+          "type": "String",
+          "optional": false,
+          "json_tag": "filename"
+        },
+        {
+          "name": "data",
+          "type": "Data",
+          "optional": false,
+          "json_tag": "data"
+        },
+        {
+          "name": "mimeType",
+          "type": "String",
+          "optional": false,
+          "json_tag": "mimeType"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "CloneVoiceResponse",
+      "kind": "struct",
+      "file": "QuantumSDK/Models/Voice.swift",
+      "fields": [
+        {
+          "name": "voiceId",
+          "type": "String",
+          "optional": false,
+          "json_tag": "voice_id"
+        },
+        {
+          "name": "name",
+          "type": "String",
+          "optional": false,
+          "json_tag": "name"
+        },
+        {
+          "name": "status",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "status"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "SharedVoice",
+      "kind": "struct",
+      "file": "QuantumSDK/Models/Voice.swift",
+      "fields": [
+        {
+          "name": "publicOwnerId",
+          "type": "String",
+          "optional": false,
+          "json_tag": "public_owner_id"
+        },
+        {
+          "name": "voiceId",
+          "type": "String",
+          "optional": false,
+          "json_tag": "voice_id"
+        },
+        {
+          "name": "name",
+          "type": "String",
+          "optional": false,
+          "json_tag": "name"
+        },
+        {
+          "name": "category",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "category"
+        },
+        {
+          "name": "description",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "description"
+        },
+        {
+          "name": "previewUrl",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "preview_url"
+        },
+        {
+          "name": "gender",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "gender"
+        },
+        {
+          "name": "age",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "age"
+        },
+        {
+          "name": "accent",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "accent"
+        },
+        {
+          "name": "language",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "language"
+        },
+        {
+          "name": "useCase",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "use_case"
+        },
+        {
+          "name": "rate",
+          "type": "Double?",
+          "optional": true,
+          "json_tag": "rate"
+        },
+        {
+          "name": "clonedByCount",
+          "type": "Int64?",
+          "optional": true,
+          "json_tag": "cloned_by_count"
+        },
+        {
+          "name": "freeUsersAllowed",
+          "type": "Bool?",
+          "optional": true,
+          "json_tag": "free_users_allowed"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "SharedVoicesResponse",
+      "kind": "struct",
+      "file": "QuantumSDK/Models/Voice.swift",
+      "fields": [
+        {
+          "name": "voices",
+          "type": "[SharedVoice]",
+          "optional": false,
+          "json_tag": "voices"
+        },
+        {
+          "name": "nextCursor",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "next_cursor"
+        },
+        {
+          "name": "hasMore",
+          "type": "Bool",
+          "optional": false,
+          "json_tag": "has_more"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "VoiceLibraryQuery",
+      "kind": "struct",
+      "file": "QuantumSDK/Models/Voice.swift",
+      "fields": [
+        {
+          "name": "query",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "query"
+        },
+        {
+          "name": "pageSize",
+          "type": "Int?",
+          "optional": true,
+          "json_tag": "page_size"
+        },
+        {
+          "name": "cursor",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "cursor"
+        },
+        {
+          "name": "gender",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "gender"
+        },
+        {
+          "name": "language",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "language"
+        },
+        {
+          "name": "useCase",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "use_case"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "AddVoiceFromLibraryRequest",
+      "kind": "struct",
+      "file": "QuantumSDK/Models/Voice.swift",
+      "fields": [
+        {
+          "name": "publicOwnerId",
+          "type": "String",
+          "optional": false,
+          "json_tag": "public_owner_id"
+        },
+        {
+          "name": "voiceId",
+          "type": "String",
+          "optional": false,
+          "json_tag": "voice_id"
+        },
+        {
+          "name": "name",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "name"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "AddVoiceFromLibraryResponse",
+      "kind": "struct",
+      "file": "QuantumSDK/Models/Voice.swift",
+      "fields": [
+        {
+          "name": "voiceId",
+          "type": "String",
+          "optional": false,
+          "json_tag": "voice_id"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "HTTPClient",
+      "kind": "class",
+      "file": "QuantumSDK/Networking/HTTPClient.swift",
+      "fields": [
+        {
+          "name": "requestId",
+          "type": "String",
+          "optional": false,
+          "json_tag": "requestId"
+        },
+        {
+          "name": "model",
+          "type": "String",
+          "optional": false,
+          "json_tag": "model"
+        },
+        {
+          "name": "costTicks",
+          "type": "Int",
+          "optional": false,
+          "json_tag": "costTicks"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "SSEParser",
+      "kind": "struct",
+      "file": "QuantumSDK/Networking/SSEClient.swift",
+      "fields": [
+        {
+          "name": "lineIterator",
+          "type": "URLSession.AsyncBytes.AsyncIterator",
+          "optional": false,
+          "json_tag": "lineIterator"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "SSEEvent",
+      "kind": "enum",
+      "file": "QuantumSDK/Networking/SSEClient.swift",
+      "fields": null
+    },
+    {
+      "sdk": "swift",
+      "name": "RemeshRequest",
+      "kind": "struct",
+      "file": "QuantumSDK/QuantumClient+Extensions.swift",
+      "fields": [
+        {
+          "name": "inputTaskId",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "input_task_id"
+        },
+        {
+          "name": "modelUrl",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "model_url"
+        },
+        {
+          "name": "targetFormats",
+          "type": "[String]?",
+          "optional": true,
+          "json_tag": "target_formats"
+        },
+        {
+          "name": "topology",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "topology"
+        },
+        {
+          "name": "targetPolycount",
+          "type": "Int?",
+          "optional": true,
+          "json_tag": "target_polycount"
+        },
+        {
+          "name": "resizeHeight",
+          "type": "Double?",
+          "optional": true,
+          "json_tag": "resize_height"
+        },
+        {
+          "name": "originAt",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "origin_at"
+        },
+        {
+          "name": "convertFormatOnly",
+          "type": "Bool?",
+          "optional": true,
+          "json_tag": "convert_format_only"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "RigRequest",
+      "kind": "struct",
+      "file": "QuantumSDK/QuantumClient+Extensions.swift",
+      "fields": [
+        {
+          "name": "inputTaskId",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "input_task_id"
+        },
+        {
+          "name": "modelUrl",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "model_url"
+        },
+        {
+          "name": "heightMeters",
+          "type": "Double?",
+          "optional": true,
+          "json_tag": "height_meters"
+        },
+        {
+          "name": "textureImageUrl",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "texture_image_url"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "AnimateRequest",
+      "kind": "struct",
+      "file": "QuantumSDK/QuantumClient+Extensions.swift",
+      "fields": [
+        {
+          "name": "rigTaskId",
+          "type": "String",
+          "optional": false,
+          "json_tag": "rig_task_id"
+        },
+        {
+          "name": "actionId",
+          "type": "Int",
+          "optional": false,
+          "json_tag": "actionId"
+        },
+        {
+          "name": "postProcess",
+          "type": "PostProcessOptions?",
+          "optional": true,
+          "json_tag": "postProcess"
+        },
+        {
+          "name": "operationType",
+          "type": "String",
+          "optional": false,
+          "json_tag": "operation_type"
+        },
+        {
+          "name": "fps",
+          "type": "Int?",
+          "optional": true,
+          "json_tag": "fps"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "RetextureRequest",
+      "kind": "struct",
+      "file": "QuantumSDK/QuantumClient+Extensions.swift",
+      "fields": [
+        {
+          "name": "inputTaskId",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "input_task_id"
+        },
+        {
+          "name": "modelUrl",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "modelUrl"
+        },
+        {
+          "name": "textStylePrompt",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "text_style_prompt"
+        },
+        {
+          "name": "imageStyleUrl",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "imageStyleUrl"
+        },
+        {
+          "name": "aiModel",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "ai_model"
+        },
+        {
+          "name": "enableOriginalUv",
+          "type": "Bool?",
+          "optional": true,
+          "json_tag": "enableOriginalUv"
+        },
+        {
+          "name": "enablePbr",
+          "type": "Bool?",
+          "optional": true,
+          "json_tag": "enable_pbr"
+        },
+        {
+          "name": "removeLighting",
+          "type": "Bool?",
+          "optional": true,
+          "json_tag": "removeLighting"
+        },
+        {
+          "name": "targetFormats",
+          "type": "[String]?",
+          "optional": true,
+          "json_tag": "target_formats"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "QuantumClient",
+      "kind": "class",
+      "file": "QuantumSDK/QuantumClient.swift",
+      "fields": [
+        {
+          "name": "params",
+          "type": "[String]",
+          "optional": false,
+          "json_tag": "params"
+        },
+        {
+          "name": "params",
+          "type": "[String: AnyCodable]",
+          "optional": false,
+          "json_tag": "params"
+        },
+        {
+          "name": "params",
+          "type": "[String]",
+          "optional": false,
+          "json_tag": "params"
+        },
+        {
+          "name": "body",
+          "type": "[String: AnyCodable]",
+          "optional": false,
+          "json_tag": "body"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "JobStreamEvent",
+      "kind": "struct",
+      "file": "QuantumSDK/QuantumClient.swift",
+      "fields": [
+        {
+          "name": "type",
+          "type": "String",
+          "optional": false,
+          "json_tag": "type"
+        },
+        {
+          "name": "status",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "status"
+        },
+        {
+          "name": "progress",
+          "type": "Int?",
+          "optional": true,
+          "json_tag": "progress"
+        },
+        {
+          "name": "result",
+          "type": "AnyCodable?",
+          "optional": true,
+          "json_tag": "result"
+        },
+        {
+          "name": "error",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "error"
+        }
+      ]
+    },
+    {
+      "sdk": "swift",
+      "name": "RawAgentEvent",
+      "kind": "struct",
+      "file": "QuantumSDK/QuantumClient.swift",
+      "fields": [
+        {
+          "name": "type",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "type"
+        },
+        {
+          "name": "worker",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "worker"
+        },
+        {
+          "name": "content",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "content"
+        },
+        {
+          "name": "error",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "error"
+        },
+        {
+          "name": "message",
+          "type": "String?",
+          "optional": true,
+          "json_tag": "message"
+        }
+      ]
+    }
+  ],
+  "updated_at": "2026-03-23T20:48:31.533567+01:00"
+}

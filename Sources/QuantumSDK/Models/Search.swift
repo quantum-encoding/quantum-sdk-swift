@@ -44,172 +44,112 @@ public struct WebSearchRequest: Codable, Sendable {
     }
 }
 
-/// Response from the `/qai/v1/search/web` endpoint.
-public struct WebSearchResponse: Codable, Sendable {
-    /// Query information.
-    public var query: SearchQueryInfo?
-
-    /// Web search results.
-    public var web: SearchWebResults?
-
-    /// News results.
-    public var news: SearchNewsResults?
-
-    /// Video results.
-    public var videos: SearchVideoResults?
-
-    /// Infobox result.
-    public var infobox: SearchInfobox?
-
-    /// Discussion results.
-    public var discussions: SearchDiscussionResults?
-}
-
-/// Information about the parsed query.
-public struct SearchQueryInfo: Codable, Sendable {
-    /// Original query string.
-    public var original: String?
-
-    /// Altered/corrected query.
-    public var altered: String?
-
-    /// Detected language.
-    public var language: String?
-
-    /// Whether spellcheck was disabled.
-    public var spellcheckOff: Bool?
-
-    enum CodingKeys: String, CodingKey {
-        case original, altered, language
-        case spellcheckOff = "spellcheck_off"
-    }
-}
-
-/// Web search results container.
-public struct SearchWebResults: Codable, Sendable {
-    /// List of web results.
-    public var results: [SearchWebResult]
-
-    /// Whether results are family-friendly.
-    public var familyFriendly: Bool?
-
-    enum CodingKeys: String, CodingKey {
-        case results
-        case familyFriendly = "family_friendly"
-    }
-}
-
 /// A single web search result.
-public struct SearchWebResult: Codable, Sendable {
+public struct WebResult: Codable, Sendable {
     /// Page title.
-    public var title: String?
+    public var title: String
 
     /// Page URL.
-    public var url: String?
+    public var url: String
 
-    /// Short description/snippet.
+    /// Result description / snippet.
     public var description: String?
-
-    /// Additional text snippets.
-    public var extraSnippets: [String]?
 
     /// Age of the result (e.g. "2 hours ago").
     public var age: String?
 
-    /// Content language.
-    public var language: String?
-
-    /// Whether the result is family-friendly.
-    public var familyFriendly: Bool?
-
-    /// URL metadata.
-    public var metaUrl: SearchMetaURL?
-
-    /// Thumbnail image.
-    public var thumbnail: SearchThumbnail?
-
-    enum CodingKeys: String, CodingKey {
-        case title, url, description, age, language, thumbnail
-        case extraSnippets = "extra_snippets"
-        case familyFriendly = "family_friendly"
-        case metaUrl = "meta_url"
-    }
-}
-
-/// URL metadata for a search result.
-public struct SearchMetaURL: Codable, Sendable {
-    public var scheme: String?
-    public var netloc: String?
-    public var hostname: String?
+    /// Favicon URL.
     public var favicon: String?
-    public var path: String?
 }
 
-/// Thumbnail image metadata.
-public struct SearchThumbnail: Codable, Sendable {
-    public var src: String?
-    public var height: Int?
-    public var width: Int?
-}
+/// A news search result.
+public struct NewsResult: Codable, Sendable {
+    /// Article title.
+    public var title: String
 
-/// News search results container.
-public struct SearchNewsResults: Codable, Sendable {
-    public var results: [SearchNewsResult]
-}
+    /// Article URL.
+    public var url: String
 
-/// A single news result.
-public struct SearchNewsResult: Codable, Sendable {
-    public var title: String?
-    public var url: String?
+    /// Short description.
     public var description: String?
+
+    /// Age of the article.
     public var age: String?
+
+    /// Publisher name.
     public var source: String?
-    public var thumbnail: SearchThumbnail?
 }
 
-/// Video search results container.
-public struct SearchVideoResults: Codable, Sendable {
-    public var results: [SearchVideoResult]
-}
+/// A video search result.
+public struct VideoResult: Codable, Sendable {
+    /// Video title.
+    public var title: String
 
-/// A single video result.
-public struct SearchVideoResult: Codable, Sendable {
-    public var title: String?
-    public var url: String?
+    /// Video page URL.
+    public var url: String
+
+    /// Short description.
     public var description: String?
+
+    /// Thumbnail URL.
+    public var thumbnail: String?
+
+    /// Age of the video.
     public var age: String?
-    public var thumbnail: SearchThumbnail?
 }
 
 /// An infobox (knowledge panel) result.
-public struct SearchInfobox: Codable, Sendable {
-    public var title: String?
-    public var url: String?
-    public var description: String?
-    public var longDesc: String?
-    public var type: String?
-    public var images: [SearchThumbnail]?
+public struct InfoboxResult: Codable, Sendable {
+    /// Infobox title.
+    public var title: String
 
-    enum CodingKeys: String, CodingKey {
-        case title, url, description, type, images
-        case longDesc = "long_desc"
-    }
+    /// Long description.
+    public var description: String?
+
+    /// Source URL.
+    public var url: String?
 }
 
-/// Discussion/forum results container.
-public struct SearchDiscussionResults: Codable, Sendable {
-    public var results: [SearchDiscussionResult]
-}
+/// A discussion / forum result.
+public struct DiscussionResult: Codable, Sendable {
+    /// Discussion title.
+    public var title: String
 
-/// A single discussion/forum result.
-public struct SearchDiscussionResult: Codable, Sendable {
-    public var title: String?
-    public var url: String?
+    /// Discussion URL.
+    public var url: String
+
+    /// Short description.
     public var description: String?
+
+    /// Age of the discussion.
     public var age: String?
+
+    /// Forum name.
+    public var forum: String?
 }
 
-// MARK: - Search Context (LLM Grounding)
+/// Response from the web search endpoint.
+public struct WebSearchResponse: Codable, Sendable {
+    /// Original query.
+    public var query: String?
+
+    /// Web search results.
+    public var web: [WebResult]?
+
+    /// News results.
+    public var news: [NewsResult]?
+
+    /// Video results.
+    public var videos: [VideoResult]?
+
+    /// Infobox / knowledge panel entries.
+    public var infobox: [InfoboxResult]?
+
+    /// Discussion / forum results.
+    public var discussions: [DiscussionResult]?
+}
+
+// MARK: - Search Context
 
 /// Request body for the `/qai/v1/search/context` endpoint.
 public struct SearchContextRequest: Codable, Sendable {
@@ -243,123 +183,101 @@ public struct SearchContextRequest: Codable, Sendable {
     }
 }
 
-/// Response from the `/qai/v1/search/context` endpoint.
-public struct SearchContextResponse: Codable, Sendable {
-    /// Extracted content chunks for LLM grounding.
-    public var chunks: [SearchContentChunk]
-
-    /// Source pages.
-    public var sources: [SearchContextSource]?
-
-    /// Original query.
-    public var query: String?
-}
-
-/// A content chunk extracted for LLM context.
-public struct SearchContentChunk: Codable, Sendable {
-    /// Text content.
+/// A content chunk from search context.
+public struct SearchContextChunk: Codable, Sendable {
+    /// Extracted page content.
     public var content: String?
 
-    /// Source URL.
-    public var url: String?
-
-    /// Source page title.
-    public var title: String?
-
-    /// Relevance score.
-    public var score: Double?
-
-    /// Content type.
-    public var contentType: String?
-
-    /// Chunk index.
-    public var index: Int?
-
-    enum CodingKeys: String, CodingKey {
-        case content, url, title, score, index
-        case contentType = "content_type"
-    }
-}
-
-/// A source page for context results.
-public struct SearchContextSource: Codable, Sendable {
     /// Source URL.
     public var url: String?
 
     /// Page title.
     public var title: String?
 
-    /// Page description.
-    public var description: String?
+    /// Relevance score.
+    public var score: Double?
 
-    /// Text snippet.
-    public var snippet: String?
+    /// Content type (e.g. "text/html").
+    public var contentType: String?
+
+    enum CodingKeys: String, CodingKey {
+        case content, url, title, score
+        case contentType = "content_type"
+    }
+}
+
+/// A source reference from search context.
+public struct SearchContextSource: Codable, Sendable {
+    /// Source URL.
+    public var url: String?
+
+    /// Source title.
+    public var title: String?
+}
+
+/// Response from the search context endpoint.
+public struct SearchContextResponse: Codable, Sendable {
+    /// Content chunks extracted from search results.
+    public var chunks: [SearchContextChunk]?
+
+    /// Source references.
+    public var sources: [SearchContextSource]?
+
+    /// Original query.
+    public var query: String?
 }
 
 // MARK: - Search Answer
 
-/// A message in a search answer conversation.
-public struct SearchMessage: Codable, Sendable {
-    /// Message role ("user" or "assistant").
+/// A chat message for the search answer endpoint.
+public struct SearchAnswerMessage: Codable, Sendable {
+    /// Message role ("user", "assistant", "system").
     public var role: String
 
-    /// Message content.
+    /// Message text content.
     public var content: String
 
     public init(role: String, content: String) {
         self.role = role
         self.content = content
     }
-
-    /// Create a user message.
-    public static func user(_ content: String) -> SearchMessage {
-        SearchMessage(role: "user", content: content)
-    }
-
-    /// Create an assistant message.
-    public static func assistant(_ content: String) -> SearchMessage {
-        SearchMessage(role: "assistant", content: content)
-    }
 }
 
-/// Request body for the `/qai/v1/search/answer` endpoint.
+/// Request body for search answer (AI-generated answer grounded in search).
 public struct SearchAnswerRequest: Codable, Sendable {
     /// Conversation messages.
-    public var messages: [SearchMessage]
+    public var messages: [SearchAnswerMessage]
 
     /// Model to use for answer generation.
     public var model: String?
 
-    public init(messages: [SearchMessage], model: String? = nil) {
+    public init(messages: [SearchAnswerMessage], model: String? = nil) {
         self.messages = messages
         self.model = model
     }
 }
 
-/// Response from the `/qai/v1/search/answer` endpoint.
-public struct SearchAnswerResponse: Codable, Sendable {
-    /// Answer choices.
-    public var choices: [SearchAnswerChoice]
+/// A citation reference in a search answer.
+public struct SearchAnswerCitation: Codable, Sendable {
+    /// Source URL.
+    public var url: String
 
-    /// Model used for generation.
-    public var model: String?
+    /// Source title.
+    public var title: String?
 
-    /// Response ID.
-    public var id: String?
-
-    /// Citations supporting the answer.
-    public var citations: [SearchCitation]?
+    /// Snippet from the source.
+    public var snippet: String?
 }
 
-/// A single answer choice.
+/// A choice in the search answer response.
 public struct SearchAnswerChoice: Codable, Sendable {
     /// Choice index.
     public var index: Int
 
     /// The generated message.
-    public var message: SearchMessage?
+    public var message: SearchAnswerMessage?
 
-    /// Reason the generation finished.
+    /// Finish reason (e.g. "stop").
     public var finishReason: String?
 
     enum CodingKeys: String, CodingKey {
@@ -368,14 +286,17 @@ public struct SearchAnswerChoice: Codable, Sendable {
     }
 }
 
-/// A citation from a search answer.
-public struct SearchCitation: Codable, Sendable {
-    /// Source URL.
-    public var url: String?
+/// Response from the search answer endpoint.
+public struct SearchAnswerResponse: Codable, Sendable {
+    /// Generated answer choices.
+    public var choices: [SearchAnswerChoice]
 
-    /// Source title.
-    public var title: String?
+    /// Model that produced the answer.
+    public var model: String?
 
-    /// Relevant snippet.
-    public var snippet: String?
+    /// Unique response identifier.
+    public var id: String?
+
+    /// Citations used in the answer.
+    public var citations: [SearchAnswerCitation]?
 }

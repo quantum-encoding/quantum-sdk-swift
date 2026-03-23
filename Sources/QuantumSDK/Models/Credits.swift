@@ -14,7 +14,7 @@ public struct CreditPack: Codable, Sendable {
     public var priceUsd: Double
 
     /// Credit ticks included.
-    public var creditTicks: Int
+    public var creditTicks: Int64
 
     /// Description.
     public var description: String?
@@ -73,7 +73,7 @@ public struct CreditPurchaseResponse: Codable, Sendable {
 /// Response from the `/qai/v1/credits/balance` endpoint.
 public struct CreditBalanceResponse: Codable, Sendable {
     /// Balance in ticks.
-    public var balanceTicks: Int
+    public var balanceTicks: Int64
 
     /// Balance in USD.
     public var balanceUsd: Double
@@ -92,13 +92,16 @@ public struct CreditTier: Codable, Sendable {
     public var name: String?
 
     /// Minimum balance requirement.
-    public var minBalance: Int?
+    public var minBalance: Int64?
 
     /// Discount percentage.
     public var discountPercent: Double?
 
+    /// Additional tier data.
+    public var extra: AnyCodable?
+
     enum CodingKeys: String, CodingKey {
-        case name
+        case name, extra
         case minBalance = "min_balance"
         case discountPercent = "discount_percent"
     }

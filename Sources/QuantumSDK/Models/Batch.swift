@@ -1,9 +1,9 @@
 import Foundation
 
-// MARK: - Batch Submit
+// MARK: - Batch Job
 
 /// A single job in a batch submission.
-public struct BatchJobInput: Codable, Sendable {
+public struct BatchJob: Codable, Sendable {
     /// Model to use for this job.
     public var model: String
 
@@ -17,14 +17,14 @@ public struct BatchJobInput: Codable, Sendable {
     public var systemPrompt: String?
 
     /// Optional maximum tokens to generate.
-    public var maxTokens: Int?
+    public var maxTokens: Int64?
 
     public init(
         model: String,
         prompt: String,
         title: String? = nil,
         systemPrompt: String? = nil,
-        maxTokens: Int? = nil
+        maxTokens: Int64? = nil
     ) {
         self.model = model
         self.prompt = prompt
@@ -40,12 +40,15 @@ public struct BatchJobInput: Codable, Sendable {
     }
 }
 
+/// Legacy alias.
+public typealias BatchJobInput = BatchJob
+
 /// Request body for the `/qai/v1/batch` endpoint.
 public struct BatchSubmitRequest: Codable, Sendable {
     /// Array of jobs to submit.
-    public var jobs: [BatchJobInput]
+    public var jobs: [BatchJob]
 
-    public init(jobs: [BatchJobInput]) {
+    public init(jobs: [BatchJob]) {
         self.jobs = jobs
     }
 }
@@ -105,7 +108,7 @@ public struct BatchJobInfo: Codable, Sendable {
     public var error: String?
 
     /// Cost in ticks.
-    public var costTicks: Int
+    public var costTicks: Int64
 
     enum CodingKeys: String, CodingKey {
         case status, model, title, result, error
@@ -117,17 +120,7 @@ public struct BatchJobInfo: Codable, Sendable {
 }
 
 /// Response from listing batch jobs.
-public struct BatchJobsResponse: Sendable {
+public struct BatchJobsResponse: Codable, Sendable {
     /// Batch jobs.
     public var jobs: [BatchJobInfo]
 }
-
-extension BatchJobsResponse: Decodable {
-    enum CodingKeys: String, CodingKey { case jobs }
-    public init(from decoder: Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        self.jobs = (try? container.decode([BatchJobInfo].self, forKey: .jobs)) ?? []
-    }
-}
-
-extension BatchJobsResponse: Encodable {}
