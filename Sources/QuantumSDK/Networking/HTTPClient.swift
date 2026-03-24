@@ -97,6 +97,56 @@ final class HTTPClient: Sendable {
         return (bytes, httpResponse)
     }
 
+    // MARK: - Multipart Upload
+
+    /// Send a multipart/form-data upload and decode the JSON response.
+    func doMultipart<T: Decodable>(
+        path: String,
+        fieldName: String,
+        filename: String,
+        data fileData: Data,
+        contentType: String = "application/octet-stream"
+    ) async throws -> (data: T, meta: ResponseMeta) {
+        guard let url = URL(string: baseURLString + path) else {
+            throw QuantumError.invalidArgument("Invalid path: \(path)")
+        }
+
+        let boundary = "Boundary-\(UUID().uuidString)"
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
+        request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
+
+        var body = Data()
+        body.append("--\(boundary)\r\n".data(using: .utf8)!)
+        body.append("Content-Disposition: form-data; name=\"\(fieldName)\"; filename=\"\(filename)\"\r\n".data(using: .utf8)!)
+        body.append("Content-Type: \(contentType)\r\n\r\n".data(using: .utf8)!)
+        body.append(fileData)
+        body.append("\r\n--\(boundary)--\r\n".data(using: .utf8)!)
+        request.httpBody = body
+
+        let (data, response) = try await performRequest(request)
+        let httpResponse = response as! HTTPURLResponse
+
+        let meta = ResponseMeta(
+            requestId: httpResponse.value(forHTTPHeaderField: "X-QAI-Request-Id") ?? "",
+            model: httpResponse.value(forHTTPHeaderField: "X-QAI-Model") ?? "",
+            costTicks: Int(httpResponse.value(forHTTPHeaderField: "X-QAI-Cost-Ticks") ?? "0") ?? 0
+        )
+
+        guard httpResponse.statusCode >= 200, httpResponse.statusCode < 300 else {
+            throw parseAPIError(data: data, statusCode: httpResponse.statusCode, requestId: meta.requestId)
+        }
+
+        do {
+            let decoder = JSONDecoder()
+            let decoded = try decoder.decode(T.self, from: data)
+            return (decoded, meta)
+        } catch {
+            throw QuantumError.decodingFailed(underlying: error)
+        }
+    }
+
     // MARK: - Private
 
     private func performRequest(_ request: URLRequest) async throws -> (Data, URLResponse) {

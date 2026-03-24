@@ -193,3 +193,97 @@ extension QuantumClient {
         return data
     }
 }
+
+// MARK: - RAG Collection Proxy
+
+extension QuantumClient {
+
+    /// Lists the user's collections plus shared collections.
+    public func collectionsList() async throws -> [Collection] {
+        struct Response: Decodable { let collections: [Collection] }
+        let (data, _): (Response, _) = try await http.doJSON(
+            method: "GET", path: "/qai/v1/rag/collections"
+        )
+        return data.collections
+    }
+
+    /// Creates a new user-owned collection.
+    ///
+    /// - Parameter name: Human-readable name for the collection.
+    /// - Returns: The newly created collection.
+    public func collectionsCreate(_ name: String) async throws -> Collection {
+        struct Body: Encodable { let name: String }
+        let (data, _): (Collection, _) = try await http.doJSON(
+            method: "POST", path: "/qai/v1/rag/collections", body: Body(name: name)
+        )
+        return data
+    }
+
+    /// Gets details for a single collection (must be owned or shared).
+    ///
+    /// - Parameter id: Collection ID.
+    /// - Returns: The collection.
+    public func collectionsGet(_ id: String) async throws -> Collection {
+        let (data, _): (Collection, _) = try await http.doJSON(
+            method: "GET", path: "/qai/v1/rag/collections/\(id)"
+        )
+        return data
+    }
+
+    /// Deletes a collection (owner only).
+    ///
+    /// - Parameter id: Collection ID.
+    public func collectionsDelete(_ id: String) async throws {
+        struct Response: Decodable { let message: String? }
+        let (_, _): (Response, _) = try await http.doJSON(
+            method: "DELETE", path: "/qai/v1/rag/collections/\(id)"
+        )
+    }
+
+    /// Lists documents in a collection.
+    ///
+    /// - Parameter collectionId: Collection ID.
+    /// - Returns: Array of documents.
+    public func collectionsDocuments(_ collectionId: String) async throws -> [CollectionDocument] {
+        struct Response: Decodable { let documents: [CollectionDocument] }
+        let (data, _): (Response, _) = try await http.doJSON(
+            method: "GET", path: "/qai/v1/rag/collections/\(collectionId)/documents"
+        )
+        return data.documents
+    }
+
+    /// Uploads a file to a collection.
+    ///
+    /// The server handles the two-step upload (files API + management API) with the master key.
+    ///
+    /// - Parameters:
+    ///   - collectionId: Target collection ID.
+    ///   - filename: Name for the uploaded file.
+    ///   - content: Raw file data.
+    /// - Returns: Upload result with file ID and size.
+    public func collectionsUpload(
+        collectionId: String,
+        filename: String,
+        content: Data
+    ) async throws -> CollectionUploadResult {
+        let (data, _): (CollectionUploadResult, _) = try await http.doMultipart(
+            path: "/qai/v1/rag/collections/\(collectionId)/upload",
+            fieldName: "file",
+            filename: filename,
+            data: content
+        )
+        return data
+    }
+
+    /// Searches across collections (user's + shared) with hybrid/semantic/keyword mode.
+    ///
+    /// - Parameter request: Search parameters including query and collection IDs.
+    /// - Returns: Array of search results.
+    public func collectionsSearch(_ request: CollectionSearchRequest) async throws -> [CollectionSearchResult] {
+        struct Response: Decodable { let results: [CollectionSearchResult] }
+        let (data, _): (Response, _) = try await http.doJSON(
+            method: "POST", path: "/qai/v1/rag/search/collections", body: request
+        )
+        return data.results
+    }
+}
