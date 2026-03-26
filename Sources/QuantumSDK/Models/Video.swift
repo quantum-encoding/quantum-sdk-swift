@@ -336,3 +336,33 @@ public struct HeyGenVoice: Codable, Sendable {
 public struct HeyGenVoicesResponse: Codable, Sendable {
     public var voices: [HeyGenVoice]
 }
+
+// MARK: - HeyGen Typed Responses
+
+/// Response from listing HeyGen avatars (includes requestId).
+public struct HeyGenAvatarsResponse: Codable, Sendable {
+    /// Available avatars (raw JSON items).
+    public var avatars: [AnyCodable]?
+
+    /// Unique request identifier.
+    public var requestId: String?
+
+    enum CodingKeys: String, CodingKey {
+        case avatars
+        case requestId = "request_id"
+    }
+}
+
+/// Response from listing HeyGen templates (includes requestId).
+public struct HeyGenTemplatesResponse: Codable, Sendable {
+    /// Available templates (raw JSON items).
+    public var templates: [AnyCodable]?
+
+    /// Unique request identifier.
+    public var requestId: String?
+
+    enum CodingKeys: String, CodingKey {
+        case templates
+        case requestId = "request_id"
+    }
+}

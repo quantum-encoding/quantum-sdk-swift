@@ -27,6 +27,9 @@ public struct RealtimeSession: Codable, Sendable {
     }
 }
 
+/// Backwards-compatible alias for ``RealtimeSession``.
+public typealias RealtimeSessionResponse = RealtimeSession
+
 // MARK: - Realtime Config
 
 /// Configuration for a realtime voice session.

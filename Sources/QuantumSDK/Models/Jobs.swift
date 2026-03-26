@@ -113,6 +113,124 @@ public struct ListJobsResponse: Codable, Sendable {
     public var jobs: [JobSummary]
 }
 
+// MARK: - Job Accepted
+
+/// Response from async job submission (HeyGen, 3D, etc.).
+public struct JobAcceptedResponse: Codable, Sendable {
+    /// Unique job identifier for polling.
+    public var jobId: String
+
+    /// Initial job status (e.g. "pending").
+    public var status: String?
+
+    /// Job type.
+    public var jobType: String?
+
+    /// Unique request identifier.
+    public var requestId: String?
+
+    enum CodingKeys: String, CodingKey {
+        case status
+        case jobId = "job_id"
+        case jobType = "type"
+        case requestId = "request_id"
+    }
+}
+
+// MARK: - Job List Entry
+
+/// A single job entry in the detailed job list response.
+public struct JobListEntry: Codable, Sendable {
+    /// Unique job identifier.
+    public var jobId: String
+
+    /// Job type (e.g. "video/generate", "audio/tts").
+    public var jobType: String?
+
+    /// Job status ("pending", "processing", "completed", "failed").
+    public var status: String
+
+    /// Job output when completed.
+    public var result: AnyCodable?
+
+    /// Error message if the job failed.
+    public var error: String?
+
+    /// Total cost in ticks.
+    public var costTicks: Int64?
+
+    /// Job creation timestamp.
+    public var createdAt: String?
+
+    /// When processing began.
+    public var startedAt: String?
+
+    /// When the job finished.
+    public var completedAt: String?
+
+    /// Originating request identifier.
+    public var requestId: String?
+
+    enum CodingKeys: String, CodingKey {
+        case status, result, error
+        case jobId = "job_id"
+        case jobType = "type"
+        case costTicks = "cost_ticks"
+        case createdAt = "created_at"
+        case startedAt = "started_at"
+        case completedAt = "completed_at"
+        case requestId = "request_id"
+    }
+}
+
+/// Response from listing jobs (detailed variant).
+public struct JobListResponse: Codable, Sendable {
+    /// The list of jobs.
+    public var jobs: [JobListEntry]
+
+    /// Unique request identifier.
+    public var requestId: String?
+
+    enum CodingKeys: String, CodingKey {
+        case jobs
+        case requestId = "request_id"
+    }
+}
+
+// MARK: - Job Stream Event
+
+/// A single SSE event from a job stream.
+public struct JobStreamEvent: Codable, Sendable {
+    /// Event type (e.g. "progress", "complete", "error").
+    public var eventType: String?
+
+    /// Job identifier.
+    public var jobId: String?
+
+    /// Job status.
+    public var status: String?
+
+    /// Job result (on completion).
+    public var result: AnyCodable?
+
+    /// Error message (on failure).
+    public var error: String?
+
+    /// Total cost in ticks.
+    public var costTicks: Int64?
+
+    /// Completion timestamp.
+    public var completedAt: String?
+
+    enum CodingKeys: String, CodingKey {
+        case status, result, error
+        case eventType = "type"
+        case jobId = "job_id"
+        case costTicks = "cost_ticks"
+        case completedAt = "completed_at"
+    }
+}
+
 // MARK: - 3D Generation
 
 /// Request for 3D model generation via the jobs system.

@@ -185,6 +185,87 @@ public struct DeleteResponse: Codable, Sendable {
     }
 }
 
+// MARK: - Compute Instance Info
+
+/// Detailed compute instance info with GPU, cost, and uptime details.
+public struct ComputeInstanceInfo: Codable, Sendable {
+    /// Unique instance identifier.
+    public var instanceId: String
+
+    /// Template that was used.
+    public var template: String
+
+    /// Current instance status ("provisioning", "running", "stopping", "terminated", "failed").
+    public var status: String
+
+    /// Live GCE instance status.
+    public var gcpStatus: String?
+
+    /// GCP zone.
+    public var zone: String
+
+    /// GCE machine type.
+    public var machineType: String?
+
+    /// Public IP address (available once running).
+    public var externalIp: String?
+
+    /// GPU accelerator type.
+    public var gpuType: String?
+
+    /// Number of GPUs.
+    public var gpuCount: Int?
+
+    /// Whether this is a spot/preemptible instance.
+    public var spot: Bool?
+
+    /// Hourly rate in USD.
+    public var hourlyUsd: Double?
+
+    /// Total cost so far in USD.
+    public var costUsd: Double?
+
+    /// Total uptime in minutes.
+    public var uptimeMinutes: Int?
+
+    /// Inactivity timeout in minutes.
+    public var autoTeardownMinutes: Int?
+
+    /// SSH username for the instance.
+    public var sshUsername: String?
+
+    /// ISO 8601 timestamp of last activity.
+    public var lastActiveAt: String?
+
+    /// ISO 8601 creation timestamp.
+    public var createdAt: String?
+
+    /// ISO 8601 termination timestamp (if terminated).
+    public var terminatedAt: String?
+
+    /// Error message if the instance failed.
+    public var errorMessage: String?
+
+    enum CodingKeys: String, CodingKey {
+        case template, status, zone, spot
+        case instanceId = "instance_id"
+        case gcpStatus = "gcp_status"
+        case machineType = "machine_type"
+        case externalIp = "external_ip"
+        case gpuType = "gpu_type"
+        case gpuCount = "gpu_count"
+        case hourlyUsd = "hourly_usd"
+        case costUsd = "cost_usd"
+        case uptimeMinutes = "uptime_minutes"
+        case autoTeardownMinutes = "auto_teardown_minutes"
+        case sshUsername = "ssh_username"
+        case lastActiveAt = "last_active_at"
+        case createdAt = "created_at"
+        case terminatedAt = "terminated_at"
+        case errorMessage = "error_message"
+    }
+}
+
 // MARK: - Compute Billing
 
 /// Request body for querying compute billing.

@@ -187,3 +187,54 @@ public struct AnimationPostProcess: Codable, Sendable {
         case operationType = "operation_type"
     }
 }
+
+/// Backwards-compatible alias for ``AnimationPostProcess``.
+public typealias PostProcess = AnimationPostProcess
+
+// MARK: - Basic Animations
+
+/// URLs for basic pre-built animations from a rigging result.
+public struct BasicAnimations: Codable, Sendable {
+    /// Walking animation in GLB format.
+    public var walkingGlb: String?
+
+    /// Walking animation in FBX format.
+    public var walkingFbx: String?
+
+    /// Running animation in GLB format.
+    public var runningGlb: String?
+
+    /// Running animation in FBX format.
+    public var runningFbx: String?
+
+    /// Idle animation in GLB format.
+    public var idleGlb: String?
+
+    /// Idle animation in FBX format.
+    public var idleFbx: String?
+
+    public init(
+        walkingGlb: String? = nil,
+        walkingFbx: String? = nil,
+        runningGlb: String? = nil,
+        runningFbx: String? = nil,
+        idleGlb: String? = nil,
+        idleFbx: String? = nil
+    ) {
+        self.walkingGlb = walkingGlb
+        self.walkingFbx = walkingFbx
+        self.runningGlb = runningGlb
+        self.runningFbx = runningFbx
+        self.idleGlb = idleGlb
+        self.idleFbx = idleFbx
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case walkingGlb = "walking_glb"
+        case walkingFbx = "walking_fbx"
+        case runningGlb = "running_glb"
+        case runningFbx = "running_fbx"
+        case idleGlb = "idle_glb"
+        case idleFbx = "idle_fbx"
+    }
+}

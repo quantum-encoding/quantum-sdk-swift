@@ -306,3 +306,92 @@ public struct SearchAnswerResponse: Codable, Sendable {
     /// Citations used in the answer.
     public var citations: [SearchAnswerCitation]?
 }
+
+// MARK: - Aliases & Additional Types
+
+/// Backwards-compatible alias for ``SearchContextChunk``.
+public typealias ContextChunk = SearchContextChunk
+
+/// Options for configuring web search requests.
+public struct SearchOptions: Codable, Sendable {
+    /// Number of results to return.
+    public var count: Int?
+
+    /// Zero-based result offset for pagination.
+    public var offset: Int?
+
+    /// Country code filter (e.g. "US", "GB").
+    public var country: String?
+
+    /// Language code filter (e.g. "en", "fr").
+    public var language: String?
+
+    /// Time range filter (e.g. "24h", "7d", "30d").
+    public var freshness: String?
+
+    /// Adult content filtering ("off", "moderate", "strict").
+    public var safeSearch: String?
+
+    public init(
+        count: Int? = nil,
+        offset: Int? = nil,
+        country: String? = nil,
+        language: String? = nil,
+        freshness: String? = nil,
+        safeSearch: String? = nil
+    ) {
+        self.count = count
+        self.offset = offset
+        self.country = country
+        self.language = language
+        self.freshness = freshness
+        self.safeSearch = safeSearch
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case count, offset, country, language, freshness
+        case safeSearch = "safe_search"
+    }
+}
+
+/// Options for configuring LLM context search requests.
+public struct ContextOptions: Codable, Sendable {
+    /// Number of context chunks to return.
+    public var count: Int?
+
+    /// Country code filter.
+    public var country: String?
+
+    /// Language code filter.
+    public var language: String?
+
+    /// Time range filter.
+    public var freshness: String?
+
+    public init(
+        count: Int? = nil,
+        country: String? = nil,
+        language: String? = nil,
+        freshness: String? = nil
+    ) {
+        self.count = count
+        self.country = country
+        self.language = language
+        self.freshness = freshness
+    }
+}
+
+/// Backwards-compatible alias for ``SearchAnswerMessage``.
+public typealias SearchMessage = SearchAnswerMessage
+
+/// LLM-optimised context response from web search.
+public struct LLMContextResponse: Codable, Sendable {
+    /// Original search query.
+    public var query: String?
+
+    /// Content chunks suitable for LLM consumption.
+    public var chunks: [SearchContextChunk]?
+
+    /// Source URLs used.
+    public var sources: [String]?
+}

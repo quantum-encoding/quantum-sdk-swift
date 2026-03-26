@@ -230,3 +230,28 @@ public struct AddVoiceFromLibraryResponse: Codable, Sendable {
         case voiceId = "voice_id"
     }
 }
+
+// MARK: - Clone Voice Request
+
+/// Request body for instant voice cloning from audio samples (JSON path).
+public struct CloneVoiceRequest: Codable, Sendable {
+    /// Display name for the cloned voice.
+    public var name: String
+
+    /// Description of the voice.
+    public var description: String?
+
+    /// Base64-encoded audio files for cloning.
+    public var audioSamples: [String]
+
+    public init(name: String, description: String? = nil, audioSamples: [String]) {
+        self.name = name
+        self.description = description
+        self.audioSamples = audioSamples
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case name, description
+        case audioSamples = "audio_samples"
+    }
+}
