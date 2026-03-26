@@ -81,6 +81,9 @@ public struct ChunkRequest: Codable, Sendable {
     }
 }
 
+/// Parity alias matching Rust SDK naming.
+public typealias ChunkDocumentRequest = ChunkRequest
+
 /// A single document chunk.
 public struct DocumentChunk: Codable, Sendable {
     /// Chunk index.
@@ -120,6 +123,9 @@ public struct ChunkResponse: Codable, Sendable {
     }
 }
 
+/// Parity alias matching Rust SDK naming.
+public typealias ChunkDocumentResponse = ChunkResponse
+
 // MARK: - Document Process
 
 /// Request body for document processing (combined extraction + analysis).
@@ -149,6 +155,9 @@ public struct ProcessRequest: Codable, Sendable {
     }
 }
 
+/// Parity alias matching Rust SDK naming.
+public typealias ProcessDocumentRequest = ProcessRequest
+
 /// Response from document processing.
 public struct ProcessResponse: Codable, Sendable {
     /// Processed content / analysis result.
@@ -169,3 +178,6 @@ public struct ProcessResponse: Codable, Sendable {
         case requestId = "request_id"
     }
 }
+
+/// Parity alias matching Rust SDK naming.
+public typealias ProcessDocumentResponse = ProcessResponse

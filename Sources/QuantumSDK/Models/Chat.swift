@@ -213,6 +213,30 @@ public struct ChatTool: Codable, Sendable {
     }
 }
 
+// MARK: - Citation
+
+/// A source reference from web search grounding.
+public struct Citation: Codable, Sendable {
+    /// Title of the cited source.
+    public var title: String
+
+    /// URL of the cited source.
+    public var url: String
+
+    /// Relevant text snippet from the source.
+    public var text: String
+
+    /// Position in the response.
+    public var index: Int
+
+    public init(title: String = "", url: String = "", text: String = "", index: Int = 0) {
+        self.title = title
+        self.url = url
+        self.text = text
+        self.index = index
+    }
+}
+
 // MARK: - Chat Usage
 
 /// Token usage and cost information for a chat request.
@@ -252,6 +276,9 @@ public struct ChatResponse: Codable, Sendable {
     /// Reason the model stopped generating.
     public var stopReason: String
 
+    /// Citations from web search (when search is enabled via provider_options).
+    public var citations: [Citation]?
+
     /// Unique request ID.
     public var requestId: String
 
@@ -259,7 +286,7 @@ public struct ChatResponse: Codable, Sendable {
     public var costTicks: Int
 
     enum CodingKeys: String, CodingKey {
-        case id, model, content, usage
+        case id, model, content, usage, citations
         case stopReason = "stop_reason"
         case requestId = "request_id"
         case costTicks = "cost_ticks"

@@ -155,6 +155,9 @@ public struct StudioVideoRequest: Codable, Sendable {
     }
 }
 
+/// Parity alias matching Rust SDK naming.
+public typealias VideoStudioRequest = StudioVideoRequest
+
 // MARK: - HeyGen Translate
 
 /// Request body for video translation.
@@ -185,6 +188,9 @@ public struct TranslateRequest: Codable, Sendable {
         case sourceLanguage = "source_language"
     }
 }
+
+/// Parity alias matching Rust SDK naming.
+public typealias VideoTranslateRequest = TranslateRequest
 
 // MARK: - HeyGen Photo Avatar
 

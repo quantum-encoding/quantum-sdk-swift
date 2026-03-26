@@ -110,6 +110,9 @@ public struct InfoboxResult: Codable, Sendable {
     public var url: String?
 }
 
+/// Parity alias matching Rust SDK naming.
+public typealias Infobox = InfoboxResult
+
 /// A discussion / forum result.
 public struct DiscussionResult: Codable, Sendable {
     /// Discussion title.
@@ -127,6 +130,9 @@ public struct DiscussionResult: Codable, Sendable {
     /// Forum name.
     public var forum: String?
 }
+
+/// Parity alias matching Rust SDK naming.
+public typealias Discussion = DiscussionResult
 
 /// Response from the web search endpoint.
 public struct WebSearchResponse: Codable, Sendable {

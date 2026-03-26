@@ -215,6 +215,12 @@ public struct ModelInfo: Codable, Sendable {
     }
 }
 
+/// Response from listing models.
+public struct ModelsResponse: Codable, Sendable {
+    /// Available models.
+    public var models: [ModelInfo]
+}
+
 /// Pricing information for a model.
 public struct PricingInfo: Codable, Sendable {
     /// Model ID.

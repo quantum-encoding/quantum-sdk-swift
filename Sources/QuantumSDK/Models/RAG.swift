@@ -107,6 +107,12 @@ public struct RagCorpus: Codable, Sendable {
 /// Legacy alias.
 public typealias RAGCorpus = RagCorpus
 
+/// Response from listing RAG corpora.
+public struct RagCorporaResponse: Codable, Sendable {
+    /// Available corpora.
+    public var corpora: [RagCorpus]
+}
+
 // MARK: - SurrealDB RAG
 
 /// Request body for SurrealDB-backed RAG search.
@@ -203,6 +209,9 @@ public struct SurrealRagProvider: Codable, Sendable {
 /// Legacy alias.
 public typealias SurrealRAGProviderInfo = SurrealRagProvider
 
+/// Parity alias matching Rust SDK naming.
+public typealias SurrealRagProviderInfo = SurrealRagProvider
+
 /// Response from listing SurrealDB RAG providers.
 public struct SurrealRagProvidersResponse: Codable, Sendable {
     public var providers: [SurrealRagProvider]
@@ -210,3 +219,39 @@ public struct SurrealRagProvidersResponse: Codable, Sendable {
 
 /// Legacy alias.
 public typealias SurrealRAGProvidersResponse = SurrealRagProvidersResponse
+
+// MARK: - Collection Wrapper Types
+
+/// Request body for creating a collection.
+public struct CreateCollectionRequest: Codable, Sendable {
+    /// Collection name.
+    public var name: String
+
+    public init(name: String) {
+        self.name = name
+    }
+}
+
+/// Response from listing collections.
+public struct CollectionsListResponse: Codable, Sendable {
+    /// Available collections.
+    public var collections: [Collection]
+}
+
+/// Response from listing documents in a collection.
+public struct CollectionDocumentsResponse: Codable, Sendable {
+    /// Documents in the collection.
+    public var documents: [CollectionDocument]
+}
+
+/// Response from collection search.
+public struct CollectionSearchResponse: Codable, Sendable {
+    /// Search results.
+    public var results: [CollectionSearchResult]
+}
+
+/// Response from deleting a collection.
+public struct DeleteCollectionResponse: Codable, Sendable {
+    /// Status message.
+    public var message: String
+}

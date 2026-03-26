@@ -36,6 +36,9 @@ public struct TtsRequest: Codable, Sendable {
 /// Legacy alias.
 public typealias TTSRequest = TtsRequest
 
+/// Parity alias matching Rust SDK naming.
+public typealias TextToSpeechRequest = TtsRequest
+
 /// Response from text-to-speech.
 public struct TtsResponse: Codable, Sendable {
     /// Base64-encoded audio data.
@@ -67,6 +70,9 @@ public struct TtsResponse: Codable, Sendable {
 
 /// Legacy alias.
 public typealias TTSResponse = TtsResponse
+
+/// Parity alias matching Rust SDK naming.
+public typealias TextToSpeechResponse = TtsResponse
 
 // MARK: - STT
 
@@ -100,6 +106,9 @@ public struct SttRequest: Codable, Sendable {
 /// Legacy alias.
 public typealias STTRequest = SttRequest
 
+/// Parity alias matching Rust SDK naming.
+public typealias SpeechToTextRequest = SttRequest
+
 /// Response from speech-to-text.
 public struct SttResponse: Codable, Sendable {
     /// Transcribed text.
@@ -123,6 +132,9 @@ public struct SttResponse: Codable, Sendable {
 
 /// Legacy alias.
 public typealias STTResponse = SttResponse
+
+/// Parity alias matching Rust SDK naming.
+public typealias SpeechToTextResponse = SttResponse
 
 // MARK: - Music
 
@@ -339,6 +351,35 @@ public struct DialogueRequest: Codable, Sendable {
     }
 }
 
+/// Response from dialogue generation.
+public struct DialogueResponse: Codable, Sendable {
+    /// Base64-encoded audio data.
+    public var audioBase64: String
+
+    /// Audio format (e.g. "mp3").
+    public var format: String
+
+    /// Audio file size.
+    public var sizeBytes: Int64
+
+    /// Model used.
+    public var model: String
+
+    /// Total cost in ticks.
+    public var costTicks: Int64
+
+    /// Unique request identifier.
+    public var requestId: String
+
+    enum CodingKeys: String, CodingKey {
+        case format, model
+        case audioBase64 = "audio_base64"
+        case sizeBytes = "size_bytes"
+        case costTicks = "cost_ticks"
+        case requestId = "request_id"
+    }
+}
+
 // MARK: - Speech to Speech
 
 /// Request body for speech-to-speech conversion.
@@ -369,6 +410,35 @@ public struct SpeechToSpeechRequest: Codable, Sendable {
     }
 }
 
+/// Response from speech-to-speech conversion.
+public struct SpeechToSpeechResponse: Codable, Sendable {
+    /// Base64-encoded audio data.
+    public var audioBase64: String
+
+    /// Audio format (e.g. "mp3").
+    public var format: String
+
+    /// Audio file size.
+    public var sizeBytes: Int64
+
+    /// Model used.
+    public var model: String
+
+    /// Total cost in ticks.
+    public var costTicks: Int64
+
+    /// Unique request identifier.
+    public var requestId: String
+
+    enum CodingKeys: String, CodingKey {
+        case format, model
+        case audioBase64 = "audio_base64"
+        case sizeBytes = "size_bytes"
+        case costTicks = "cost_ticks"
+        case requestId = "request_id"
+    }
+}
+
 // MARK: - Voice Isolation
 
 /// Request body for voice isolation.
@@ -387,6 +457,35 @@ public struct IsolateRequest: Codable, Sendable {
     enum CodingKeys: String, CodingKey {
         case audioBase64 = "audio_base64"
         case outputFormat = "format"
+    }
+}
+
+/// Parity alias matching Rust SDK naming.
+public typealias IsolateVoiceRequest = IsolateRequest
+
+/// Response from voice isolation.
+public struct IsolateVoiceResponse: Codable, Sendable {
+    /// Base64-encoded audio data.
+    public var audioBase64: String
+
+    /// Audio format (e.g. "mp3").
+    public var format: String
+
+    /// Audio file size.
+    public var sizeBytes: Int64
+
+    /// Total cost in ticks.
+    public var costTicks: Int64
+
+    /// Unique request identifier.
+    public var requestId: String
+
+    enum CodingKeys: String, CodingKey {
+        case format
+        case audioBase64 = "audio_base64"
+        case sizeBytes = "size_bytes"
+        case costTicks = "cost_ticks"
+        case requestId = "request_id"
     }
 }
 
@@ -420,6 +519,39 @@ public struct RemixRequest: Codable, Sendable {
     }
 }
 
+/// Parity alias matching Rust SDK naming.
+public typealias RemixVoiceRequest = RemixRequest
+
+/// Response from voice remixing.
+public struct RemixVoiceResponse: Codable, Sendable {
+    /// Base64-encoded audio data.
+    public var audioBase64: String?
+
+    /// Audio format (e.g. "mp3").
+    public var format: String
+
+    /// Audio file size.
+    public var sizeBytes: Int64
+
+    /// Voice ID used for remix.
+    public var voiceId: String?
+
+    /// Total cost in ticks.
+    public var costTicks: Int64
+
+    /// Unique request identifier.
+    public var requestId: String
+
+    enum CodingKeys: String, CodingKey {
+        case format
+        case audioBase64 = "audio_base64"
+        case sizeBytes = "size_bytes"
+        case voiceId = "voice_id"
+        case costTicks = "cost_ticks"
+        case requestId = "request_id"
+    }
+}
+
 // MARK: - Dubbing
 
 /// Request body for audio dubbing.
@@ -448,6 +580,43 @@ public struct DubRequest: Codable, Sendable {
         case audioBase64 = "audio_base64"
         case targetLanguage = "target_language"
         case sourceLanguage = "source_language"
+    }
+}
+
+/// Response from dubbing.
+public struct DubResponse: Codable, Sendable {
+    /// Dubbing job ID.
+    public var dubbingId: String
+
+    /// Base64-encoded audio data.
+    public var audioBase64: String
+
+    /// Audio format (e.g. "mp3").
+    public var format: String
+
+    /// Target language used.
+    public var targetLang: String
+
+    /// Job status.
+    public var status: String
+
+    /// Processing time in seconds.
+    public var processingTimeSeconds: Double
+
+    /// Total cost in ticks.
+    public var costTicks: Int64
+
+    /// Unique request identifier.
+    public var requestId: String
+
+    enum CodingKeys: String, CodingKey {
+        case format, status
+        case dubbingId = "dubbing_id"
+        case audioBase64 = "audio_base64"
+        case targetLang = "target_lang"
+        case processingTimeSeconds = "processing_time_seconds"
+        case costTicks = "cost_ticks"
+        case requestId = "request_id"
     }
 }
 
@@ -488,10 +657,37 @@ public struct AlignmentSegment: Codable, Sendable {
     public var end: Double
 }
 
+/// A single word with timing information from forced alignment.
+public struct AlignedWord: Codable, Sendable {
+    /// Word text.
+    public var text: String
+
+    /// Start time in seconds.
+    public var startTime: Double
+
+    /// End time in seconds.
+    public var endTime: Double
+
+    /// Alignment confidence score.
+    public var confidence: Double
+
+    enum CodingKeys: String, CodingKey {
+        case text, confidence
+        case startTime = "start_time"
+        case endTime = "end_time"
+    }
+}
+
 /// Response from audio alignment.
 public struct AlignResponse: Codable, Sendable {
     /// Aligned segments.
     public var segments: [AlignmentSegment]?
+
+    /// Word-level alignment.
+    public var alignment: [AlignedWord]?
+
+    /// Model used.
+    public var model: String?
 
     /// Total cost in ticks.
     public var costTicks: Int64
@@ -500,7 +696,7 @@ public struct AlignResponse: Codable, Sendable {
     public var requestId: String
 
     enum CodingKeys: String, CodingKey {
-        case segments
+        case segments, alignment, model
         case costTicks = "cost_ticks"
         case requestId = "request_id"
     }
@@ -532,6 +728,42 @@ public struct VoiceDesignRequest: Codable, Sendable {
     }
 }
 
+/// A single voice preview from voice design.
+public struct VoicePreview: Codable, Sendable {
+    /// Generated voice identifier.
+    public var generatedVoiceId: String
+
+    /// Base64-encoded audio data.
+    public var audioBase64: String
+
+    /// Audio format (e.g. "mp3").
+    public var format: String
+
+    enum CodingKeys: String, CodingKey {
+        case format
+        case generatedVoiceId = "generated_voice_id"
+        case audioBase64 = "audio_base64"
+    }
+}
+
+/// Response from voice design.
+public struct VoiceDesignResponse: Codable, Sendable {
+    /// Voice previews.
+    public var previews: [VoicePreview]
+
+    /// Total cost in ticks.
+    public var costTicks: Int64
+
+    /// Unique request identifier.
+    public var requestId: String
+
+    enum CodingKeys: String, CodingKey {
+        case previews
+        case costTicks = "cost_ticks"
+        case requestId = "request_id"
+    }
+}
+
 // MARK: - Starfish TTS
 
 /// Request body for Starfish TTS.
@@ -558,6 +790,158 @@ public struct StarfishTTSRequest: Codable, Sendable {
     enum CodingKeys: String, CodingKey {
         case text, voice, speed
         case outputFormat = "format"
+    }
+}
+
+/// Response from Starfish TTS.
+public struct StarfishTTSResponse: Codable, Sendable {
+    /// Base64-encoded audio data.
+    public var audioBase64: String?
+
+    /// URL of the generated audio.
+    public var url: String?
+
+    /// Audio format (e.g. "mp3").
+    public var format: String
+
+    /// Audio file size.
+    public var sizeBytes: Int64
+
+    /// Audio duration in seconds.
+    public var duration: Double
+
+    /// Model used.
+    public var model: String
+
+    /// Total cost in ticks.
+    public var costTicks: Int64
+
+    /// Unique request identifier.
+    public var requestId: String
+
+    enum CodingKeys: String, CodingKey {
+        case url, format, duration, model
+        case audioBase64 = "audio_base64"
+        case sizeBytes = "size_bytes"
+        case costTicks = "cost_ticks"
+        case requestId = "request_id"
+    }
+}
+
+// MARK: - Advanced Music
+
+/// Advanced music generation request.
+public struct MusicAdvancedRequest: Codable, Sendable {
+    /// Text prompt describing the music.
+    public var prompt: String
+
+    /// Target duration in seconds.
+    public var durationSeconds: Int?
+
+    /// Model to use.
+    public var model: String?
+
+    /// Finetune ID to apply.
+    public var finetuneId: String?
+
+    public init(prompt: String, durationSeconds: Int? = nil, model: String? = nil, finetuneId: String? = nil) {
+        self.prompt = prompt
+        self.durationSeconds = durationSeconds
+        self.model = model
+        self.finetuneId = finetuneId
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case prompt, model
+        case durationSeconds = "duration_seconds"
+        case finetuneId = "finetune_id"
+    }
+}
+
+/// A single clip from advanced music generation.
+public struct MusicAdvancedClip: Codable, Sendable {
+    /// Base64-encoded audio data.
+    public var base64: String
+
+    /// Audio format (e.g. "mp3").
+    public var format: String
+
+    /// File size in bytes.
+    public var size: Int64
+}
+
+/// Response from advanced music generation.
+public struct MusicAdvancedResponse: Codable, Sendable {
+    /// Generated music clips.
+    public var clips: [MusicAdvancedClip]
+
+    /// Model used.
+    public var model: String
+
+    /// Total cost in ticks.
+    public var costTicks: Int64
+
+    /// Unique request identifier.
+    public var requestId: String
+
+    enum CodingKeys: String, CodingKey {
+        case clips, model
+        case costTicks = "cost_ticks"
+        case requestId = "request_id"
+    }
+}
+
+// MARK: - Music Finetune
+
+/// Music finetune info.
+public struct MusicFinetuneInfo: Codable, Sendable {
+    /// Finetune identifier.
+    public var finetuneId: String
+
+    /// Finetune name.
+    public var name: String
+
+    /// Description.
+    public var description: String?
+
+    /// Current status.
+    public var status: String
+
+    /// Model ID.
+    public var modelId: String?
+
+    /// ISO timestamp.
+    public var createdAt: String?
+
+    enum CodingKeys: String, CodingKey {
+        case name, description, status
+        case finetuneId = "finetune_id"
+        case modelId = "model_id"
+        case createdAt = "created_at"
+    }
+}
+
+/// Response from listing music finetunes.
+public struct MusicFinetuneListResponse: Codable, Sendable {
+    /// Available finetunes.
+    public var finetunes: [MusicFinetuneInfo]
+}
+
+/// Request to create a music finetune.
+public struct MusicFinetuneCreateRequest: Codable, Sendable {
+    /// Name for the finetune.
+    public var name: String
+
+    /// Optional description.
+    public var description: String?
+
+    /// Base64-encoded audio samples.
+    public var samples: [String]
+
+    public init(name: String, description: String? = nil, samples: [String]) {
+        self.name = name
+        self.description = description
+        self.samples = samples
     }
 }
 
