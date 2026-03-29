@@ -29,7 +29,7 @@ public let ticksPerUSD: UInt64 = 10_000_000_000
 /// let images = try await client.generateImage(model: "grok-imagine-image", prompt: "A cosmic duck")
 /// ```
 public final class QuantumClient: Sendable {
-    private let http: HTTPClient
+    let http: HTTPClient
     private let baseURLString: String
 
     /// Create a new Quantum AI client.
