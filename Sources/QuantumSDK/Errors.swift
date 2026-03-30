@@ -47,7 +47,7 @@ public enum QuantumError: Error, LocalizedError, Sendable {
     case api(statusCode: Int, code: String, message: String, requestId: String?)
 
     /// The response body could not be decoded.
-    case decodingFailed(underlying: Error)
+    case decodingFailed(underlying: any Swift.Error)
 
     /// The response body was empty or missing.
     case emptyResponse
@@ -56,7 +56,7 @@ public enum QuantumError: Error, LocalizedError, Sendable {
     case streamError(String)
 
     /// A network-level error occurred.
-    case networkError(underlying: Error)
+    case networkError(underlying: any Swift.Error)
 
     /// The request was cancelled.
     case cancelled
@@ -110,13 +110,13 @@ public enum QuantumError: Error, LocalizedError, Sendable {
 // MARK: - Error (enum matching Rust)
 
 /// Error types returned by the Quantum AI SDK (mirrors Rust Error enum).
-public enum Error: Swift.Error, Sendable {
+public enum SDKError: Swift.Error, Sendable {
     /// The API returned a non-2xx status code.
     case api(ApiError)
     /// An HTTP transport error occurred.
-    case http(Swift.Error)
+    case http(any Swift.Error)
     /// A serialization or deserialization error occurred.
-    case json(Swift.Error)
+    case json(any Swift.Error)
 }
 
 // MARK: - API Error Body (internal)

@@ -104,7 +104,7 @@ public final class QuantumClient: Sendable {
         temperature: Double? = nil,
         maxTokens: Int? = nil,
         providerOptions: [String: [String: AnyCodable]]? = nil
-    ) -> AsyncThrowingStream<StreamEvent, Error> {
+    ) -> AsyncThrowingStream<StreamEvent, any Error> {
         let request = ChatRequest(
             model: model,
             messages: messages,
@@ -118,7 +118,7 @@ public final class QuantumClient: Sendable {
     }
 
     /// Send a streaming chat request with a full ``ChatRequest``.
-    public func chatStream(_ request: ChatRequest) -> AsyncThrowingStream<StreamEvent, Error> {
+    public func chatStream(_ request: ChatRequest) -> AsyncThrowingStream<StreamEvent, any Error> {
         var req = request
         req.stream = true
 
@@ -211,7 +211,7 @@ public final class QuantumClient: Sendable {
         workers: [AgentWorkerConfig]? = nil,
         maxSteps: Int? = nil,
         systemPrompt: String? = nil
-    ) -> AsyncThrowingStream<AgentEvent, Error> {
+    ) -> AsyncThrowingStream<AgentEvent, any Error> {
         let request = AgentRequest(
             task: task,
             conductorModel: conductorModel,
@@ -223,7 +223,7 @@ public final class QuantumClient: Sendable {
     }
 
     /// Run an agent orchestration with a full ``AgentRequest``.
-    public func agentRun(_ request: AgentRequest) -> AsyncThrowingStream<AgentEvent, Error> {
+    public func agentRun(_ request: AgentRequest) -> AsyncThrowingStream<AgentEvent, any Error> {
         return makeSSEStream(path: "/qai/v1/agent", body: request) { data in
             try self.parseAgentEvent(data)
         }
@@ -235,9 +235,9 @@ public final class QuantumClient: Sendable {
     public func missionRun(
         goal: String,
         conductorModel: String? = nil,
-        workers: [MissionWorkerConfig]? = nil,
+        workers: [String: MissionWorker]? = nil,
         maxSteps: Int? = nil
-    ) -> AsyncThrowingStream<MissionEvent, Error> {
+    ) -> AsyncThrowingStream<MissionEvent, any Error> {
         let request = MissionRequest(
             goal: goal,
             conductorModel: conductorModel,
@@ -248,7 +248,7 @@ public final class QuantumClient: Sendable {
     }
 
     /// Run a mission orchestration with a full ``MissionRequest``.
-    public func missionRun(_ request: MissionRequest) -> AsyncThrowingStream<MissionEvent, Error> {
+    public func missionRun(_ request: MissionRequest) -> AsyncThrowingStream<MissionEvent, any Error> {
         return makeSSEStream(path: "/qai/v1/missions", body: request) { data in
             try self.parseMissionEvent(data)
         }
@@ -272,7 +272,7 @@ public final class QuantumClient: Sendable {
         size: String? = nil,
         quality: String? = nil
     ) async throws -> ImageResponse {
-        let request = ImageRequest(model: model, prompt: prompt, n: n, size: size, quality: quality)
+        let request = ImageRequest(model: model, prompt: prompt, count: n, size: size, quality: quality)
         let (data, _): (ImageResponse, _) = try await http.doJSON(
             method: "POST", path: "/qai/v1/images/generate", body: request
         )
@@ -295,17 +295,17 @@ public final class QuantumClient: Sendable {
     ///   - text: Text to speak.
     ///   - model: TTS model.
     ///   - voice: Voice ID.
-    ///   - format: Output format (e.g. "mp3", "wav").
+    ///   - outputFormat: Output format (e.g. "mp3", "wav").
     ///   - speed: Speaking speed.
     /// - Returns: The TTS response with audio URL.
     public func speak(
         text: String,
-        model: String? = nil,
+        model: String,
         voice: String? = nil,
-        format: String? = nil,
+        outputFormat: String? = nil,
         speed: Double? = nil
     ) async throws -> TTSResponse {
-        let request = TTSRequest(text: text, model: model, voice: voice, format: format, speed: speed)
+        let request = TTSRequest(model: model, text: text, voice: voice, outputFormat: outputFormat, speed: speed)
         let (data, _): (TTSResponse, _) = try await http.doJSON(
             method: "POST", path: "/qai/v1/audio/tts", body: request
         )
@@ -317,18 +317,18 @@ public final class QuantumClient: Sendable {
     /// Convert speech to text.
     ///
     /// - Parameters:
-    ///   - audio: Base64-encoded audio data.
+    ///   - audioBase64: Base64-encoded audio data.
     ///   - model: STT model.
-    ///   - format: Audio format (e.g. "wav", "mp3").
+    ///   - filename: Original filename (helps with format detection).
     ///   - language: BCP-47 language code.
     /// - Returns: The transcription response.
     public func transcribe(
-        audio: String,
-        model: String? = nil,
-        format: String? = nil,
+        audioBase64: String,
+        model: String,
+        filename: String? = nil,
         language: String? = nil
     ) async throws -> STTResponse {
-        let request = STTRequest(audio: audio, model: model, format: format, language: language)
+        let request = STTRequest(model: model, audioBase64: audioBase64, filename: filename, language: language)
         let (data, _): (STTResponse, _) = try await http.doJSON(
             method: "POST", path: "/qai/v1/audio/stt", body: request
         )
@@ -348,8 +348,8 @@ public final class QuantumClient: Sendable {
     // MARK: - Audio: Music
 
     /// Generate music from a text prompt.
-    public func generateMusic(prompt: String, duration: Int? = nil, model: String? = nil) async throws -> MusicResponse {
-        let request = MusicRequest(prompt: prompt, duration: duration, model: model)
+    public func generateMusic(prompt: String, durationSeconds: Int? = nil, model: String) async throws -> MusicResponse {
+        let request = MusicRequest(model: model, prompt: prompt, durationSeconds: durationSeconds)
         let (data, _): (MusicResponse, _) = try await http.doJSON(
             method: "POST", path: "/qai/v1/audio/music", body: request
         )
@@ -387,8 +387,8 @@ public final class QuantumClient: Sendable {
     // MARK: - Audio: Voice Isolation
 
     /// Remove background noise and isolate speech (ElevenLabs).
-    public func isolateVoice(audio: String) async throws -> IsolateVoiceResponse {
-        let request = IsolateVoiceRequest(audio: audio)
+    public func isolateVoice(audioBase64: String) async throws -> IsolateVoiceResponse {
+        let request = IsolateVoiceRequest(audioBase64: audioBase64)
         let (data, _): (IsolateVoiceResponse, _) = try await http.doJSON(
             method: "POST", path: "/qai/v1/audio/isolate", body: request
         )
@@ -480,10 +480,10 @@ public final class QuantumClient: Sendable {
     public func generateVideo(
         model: String,
         prompt: String,
-        duration: Int? = nil,
-        resolution: String? = nil
+        durationSeconds: Int? = nil,
+        aspectRatio: String? = nil
     ) async throws -> VideoResponse {
-        let request = VideoRequest(model: model, prompt: prompt, duration: duration, resolution: resolution)
+        let request = VideoRequest(model: model, prompt: prompt, durationSeconds: durationSeconds, aspectRatio: aspectRatio)
         let (data, _): (VideoResponse, _) = try await http.doJSON(
             method: "POST", path: "/qai/v1/video/generate", body: request
         )
@@ -491,34 +491,34 @@ public final class QuantumClient: Sendable {
     }
 
     /// Create a talking-head video via HeyGen Studio. Returns an async job.
-    public func videoStudio(_ request: VideoStudioRequest) async throws -> AsyncJobResponse {
-        let (data, _): (AsyncJobResponse, _) = try await http.doJSON(
+    public func videoStudio(_ request: VideoStudioRequest) async throws -> JobAcceptedResponse {
+        let (data, _): (JobAcceptedResponse, _) = try await http.doJSON(
             method: "POST", path: "/qai/v1/video/studio", body: request
         )
         return data
     }
 
     /// Submit a video translation job via HeyGen. Returns an async job.
-    public func videoTranslate(_ request: VideoTranslateRequest) async throws -> AsyncJobResponse {
-        let (data, _): (AsyncJobResponse, _) = try await http.doJSON(
+    public func videoTranslate(_ request: VideoTranslateRequest) async throws -> JobAcceptedResponse {
+        let (data, _): (JobAcceptedResponse, _) = try await http.doJSON(
             method: "POST", path: "/qai/v1/video/translate", body: request
         )
         return data
     }
 
     /// Create a photo avatar via HeyGen. Returns an async job.
-    public func videoPhotoAvatar(image: String) async throws -> AsyncJobResponse {
-        let request = PhotoAvatarRequest(image: image)
-        let (data, _): (AsyncJobResponse, _) = try await http.doJSON(
+    public func videoPhotoAvatar(photoBase64: String, script: String) async throws -> JobAcceptedResponse {
+        let request = PhotoAvatarRequest(photoBase64: photoBase64, script: script)
+        let (data, _): (JobAcceptedResponse, _) = try await http.doJSON(
             method: "POST", path: "/qai/v1/video/photo-avatar", body: request
         )
         return data
     }
 
     /// Create a digital twin via HeyGen. Returns an async job.
-    public func videoDigitalTwin(video: String) async throws -> AsyncJobResponse {
-        let request = DigitalTwinRequest(video: video)
-        let (data, _): (AsyncJobResponse, _) = try await http.doJSON(
+    public func videoDigitalTwin(avatarId: String, script: String) async throws -> JobAcceptedResponse {
+        let request = DigitalTwinRequest(avatarId: avatarId, script: script)
+        let (data, _): (JobAcceptedResponse, _) = try await http.doJSON(
             method: "POST", path: "/qai/v1/video/digital-twin", body: request
         )
         return data
@@ -717,7 +717,7 @@ public final class QuantumClient: Sendable {
 
     /// Create an async job. Returns the job ID for polling.
     public func createJob(type: String, params: [String: AnyCodable]) async throws -> JobCreateResponse {
-        let request = JobCreateRequest(type: type, params: params)
+        let request = JobCreateRequest(jobType: type, params: AnyCodable(params))
         let (data, _): (JobCreateResponse, _) = try await http.doJSON(
             method: "POST", path: "/qai/v1/jobs", body: request
         )
@@ -1070,7 +1070,7 @@ public final class QuantumClient: Sendable {
     ///     print(event.type, event.status)
     /// }
     /// ```
-    public func streamJob(jobId: String) -> AsyncThrowingStream<JobStreamEvent, Error> {
+    public func streamJob(jobId: String) -> AsyncThrowingStream<JobStreamEvent, any Error> {
         struct Body: Encodable { let job_id: String }
 
         return AsyncThrowingStream { continuation in
@@ -1110,7 +1110,7 @@ public final class QuantumClient: Sendable {
         path: String,
         body: some Encodable,
         parse: @escaping (Data) throws -> T
-    ) -> AsyncThrowingStream<T, Error> {
+    ) -> AsyncThrowingStream<T, any Error> {
         AsyncThrowingStream { continuation in
             Task {
                 do {
@@ -1201,26 +1201,6 @@ public final class QuantumClient: Sendable {
             error: raw.error
         )
     }
-}
-
-// MARK: - Job Stream Event
-
-/// An event from a job SSE stream.
-public struct JobStreamEvent: Codable, Sendable {
-    /// Event type (e.g. "progress", "complete", "error").
-    public var type: String
-
-    /// Current job status.
-    public var status: String?
-
-    /// Progress percentage (0-100).
-    public var progress: Int?
-
-    /// Job result (when complete).
-    public var result: AnyCodable?
-
-    /// Error message.
-    public var error: String?
 }
 
 // MARK: - Internal Raw Event Types

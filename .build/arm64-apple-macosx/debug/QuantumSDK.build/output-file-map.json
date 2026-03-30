@@ -9,6 +9,13 @@
     "swift-dependencies": "/Users/director/work/tauri_apps/qe-sdk-collection/swift_projects/quantum-sdk/.build/arm64-apple-macosx/debug/QuantumSDK.build/Errors.swiftdeps",
     "diagnostics": "/Users/director/work/tauri_apps/qe-sdk-collection/swift_projects/quantum-sdk/.build/arm64-apple-macosx/debug/QuantumSDK.build/Errors.dia"
   },
+  "/Users/director/work/tauri_apps/qe-sdk-collection/swift_projects/quantum-sdk/Sources/QuantumSDK/Missions.swift": {
+    "dependencies": "/Users/director/work/tauri_apps/qe-sdk-collection/swift_projects/quantum-sdk/.build/arm64-apple-macosx/debug/QuantumSDK.build/Missions.d",
+    "object": "/Users/director/work/tauri_apps/qe-sdk-collection/swift_projects/quantum-sdk/.build/arm64-apple-macosx/debug/QuantumSDK.build/Missions.swift.o",
+    "swiftmodule": "/Users/director/work/tauri_apps/qe-sdk-collection/swift_projects/quantum-sdk/.build/arm64-apple-macosx/debug/QuantumSDK.build/Missions~partial.swiftmodule",
+    "swift-dependencies": "/Users/director/work/tauri_apps/qe-sdk-collection/swift_projects/quantum-sdk/.build/arm64-apple-macosx/debug/QuantumSDK.build/Missions.swiftdeps",
+    "diagnostics": "/Users/director/work/tauri_apps/qe-sdk-collection/swift_projects/quantum-sdk/.build/arm64-apple-macosx/debug/QuantumSDK.build/Missions.dia"
+  },
   "/Users/director/work/tauri_apps/qe-sdk-collection/swift_projects/quantum-sdk/Sources/QuantumSDK/Models/Account.swift": {
     "dependencies": "/Users/director/work/tauri_apps/qe-sdk-collection/swift_projects/quantum-sdk/.build/arm64-apple-macosx/debug/QuantumSDK.build/Account.d",
     "object": "/Users/director/work/tauri_apps/qe-sdk-collection/swift_projects/quantum-sdk/.build/arm64-apple-macosx/debug/QuantumSDK.build/Account.swift.o",
@@ -58,12 +65,26 @@
     "swift-dependencies": "/Users/director/work/tauri_apps/qe-sdk-collection/swift_projects/quantum-sdk/.build/arm64-apple-macosx/debug/QuantumSDK.build/Chat.swiftdeps",
     "diagnostics": "/Users/director/work/tauri_apps/qe-sdk-collection/swift_projects/quantum-sdk/.build/arm64-apple-macosx/debug/QuantumSDK.build/Chat.dia"
   },
+  "/Users/director/work/tauri_apps/qe-sdk-collection/swift_projects/quantum-sdk/Sources/QuantumSDK/Models/Collections.swift": {
+    "dependencies": "/Users/director/work/tauri_apps/qe-sdk-collection/swift_projects/quantum-sdk/.build/arm64-apple-macosx/debug/QuantumSDK.build/Collections.d",
+    "object": "/Users/director/work/tauri_apps/qe-sdk-collection/swift_projects/quantum-sdk/.build/arm64-apple-macosx/debug/QuantumSDK.build/Collections.swift.o",
+    "swiftmodule": "/Users/director/work/tauri_apps/qe-sdk-collection/swift_projects/quantum-sdk/.build/arm64-apple-macosx/debug/QuantumSDK.build/Collections~partial.swiftmodule",
+    "swift-dependencies": "/Users/director/work/tauri_apps/qe-sdk-collection/swift_projects/quantum-sdk/.build/arm64-apple-macosx/debug/QuantumSDK.build/Collections.swiftdeps",
+    "diagnostics": "/Users/director/work/tauri_apps/qe-sdk-collection/swift_projects/quantum-sdk/.build/arm64-apple-macosx/debug/QuantumSDK.build/Collections.dia"
+  },
   "/Users/director/work/tauri_apps/qe-sdk-collection/swift_projects/quantum-sdk/Sources/QuantumSDK/Models/Compute.swift": {
     "dependencies": "/Users/director/work/tauri_apps/qe-sdk-collection/swift_projects/quantum-sdk/.build/arm64-apple-macosx/debug/QuantumSDK.build/Compute.d",
     "object": "/Users/director/work/tauri_apps/qe-sdk-collection/swift_projects/quantum-sdk/.build/arm64-apple-macosx/debug/QuantumSDK.build/Compute.swift.o",
     "swiftmodule": "/Users/director/work/tauri_apps/qe-sdk-collection/swift_projects/quantum-sdk/.build/arm64-apple-macosx/debug/QuantumSDK.build/Compute~partial.swiftmodule",
     "swift-dependencies": "/Users/director/work/tauri_apps/qe-sdk-collection/swift_projects/quantum-sdk/.build/arm64-apple-macosx/debug/QuantumSDK.build/Compute.swiftdeps",
     "diagnostics": "/Users/director/work/tauri_apps/qe-sdk-collection/swift_projects/quantum-sdk/.build/arm64-apple-macosx/debug/QuantumSDK.build/Compute.dia"
+  },
+  "/Users/director/work/tauri_apps/qe-sdk-collection/swift_projects/quantum-sdk/Sources/QuantumSDK/Models/Contact.swift": {
+    "dependencies": "/Users/director/work/tauri_apps/qe-sdk-collection/swift_projects/quantum-sdk/.build/arm64-apple-macosx/debug/QuantumSDK.build/Contact.d",
+    "object": "/Users/director/work/tauri_apps/qe-sdk-collection/swift_projects/quantum-sdk/.build/arm64-apple-macosx/debug/QuantumSDK.build/Contact.swift.o",
+    "swiftmodule": "/Users/director/work/tauri_apps/qe-sdk-collection/swift_projects/quantum-sdk/.build/arm64-apple-macosx/debug/QuantumSDK.build/Contact~partial.swiftmodule",
+    "swift-dependencies": "/Users/director/work/tauri_apps/qe-sdk-collection/swift_projects/quantum-sdk/.build/arm64-apple-macosx/debug/QuantumSDK.build/Contact.swiftdeps",
+    "diagnostics": "/Users/director/work/tauri_apps/qe-sdk-collection/swift_projects/quantum-sdk/.build/arm64-apple-macosx/debug/QuantumSDK.build/Contact.dia"
   },
   "/Users/director/work/tauri_apps/qe-sdk-collection/swift_projects/quantum-sdk/Sources/QuantumSDK/Models/Credits.swift": {
     "dependencies": "/Users/director/work/tauri_apps/qe-sdk-collection/swift_projects/quantum-sdk/.build/arm64-apple-macosx/debug/QuantumSDK.build/Credits.d",
@@ -107,6 +128,13 @@
     "swift-dependencies": "/Users/director/work/tauri_apps/qe-sdk-collection/swift_projects/quantum-sdk/.build/arm64-apple-macosx/debug/QuantumSDK.build/Keys.swiftdeps",
     "diagnostics": "/Users/director/work/tauri_apps/qe-sdk-collection/swift_projects/quantum-sdk/.build/arm64-apple-macosx/debug/QuantumSDK.build/Keys.dia"
   },
+  "/Users/director/work/tauri_apps/qe-sdk-collection/swift_projects/quantum-sdk/Sources/QuantumSDK/Models/Mesh.swift": {
+    "dependencies": "/Users/director/work/tauri_apps/qe-sdk-collection/swift_projects/quantum-sdk/.build/arm64-apple-macosx/debug/QuantumSDK.build/Mesh.d",
+    "object": "/Users/director/work/tauri_apps/qe-sdk-collection/swift_projects/quantum-sdk/.build/arm64-apple-macosx/debug/QuantumSDK.build/Mesh.swift.o",
+    "swiftmodule": "/Users/director/work/tauri_apps/qe-sdk-collection/swift_projects/quantum-sdk/.build/arm64-apple-macosx/debug/QuantumSDK.build/Mesh~partial.swiftmodule",
+    "swift-dependencies": "/Users/director/work/tauri_apps/qe-sdk-collection/swift_projects/quantum-sdk/.build/arm64-apple-macosx/debug/QuantumSDK.build/Mesh.swiftdeps",
+    "diagnostics": "/Users/director/work/tauri_apps/qe-sdk-collection/swift_projects/quantum-sdk/.build/arm64-apple-macosx/debug/QuantumSDK.build/Mesh.dia"
+  },
   "/Users/director/work/tauri_apps/qe-sdk-collection/swift_projects/quantum-sdk/Sources/QuantumSDK/Models/RAG.swift": {
     "dependencies": "/Users/director/work/tauri_apps/qe-sdk-collection/swift_projects/quantum-sdk/.build/arm64-apple-macosx/debug/QuantumSDK.build/RAG.d",
     "object": "/Users/director/work/tauri_apps/qe-sdk-collection/swift_projects/quantum-sdk/.build/arm64-apple-macosx/debug/QuantumSDK.build/RAG.swift.o",
@@ -120,6 +148,20 @@
     "swiftmodule": "/Users/director/work/tauri_apps/qe-sdk-collection/swift_projects/quantum-sdk/.build/arm64-apple-macosx/debug/QuantumSDK.build/Realtime~partial.swiftmodule",
     "swift-dependencies": "/Users/director/work/tauri_apps/qe-sdk-collection/swift_projects/quantum-sdk/.build/arm64-apple-macosx/debug/QuantumSDK.build/Realtime.swiftdeps",
     "diagnostics": "/Users/director/work/tauri_apps/qe-sdk-collection/swift_projects/quantum-sdk/.build/arm64-apple-macosx/debug/QuantumSDK.build/Realtime.dia"
+  },
+  "/Users/director/work/tauri_apps/qe-sdk-collection/swift_projects/quantum-sdk/Sources/QuantumSDK/Models/Scraper.swift": {
+    "dependencies": "/Users/director/work/tauri_apps/qe-sdk-collection/swift_projects/quantum-sdk/.build/arm64-apple-macosx/debug/QuantumSDK.build/Scraper.d",
+    "object": "/Users/director/work/tauri_apps/qe-sdk-collection/swift_projects/quantum-sdk/.build/arm64-apple-macosx/debug/QuantumSDK.build/Scraper.swift.o",
+    "swiftmodule": "/Users/director/work/tauri_apps/qe-sdk-collection/swift_projects/quantum-sdk/.build/arm64-apple-macosx/debug/QuantumSDK.build/Scraper~partial.swiftmodule",
+    "swift-dependencies": "/Users/director/work/tauri_apps/qe-sdk-collection/swift_projects/quantum-sdk/.build/arm64-apple-macosx/debug/QuantumSDK.build/Scraper.swiftdeps",
+    "diagnostics": "/Users/director/work/tauri_apps/qe-sdk-collection/swift_projects/quantum-sdk/.build/arm64-apple-macosx/debug/QuantumSDK.build/Scraper.dia"
+  },
+  "/Users/director/work/tauri_apps/qe-sdk-collection/swift_projects/quantum-sdk/Sources/QuantumSDK/Models/Search.swift": {
+    "dependencies": "/Users/director/work/tauri_apps/qe-sdk-collection/swift_projects/quantum-sdk/.build/arm64-apple-macosx/debug/QuantumSDK.build/Search.d",
+    "object": "/Users/director/work/tauri_apps/qe-sdk-collection/swift_projects/quantum-sdk/.build/arm64-apple-macosx/debug/QuantumSDK.build/Search.swift.o",
+    "swiftmodule": "/Users/director/work/tauri_apps/qe-sdk-collection/swift_projects/quantum-sdk/.build/arm64-apple-macosx/debug/QuantumSDK.build/Search~partial.swiftmodule",
+    "swift-dependencies": "/Users/director/work/tauri_apps/qe-sdk-collection/swift_projects/quantum-sdk/.build/arm64-apple-macosx/debug/QuantumSDK.build/Search.swiftdeps",
+    "diagnostics": "/Users/director/work/tauri_apps/qe-sdk-collection/swift_projects/quantum-sdk/.build/arm64-apple-macosx/debug/QuantumSDK.build/Search.dia"
   },
   "/Users/director/work/tauri_apps/qe-sdk-collection/swift_projects/quantum-sdk/Sources/QuantumSDK/Models/Session.swift": {
     "dependencies": "/Users/director/work/tauri_apps/qe-sdk-collection/swift_projects/quantum-sdk/.build/arm64-apple-macosx/debug/QuantumSDK.build/Session.d",
@@ -156,11 +198,32 @@
     "swift-dependencies": "/Users/director/work/tauri_apps/qe-sdk-collection/swift_projects/quantum-sdk/.build/arm64-apple-macosx/debug/QuantumSDK.build/SSEClient.swiftdeps",
     "diagnostics": "/Users/director/work/tauri_apps/qe-sdk-collection/swift_projects/quantum-sdk/.build/arm64-apple-macosx/debug/QuantumSDK.build/SSEClient.dia"
   },
+  "/Users/director/work/tauri_apps/qe-sdk-collection/swift_projects/quantum-sdk/Sources/QuantumSDK/QuantumClient+Extensions.swift": {
+    "dependencies": "/Users/director/work/tauri_apps/qe-sdk-collection/swift_projects/quantum-sdk/.build/arm64-apple-macosx/debug/QuantumSDK.build/QuantumClient+Extensions.d",
+    "object": "/Users/director/work/tauri_apps/qe-sdk-collection/swift_projects/quantum-sdk/.build/arm64-apple-macosx/debug/QuantumSDK.build/QuantumClient+Extensions.swift.o",
+    "swiftmodule": "/Users/director/work/tauri_apps/qe-sdk-collection/swift_projects/quantum-sdk/.build/arm64-apple-macosx/debug/QuantumSDK.build/QuantumClient+Extensions~partial.swiftmodule",
+    "swift-dependencies": "/Users/director/work/tauri_apps/qe-sdk-collection/swift_projects/quantum-sdk/.build/arm64-apple-macosx/debug/QuantumSDK.build/QuantumClient+Extensions.swiftdeps",
+    "diagnostics": "/Users/director/work/tauri_apps/qe-sdk-collection/swift_projects/quantum-sdk/.build/arm64-apple-macosx/debug/QuantumSDK.build/QuantumClient+Extensions.dia"
+  },
   "/Users/director/work/tauri_apps/qe-sdk-collection/swift_projects/quantum-sdk/Sources/QuantumSDK/QuantumClient.swift": {
     "dependencies": "/Users/director/work/tauri_apps/qe-sdk-collection/swift_projects/quantum-sdk/.build/arm64-apple-macosx/debug/QuantumSDK.build/QuantumClient.d",
     "object": "/Users/director/work/tauri_apps/qe-sdk-collection/swift_projects/quantum-sdk/.build/arm64-apple-macosx/debug/QuantumSDK.build/QuantumClient.swift.o",
     "swiftmodule": "/Users/director/work/tauri_apps/qe-sdk-collection/swift_projects/quantum-sdk/.build/arm64-apple-macosx/debug/QuantumSDK.build/QuantumClient~partial.swiftmodule",
     "swift-dependencies": "/Users/director/work/tauri_apps/qe-sdk-collection/swift_projects/quantum-sdk/.build/arm64-apple-macosx/debug/QuantumSDK.build/QuantumClient.swiftdeps",
     "diagnostics": "/Users/director/work/tauri_apps/qe-sdk-collection/swift_projects/quantum-sdk/.build/arm64-apple-macosx/debug/QuantumSDK.build/QuantumClient.dia"
+  },
+  "/Users/director/work/tauri_apps/qe-sdk-collection/swift_projects/quantum-sdk/Sources/QuantumSDK/Security.swift": {
+    "dependencies": "/Users/director/work/tauri_apps/qe-sdk-collection/swift_projects/quantum-sdk/.build/arm64-apple-macosx/debug/QuantumSDK.build/Security.d",
+    "object": "/Users/director/work/tauri_apps/qe-sdk-collection/swift_projects/quantum-sdk/.build/arm64-apple-macosx/debug/QuantumSDK.build/Security.swift.o",
+    "swiftmodule": "/Users/director/work/tauri_apps/qe-sdk-collection/swift_projects/quantum-sdk/.build/arm64-apple-macosx/debug/QuantumSDK.build/Security~partial.swiftmodule",
+    "swift-dependencies": "/Users/director/work/tauri_apps/qe-sdk-collection/swift_projects/quantum-sdk/.build/arm64-apple-macosx/debug/QuantumSDK.build/Security.swiftdeps",
+    "diagnostics": "/Users/director/work/tauri_apps/qe-sdk-collection/swift_projects/quantum-sdk/.build/arm64-apple-macosx/debug/QuantumSDK.build/Security.dia"
+  },
+  "/Users/director/work/tauri_apps/qe-sdk-collection/swift_projects/quantum-sdk/Sources/QuantumSDK/Vision.swift": {
+    "dependencies": "/Users/director/work/tauri_apps/qe-sdk-collection/swift_projects/quantum-sdk/.build/arm64-apple-macosx/debug/QuantumSDK.build/Vision.d",
+    "object": "/Users/director/work/tauri_apps/qe-sdk-collection/swift_projects/quantum-sdk/.build/arm64-apple-macosx/debug/QuantumSDK.build/Vision.swift.o",
+    "swiftmodule": "/Users/director/work/tauri_apps/qe-sdk-collection/swift_projects/quantum-sdk/.build/arm64-apple-macosx/debug/QuantumSDK.build/Vision~partial.swiftmodule",
+    "swift-dependencies": "/Users/director/work/tauri_apps/qe-sdk-collection/swift_projects/quantum-sdk/.build/arm64-apple-macosx/debug/QuantumSDK.build/Vision.swiftdeps",
+    "diagnostics": "/Users/director/work/tauri_apps/qe-sdk-collection/swift_projects/quantum-sdk/.build/arm64-apple-macosx/debug/QuantumSDK.build/Vision.dia"
   }
 }
