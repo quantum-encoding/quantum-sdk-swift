@@ -6,10 +6,10 @@ This SDK must stay in sync with the Rust reference SDK. Use `sdk-graph` to check
 
 ```bash
 # Scan this SDK (run after making changes)
-sdk-graph scan --sdk swift --dir ~/work/tauri_apps/qe-sdk-collection/swift_projects/quantum-sdk/Sources
+sdk-graph scan --sdk swift --dir ~/work/poly-repo/quantum-ai-polyrepo/qe-sdk-collection/swift_projects/quantum-sdk/Sources
 
 # Scan Rust reference (if not recently scanned)
-sdk-graph scan --sdk rust --dir ~/work/tauri_apps/qe-sdk-collection/rust_projects/quantum-sdk/src
+sdk-graph scan --sdk rust --dir ~/work/poly-repo/quantum-ai-polyrepo/qe-sdk-collection/rust_projects/quantum-sdk/src
 
 # Show what this SDK is missing vs Rust
 sdk-graph diff --base rust --target swift
@@ -19,7 +19,7 @@ sdk-graph stats
 ```
 
 Binary: `~/go/bin/sdk-graph` (in PATH)
-Graph file: `~/work/go_programs/quantum-ai/sdk-graph.json` (shared across all SDKs)
+Graph file: `~/work/poly-repo/quantum-ai-polyrepo/quantum-ai-backend/sdk-graph.json` (shared across all SDKs)
 
 ## Workflow
 
@@ -30,7 +30,7 @@ Graph file: `~/work/go_programs/quantum-ai/sdk-graph.json` (shared across all SD
 
 ## Reference Implementation
 
-The Rust SDK is the source of truth: `~/work/tauri_apps/qe-sdk-collection/rust_projects/quantum-sdk/src/`
+The Rust SDK is the source of truth: `~/work/poly-repo/quantum-ai-polyrepo/qe-sdk-collection/rust_projects/quantum-sdk/src/`
 
 When adding missing types, follow the Rust SDK's field names and JSON serialization. Map types idiomatically:
 - Rust `Option<T>` → Swift `T?`
@@ -42,4 +42,4 @@ When adding missing types, follow the Rust SDK's field names and JSON serializat
 ## API Server
 
 Backend: https://api.quantumencoding.ai
-Repo: ~/work/go_programs/quantum-ai
+Repo: ~/work/poly-repo/quantum-ai-polyrepo/quantum-ai-backend
