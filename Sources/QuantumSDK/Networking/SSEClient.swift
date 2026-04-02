@@ -15,15 +15,15 @@ struct SSEParser: AsyncSequence {
 
         mutating func next() async throws -> SSEEvent? {
             while true {
-                // Read characters until we have a complete line
-                var line = ""
+                // Read raw bytes until newline, then convert to String
+                // This prevents multi-byte UTF-8 sequences from being split
+                var lineBytes: [UInt8] = []
                 var foundLine = false
 
                 while true {
                     guard let byte = try await lineIterator.next() else {
                         // Stream ended
                         if !buffer.isEmpty {
-                            // Process remaining buffer
                             let remaining = buffer
                             buffer = ""
                             if remaining.hasPrefix("data: ") {
@@ -36,15 +36,19 @@ struct SSEParser: AsyncSequence {
                         return nil
                     }
 
-                    let char = Character(UnicodeScalar(byte))
-                    if char == "\n" {
+                    if byte == 0x0A { // newline
                         foundLine = true
                         break
                     }
-                    line.append(char)
+                    // Skip carriage return
+                    if byte == 0x0D { continue }
+                    lineBytes.append(byte)
                 }
 
                 guard foundLine else { continue }
+
+                // Convert complete line bytes to String (safe for multi-byte UTF-8)
+                let line = String(bytes: lineBytes, encoding: .utf8) ?? String(lineBytes.map { Character(UnicodeScalar($0)) })
 
                 // Skip empty lines (SSE event separators)
                 if line.isEmpty { continue }
