@@ -1180,13 +1180,17 @@ public final class QuantumClient: Sendable {
 
     /// Parse a raw SSE JSON payload into an ``AgentEvent``.
     private func parseAgentEvent(_ data: Data) throws -> AgentEvent {
+        // Log raw JSON for debugging
+        if let jsonStr = String(data: data, encoding: .utf8) {
+            print("[QuantumSDK] Agent raw event: \(jsonStr.prefix(200))")
+        }
         let raw = try JSONDecoder().decode(RawAgentEvent.self, from: data)
         return AgentEvent(
             type: raw.type ?? "unknown",
             done: raw.type == "done",
             worker: raw.worker,
-            content: raw.content,
-            error: raw.error
+            content: raw.content ?? raw.message,  // some events put text in "message"
+            error: raw.error ?? (raw.type == "agent_error" ? (raw.message ?? "Unknown agent error") : nil)
         )
     }
 
