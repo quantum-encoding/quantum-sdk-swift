@@ -147,6 +147,76 @@ final class HTTPClient: Sendable {
         }
     }
 
+    // MARK: - Raw Upload
+
+    /// Send a raw binary body with a specific content type and decode the JSON response.
+    func doRawUpload<T: Decodable>(
+        method: String = "POST",
+        path: String,
+        data bodyData: Data,
+        contentType: String
+    ) async throws -> (data: T, meta: ResponseMeta) {
+        guard let url = URL(string: baseURLString + path) else {
+            throw QuantumError.invalidArgument("Invalid path: \(path)")
+        }
+        var request = URLRequest(url: url)
+        request.httpMethod = method
+        request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
+        request.setValue(contentType, forHTTPHeaderField: "Content-Type")
+        request.httpBody = bodyData
+
+        let (data, response) = try await performRequest(request)
+        let httpResponse = response as! HTTPURLResponse
+
+        let meta = ResponseMeta(
+            requestId: httpResponse.value(forHTTPHeaderField: "X-QAI-Request-Id") ?? "",
+            model: httpResponse.value(forHTTPHeaderField: "X-QAI-Model") ?? "",
+            costTicks: Int(httpResponse.value(forHTTPHeaderField: "X-QAI-Cost-Ticks") ?? "0") ?? 0
+        )
+
+        guard httpResponse.statusCode >= 200, httpResponse.statusCode < 300 else {
+            throw parseAPIError(data: data, statusCode: httpResponse.statusCode, requestId: meta.requestId)
+        }
+
+        do {
+            let decoder = JSONDecoder()
+            let decoded = try decoder.decode(T.self, from: data)
+            return (decoded, meta)
+        } catch {
+            throw QuantumError.decodingFailed(underlying: error)
+        }
+    }
+
+    // MARK: - Raw Download
+
+    /// Send a request and return raw bytes (no JSON decoding).
+    func doRawDownload(
+        method: String = "GET",
+        path: String
+    ) async throws -> (data: Data, meta: ResponseMeta) {
+        guard let url = URL(string: baseURLString + path) else {
+            throw QuantumError.invalidArgument("Invalid path: \(path)")
+        }
+        var request = URLRequest(url: url)
+        request.httpMethod = method
+        request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
+
+        let (data, response) = try await performRequest(request)
+        let httpResponse = response as! HTTPURLResponse
+
+        let meta = ResponseMeta(
+            requestId: httpResponse.value(forHTTPHeaderField: "X-QAI-Request-Id") ?? "",
+            model: httpResponse.value(forHTTPHeaderField: "X-QAI-Model") ?? "",
+            costTicks: Int(httpResponse.value(forHTTPHeaderField: "X-QAI-Cost-Ticks") ?? "0") ?? 0
+        )
+
+        guard httpResponse.statusCode >= 200, httpResponse.statusCode < 300 else {
+            throw parseAPIError(data: data, statusCode: httpResponse.statusCode, requestId: meta.requestId)
+        }
+
+        return (data, meta)
+    }
+
     // MARK: - Private
 
     private func performRequest(_ request: URLRequest) async throws -> (Data, URLResponse) {

@@ -703,4 +703,338 @@ extension QuantumClient {
         )
         return data
     }
+
+    // MARK: - Mission Streaming
+
+    /// Stream a mission execution via SSE. Returns events as the mission progresses through
+    /// planning, task execution, and completion phases.
+    ///
+    /// ```swift
+    /// for try await event in client.missionStream(request) {
+    ///     switch event.type {
+    ///     case "step_detail":
+    ///         print("Step \(event.step ?? 0): \(event.role ?? "")")
+    ///     case "mission_completed":
+    ///         print("Done: \(event.content ?? "")")
+    ///     default:
+    ///         break
+    ///     }
+    /// }
+    /// ```
+    public func missionStream(_ request: MissionCreateRequest) -> AsyncThrowingStream<MissionStreamEvent, any Error> {
+        AsyncThrowingStream { continuation in
+            Task {
+                do {
+                    let (bytes, _) = try await self.http.doStreamRequest(
+                        path: "/qai/v1/missions", body: request
+                    )
+                    let parser = SSEParser(bytes: bytes)
+
+                    for try await sseEvent in parser {
+                        switch sseEvent {
+                        case .done:
+                            continuation.yield(MissionStreamEvent(type: "done", done: true))
+                            continuation.finish()
+                            return
+                        case let .data(data):
+                            let event = try parseMissionStreamEvent(data)
+                            continuation.yield(event)
+                            if event.done {
+                                continuation.finish()
+                                return
+                            }
+                        case let .error(message):
+                            continuation.yield(MissionStreamEvent(type: "error", done: true, error: message))
+                            continuation.finish()
+                            return
+                        }
+                    }
+                    continuation.finish()
+                } catch {
+                    continuation.finish(throwing: error)
+                }
+            }
+        }
+    }
+
+    // MARK: - Workspace
+
+    /// Upload a tar.gz workspace archive for a coding session.
+    ///
+    /// - Parameters:
+    ///   - sessionId: The session ID to associate the workspace with.
+    ///   - tarGzData: Raw tar.gz archive bytes.
+    /// - Returns: Upload confirmation with extracted file count and workspace path.
+    public func workspaceUpload(sessionId: String, tarGzData: Data) async throws -> WorkspaceUploadResponse {
+        let (data, _): (WorkspaceUploadResponse, _) = try await http.doRawUpload(
+            path: "/qai/v1/workspace/\(sessionId)/upload",
+            data: tarGzData,
+            contentType: "application/gzip"
+        )
+        return data
+    }
+
+    /// Download the workspace tar.gz after mission completion.
+    ///
+    /// - Parameter sessionId: The session ID of the workspace to download.
+    /// - Returns: Raw tar.gz archive bytes.
+    public func workspaceDownload(sessionId: String) async throws -> Data {
+        let (data, _) = try await http.doRawDownload(
+            path: "/qai/v1/workspace/\(sessionId)/download"
+        )
+        return data
+    }
+
+    // MARK: - Private Mission Stream Parsing
+
+    /// Parse a raw SSE JSON payload into a ``MissionStreamEvent``.
+    private func parseMissionStreamEvent(_ data: Data) throws -> MissionStreamEvent {
+        let decoder = JSONDecoder()
+        let raw = try decoder.decode(RawMissionStreamEvent.self, from: data)
+
+        var event = MissionStreamEvent(
+            type: raw.type ?? "unknown",
+            done: raw.type == "mission_completed" || raw.type == "mission_failed"
+        )
+
+        switch raw.type {
+        case "mission_started":
+            event.sessionId = raw.sessionId
+            event.conductor = raw.conductor
+            event.strategy = raw.strategy
+            event.workers = raw.workers
+            event.maxSteps = raw.maxSteps
+
+        case "step_detail":
+            event.step = raw.step
+            event.role = raw.role
+            event.tier = raw.tier
+            event.durationMs = raw.durationMs
+            event.delegated = raw.delegated
+            event.content = raw.content
+
+        case "mission_completed":
+            event.content = raw.content
+            event.cost = raw.cost
+            event.totalSteps = raw.totalSteps
+            event.workspacePath = raw.workspacePath
+            event.filesGenerated = raw.filesGenerated
+            event.buildPassed = raw.buildPassed
+
+        case "mission_failed":
+            event.error = raw.error ?? raw.message
+
+        case "task_started", "task_completed", "task_failed":
+            event.missionId = raw.missionId
+            event.taskId = raw.taskId
+            event.message = raw.message
+            event.content = raw.content
+            if raw.type == "task_failed" {
+                event.error = raw.error ?? raw.message
+            }
+
+        case "tick_completed":
+            event.step = raw.step
+            event.content = raw.content
+
+        case "usage":
+            event.inputTokens = raw.inputTokens
+            event.outputTokens = raw.outputTokens
+            event.costTicks = raw.costTicks
+
+        case "error":
+            event.error = raw.error ?? raw.message
+
+        default:
+            break
+        }
+
+        return event
+    }
+}
+
+// MARK: - Mission Stream Types
+
+/// A streamed event from a mission execution.
+public struct MissionStreamEvent: Sendable {
+    /// Event type: mission_started, step_detail, mission_completed, mission_failed,
+    /// usage, task_started, task_completed, task_failed, tick_completed, done, error.
+    public var type: String
+    /// Whether this event signals the end of the stream.
+    public var done: Bool
+
+    // mission_started fields
+    public var sessionId: String?
+    public var conductor: String?
+    public var strategy: String?
+    public var workers: [String: MissionWorkerDetail]?
+    public var maxSteps: Int?
+
+    // step_detail fields
+    public var step: Int?
+    public var role: String?
+    public var tier: String?
+    public var durationMs: Int?
+    public var delegated: Bool?
+
+    // mission_completed fields
+    public var content: String?
+    public var cost: MissionCost?
+    public var totalSteps: Int?
+    public var workspacePath: String?
+    public var filesGenerated: Int?
+    public var buildPassed: Bool?
+
+    // task event fields
+    public var missionId: String?
+    public var taskId: String?
+    public var message: String?
+
+    // usage fields
+    public var inputTokens: Int?
+    public var outputTokens: Int?
+    public var costTicks: Int64?
+
+    public var error: String?
+
+    public init(
+        type: String,
+        done: Bool = false,
+        sessionId: String? = nil,
+        conductor: String? = nil,
+        strategy: String? = nil,
+        workers: [String: MissionWorkerDetail]? = nil,
+        maxSteps: Int? = nil,
+        step: Int? = nil,
+        role: String? = nil,
+        tier: String? = nil,
+        durationMs: Int? = nil,
+        delegated: Bool? = nil,
+        content: String? = nil,
+        cost: MissionCost? = nil,
+        totalSteps: Int? = nil,
+        workspacePath: String? = nil,
+        filesGenerated: Int? = nil,
+        buildPassed: Bool? = nil,
+        missionId: String? = nil,
+        taskId: String? = nil,
+        message: String? = nil,
+        inputTokens: Int? = nil,
+        outputTokens: Int? = nil,
+        costTicks: Int64? = nil,
+        error: String? = nil
+    ) {
+        self.type = type
+        self.done = done
+        self.sessionId = sessionId
+        self.conductor = conductor
+        self.strategy = strategy
+        self.workers = workers
+        self.maxSteps = maxSteps
+        self.step = step
+        self.role = role
+        self.tier = tier
+        self.durationMs = durationMs
+        self.delegated = delegated
+        self.content = content
+        self.cost = cost
+        self.totalSteps = totalSteps
+        self.workspacePath = workspacePath
+        self.filesGenerated = filesGenerated
+        self.buildPassed = buildPassed
+        self.missionId = missionId
+        self.taskId = taskId
+        self.message = message
+        self.inputTokens = inputTokens
+        self.outputTokens = outputTokens
+        self.costTicks = costTicks
+        self.error = error
+    }
+}
+
+/// Cost breakdown by model tier.
+public struct MissionCost: Codable, Sendable {
+    public var cheap: Int?
+    public var mid: Int?
+    public var expensive: Int?
+
+    public init(cheap: Int? = nil, mid: Int? = nil, expensive: Int? = nil) {
+        self.cheap = cheap
+        self.mid = mid
+        self.expensive = expensive
+    }
+}
+
+/// Response from uploading a workspace archive.
+public struct WorkspaceUploadResponse: Codable, Sendable {
+    /// Session ID the workspace was uploaded to.
+    public let sessionId: String
+    /// Number of files extracted from the archive.
+    public let filesExtracted: Int
+    /// Server-side workspace path.
+    public let workspace: String
+
+    enum CodingKeys: String, CodingKey {
+        case sessionId = "session_id"
+        case filesExtracted = "files_extracted"
+        case workspace
+    }
+}
+
+// MARK: - Raw Mission Stream Event (Internal)
+
+/// Internal decoder for mission SSE payloads. Maps all possible fields from the wire format.
+private struct RawMissionStreamEvent: Decodable {
+    var type: String?
+
+    // mission_started
+    var sessionId: String?
+    var conductor: String?
+    var strategy: String?
+    var workers: [String: MissionWorkerDetail]?
+    var maxSteps: Int?
+
+    // step_detail
+    var step: Int?
+    var role: String?
+    var tier: String?
+    var durationMs: Int?
+    var delegated: Bool?
+
+    // mission_completed
+    var content: String?
+    var cost: MissionCost?
+    var totalSteps: Int?
+    var workspacePath: String?
+    var filesGenerated: Int?
+    var buildPassed: Bool?
+
+    // task events
+    var missionId: String?
+    var taskId: String?
+    var message: String?
+
+    // usage
+    var inputTokens: Int?
+    var outputTokens: Int?
+    var costTicks: Int64?
+
+    var error: String?
+
+    enum CodingKeys: String, CodingKey {
+        case type, conductor, strategy, workers, step, role, tier, delegated
+        case content, cost, message, error
+        case sessionId = "session_id"
+        case maxSteps = "max_steps"
+        case durationMs = "duration_ms"
+        case totalSteps = "total_steps"
+        case workspacePath = "workspace_path"
+        case filesGenerated = "files_generated"
+        case buildPassed = "build_passed"
+        case missionId = "mission_id"
+        case taskId = "task_id"
+        case inputTokens = "input_tokens"
+        case outputTokens = "output_tokens"
+        case costTicks = "cost_ticks"
+    }
 }
