@@ -103,6 +103,8 @@ public final class QuantumClient: Sendable {
         tools: [ChatTool]? = nil,
         temperature: Double? = nil,
         maxTokens: Int? = nil,
+        toolChoice: String? = nil,
+        outputSchema: [String: AnyCodable]? = nil,
         providerOptions: [String: [String: AnyCodable]]? = nil
     ) -> AsyncThrowingStream<StreamEvent, any Error> {
         let request = ChatRequest(
@@ -112,6 +114,8 @@ public final class QuantumClient: Sendable {
             stream: true,
             temperature: temperature,
             maxTokens: maxTokens,
+            toolChoice: toolChoice,
+            outputSchema: outputSchema,
             providerOptions: providerOptions
         )
         return chatStream(request)

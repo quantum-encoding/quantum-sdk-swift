@@ -22,6 +22,16 @@ public struct ChatRequest: Codable, Sendable {
     /// Limits the response length.
     public var maxTokens: Int?
 
+    /// Controls tool calling behavior.
+    /// - `"auto"` (default): Model decides whether to call tools
+    /// - `"any"`: Force the model to call at least one tool
+    /// - `"none"`: Prevent tool calls
+    /// - A tool name: Force the model to call that specific tool
+    public var toolChoice: String?
+
+    /// JSON Schema for structured output. When set, the model returns valid JSON matching this schema.
+    public var outputSchema: [String: AnyCodable]?
+
     /// Provider-specific settings (e.g. Anthropic thinking, xAI search).
     public var providerOptions: [String: [String: AnyCodable]]?
 
@@ -32,6 +42,8 @@ public struct ChatRequest: Codable, Sendable {
         stream: Bool? = nil,
         temperature: Double? = nil,
         maxTokens: Int? = nil,
+        toolChoice: String? = nil,
+        outputSchema: [String: AnyCodable]? = nil,
         providerOptions: [String: [String: AnyCodable]]? = nil
     ) {
         self.model = model
@@ -40,12 +52,16 @@ public struct ChatRequest: Codable, Sendable {
         self.stream = stream
         self.temperature = temperature
         self.maxTokens = maxTokens
+        self.toolChoice = toolChoice
+        self.outputSchema = outputSchema
         self.providerOptions = providerOptions
     }
 
     enum CodingKeys: String, CodingKey {
         case model, messages, tools, stream, temperature
         case maxTokens = "max_tokens"
+        case toolChoice = "tool_choice"
+        case outputSchema = "output_schema"
         case providerOptions = "provider_options"
     }
 }
@@ -195,9 +211,14 @@ public struct ChatTool: Codable, Sendable {
     /// Function definition.
     public var function: FunctionDefinition
 
-    public init(name: String, description: String? = nil, parameters: [String: AnyCodable]? = nil) {
+    /// Enable strict schema validation (Anthropic, OpenAI).
+    /// First call has ~1s extra latency for grammar compilation, then cached 24h.
+    public var strict: Bool?
+
+    public init(name: String, description: String? = nil, parameters: [String: AnyCodable]? = nil, strict: Bool? = nil) {
         self.type = "function"
         self.function = FunctionDefinition(name: name, description: description, parameters: parameters)
+        self.strict = strict
     }
 
     public struct FunctionDefinition: Codable, Sendable {
