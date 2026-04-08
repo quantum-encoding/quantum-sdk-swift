@@ -268,13 +268,26 @@ public struct ChatUsage: Codable, Sendable {
     /// Number of output tokens generated.
     public var outputTokens: Int
 
-    /// Cost in ticks (10 billion ticks = $1 USD).
+    /// Cost in ticks (10 billion ticks = $1 USD). Optional — Zig backend may not send this.
     public var costTicks: Int
 
     enum CodingKeys: String, CodingKey {
         case inputTokens = "input_tokens"
         case outputTokens = "output_tokens"
         case costTicks = "cost_ticks"
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        inputTokens = try container.decode(Int.self, forKey: .inputTokens)
+        outputTokens = try container.decode(Int.self, forKey: .outputTokens)
+        costTicks = try container.decodeIfPresent(Int.self, forKey: .costTicks) ?? 0
+    }
+
+    public init(inputTokens: Int, outputTokens: Int, costTicks: Int = 0) {
+        self.inputTokens = inputTokens
+        self.outputTokens = outputTokens
+        self.costTicks = costTicks
     }
 }
 
@@ -427,11 +440,18 @@ struct RawStreamEvent: Decodable {
     var inputTokens: Int?
     var outputTokens: Int?
     var costTicks: Int?
+    // Zig backend format: full response in one SSE event
+    var content: [ContentBlock]?
+    var usage: ChatUsage?
+    var model: String?
+    var stopReason: String?
+    var error: String?
 
     enum CodingKeys: String, CodingKey {
-        case type, delta, id, name, input, message
+        case type, delta, id, name, input, message, content, usage, model, error
         case inputTokens = "input_tokens"
         case outputTokens = "output_tokens"
         case costTicks = "cost_ticks"
+        case stopReason = "stop_reason"
     }
 }

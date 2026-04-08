@@ -50,6 +50,13 @@ public final class QuantumClient: Sendable {
         self.http = HTTPClient(baseURL: url, apiKey: apiKey, session: session)
     }
 
+    /// Set a GCP identity token for Cloud Run IAM authentication.
+    /// When set, Authorization header carries this token for Cloud Run,
+    /// and X-API-Key carries the API key for the Zig app layer.
+    public func setCloudRunToken(_ token: String?) {
+        http.cloudRunIdentityToken = token
+    }
+
     // MARK: - Chat
 
     /// Send a non-streaming chat request.
@@ -1176,7 +1183,23 @@ public final class QuantumClient: Sendable {
             event.done = true
 
         default:
-            break
+            // Zig backend format: no "type" field, full response in one event
+            // {"content":[{"type":"text","text":"..."}],"usage":{...},"stop_reason":"end_turn"}
+            if let content = raw.content {
+                let text = content.compactMap(\.text).joined()
+                if !text.isEmpty {
+                    event.eventType = "content_delta"
+                    event.delta = StreamDelta(text: text)
+                }
+            }
+            if let usage = raw.usage {
+                // If we already set delta, emit usage as a separate concern on same event
+                event.usage = usage
+            }
+            if let error = raw.error {
+                event.eventType = "error"
+                event.error = error
+            }
         }
 
         return event

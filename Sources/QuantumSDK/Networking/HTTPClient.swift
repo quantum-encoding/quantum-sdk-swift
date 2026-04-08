@@ -5,11 +5,27 @@ final class HTTPClient: Sendable {
     private let session: URLSession
     private let baseURLString: String
     private let apiKey: String
+    /// Optional GCP identity token for Cloud Run IAM (Zig backend).
+    /// When set, Authorization header carries this token (Cloud Run IAM),
+    /// and X-API-Key carries the API key (Zig app auth).
+    var cloudRunIdentityToken: String?
 
     init(baseURL: URL, apiKey: String, session: URLSession = .shared) {
         self.baseURLString = baseURL.absoluteString
         self.apiKey = apiKey
         self.session = session
+    }
+
+    /// Set auth headers.
+    /// If cloudRunIdentityToken is set: Authorization = GCP token, X-API-Key = app key
+    /// Otherwise: Authorization = Bearer app key (Go backend compat)
+    private func setAuth(_ request: inout URLRequest) {
+        if let idToken = cloudRunIdentityToken {
+            request.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
+        } else {
+            request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
+        }
+        request.setValue(apiKey, forHTTPHeaderField: "X-API-Key")
     }
 
     // MARK: - Response Metadata
@@ -33,7 +49,7 @@ final class HTTPClient: Sendable {
         }
         var request = URLRequest(url: url)
         request.httpMethod = method
-        request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
+        setAuth(&request)
 
         if let body {
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -75,7 +91,7 @@ final class HTTPClient: Sendable {
         }
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
-        request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
+        setAuth(&request)
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("text/event-stream", forHTTPHeaderField: "Accept")
         let encoder = JSONEncoder()
@@ -114,7 +130,7 @@ final class HTTPClient: Sendable {
         let boundary = "Boundary-\(UUID().uuidString)"
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
-        request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
+        setAuth(&request)
         request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
 
         var body = Data()
@@ -161,7 +177,7 @@ final class HTTPClient: Sendable {
         }
         var request = URLRequest(url: url)
         request.httpMethod = method
-        request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
+        setAuth(&request)
         request.setValue(contentType, forHTTPHeaderField: "Content-Type")
         request.httpBody = bodyData
 
@@ -199,7 +215,7 @@ final class HTTPClient: Sendable {
         }
         var request = URLRequest(url: url)
         request.httpMethod = method
-        request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
+        setAuth(&request)
 
         let (data, response) = try await performRequest(request)
         let httpResponse = response as! HTTPURLResponse
