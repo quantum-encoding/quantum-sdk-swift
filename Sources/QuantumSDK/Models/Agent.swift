@@ -101,7 +101,7 @@ public struct AgentStreamEvent: Codable, Sendable {
 
 /// A single event from an agent orchestration stream.
 public struct AgentEvent: Sendable {
-    /// Event type (e.g. "conductor", "worker_start", "content_delta", "done").
+    /// Event type (e.g. "conductor", "worker_start", "content_delta", "tool_use", "tool_result", "done").
     public var type: String
 
     /// Whether this is the final event.
@@ -113,8 +113,17 @@ public struct AgentEvent: Sendable {
     /// Content text.
     public var content: String?
 
-    /// Tool use information.
+    /// Tool use information (set on "tool_use" events).
     public var toolUse: StreamToolUse?
+
+    /// Correlates a "tool_result" event back to the originating "tool_use".
+    public var toolUseId: String?
+
+    /// Output text for "tool_result" events.
+    public var toolOutput: String?
+
+    /// Unified diff (for file ops like write_file / edit_file).
+    public var diff: String?
 
     /// Error message.
     public var error: String?
@@ -125,6 +134,9 @@ public struct AgentEvent: Sendable {
         worker: String? = nil,
         content: String? = nil,
         toolUse: StreamToolUse? = nil,
+        toolUseId: String? = nil,
+        toolOutput: String? = nil,
+        diff: String? = nil,
         error: String? = nil
     ) {
         self.type = type
@@ -132,6 +144,9 @@ public struct AgentEvent: Sendable {
         self.worker = worker
         self.content = content
         self.toolUse = toolUse
+        self.toolUseId = toolUseId
+        self.toolOutput = toolOutput
+        self.diff = diff
         self.error = error
     }
 }

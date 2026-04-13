@@ -1207,16 +1207,23 @@ public final class QuantumClient: Sendable {
 
     /// Parse a raw SSE JSON payload into an ``AgentEvent``.
     private func parseAgentEvent(_ data: Data) throws -> AgentEvent {
-        // Log raw JSON for debugging
-        if let jsonStr = String(data: data, encoding: .utf8) {
-            print("[QuantumSDK] Agent raw event: \(jsonStr.prefix(200))")
-        }
         let raw = try JSONDecoder().decode(RawAgentEvent.self, from: data)
+
+        // Build toolUse for "tool_use" events if we have enough fields
+        var toolUse: StreamToolUse? = nil
+        if raw.type == "tool_use", let id = raw.id, let name = raw.name {
+            toolUse = StreamToolUse(id: id, name: name, input: raw.input ?? [:])
+        }
+
         return AgentEvent(
             type: raw.type ?? "unknown",
             done: raw.type == "done",
             worker: raw.worker,
-            content: raw.content ?? raw.message,  // some events put text in "message"
+            content: raw.content ?? raw.message,
+            toolUse: toolUse,
+            toolUseId: raw.toolUseId,
+            toolOutput: raw.output,
+            diff: raw.diff,
             error: raw.error ?? (raw.type == "agent_error" ? (raw.message ?? "Unknown agent error") : nil)
         )
     }
@@ -1242,8 +1249,16 @@ private struct RawAgentEvent: Decodable {
     var content: String?
     var error: String?
     var message: String?
+    // Tool-call correlation fields
+    var id: String?                         // tool_use id
+    var name: String?                       // tool name
+    var input: [String: AnyCodable]?        // tool args
+    var toolUseId: String?                  // links tool_result → tool_use
+    var output: String?                     // tool_result output text
+    var diff: String?                       // unified diff for file ops
 
     enum CodingKeys: String, CodingKey {
-        case type, worker, content, error, message
+        case type, worker, content, error, message, id, name, input, output, diff
+        case toolUseId = "tool_use_id"
     }
 }
