@@ -35,6 +35,14 @@ public struct ChatRequest: Codable, Sendable {
     /// Provider-specific settings (e.g. Anthropic thinking, xAI search).
     public var providerOptions: [String: [String: AnyCodable]]?
 
+    /// Capability allowlist. Filters which client-declared tools are forwarded
+    /// to the model by matching their names against the server's capability
+    /// registry (e.g. `"file_read"`, `"code_execution"`).
+    /// - `nil`: pass all tools through (backwards compatible).
+    /// - `[]`: Safe Mode — drop all tools (pure chat).
+    /// - non-empty: only tools whose names map to the allowed capabilities.
+    public var capabilities: [String]?
+
     public init(
         model: String,
         messages: [ChatMessage],
@@ -44,7 +52,8 @@ public struct ChatRequest: Codable, Sendable {
         maxTokens: Int? = nil,
         toolChoice: String? = nil,
         outputSchema: [String: AnyCodable]? = nil,
-        providerOptions: [String: [String: AnyCodable]]? = nil
+        providerOptions: [String: [String: AnyCodable]]? = nil,
+        capabilities: [String]? = nil
     ) {
         self.model = model
         self.messages = messages
@@ -55,10 +64,11 @@ public struct ChatRequest: Codable, Sendable {
         self.toolChoice = toolChoice
         self.outputSchema = outputSchema
         self.providerOptions = providerOptions
+        self.capabilities = capabilities
     }
 
     enum CodingKeys: String, CodingKey {
-        case model, messages, tools, stream, temperature
+        case model, messages, tools, stream, temperature, capabilities
         case maxTokens = "max_tokens"
         case toolChoice = "tool_choice"
         case outputSchema = "output_schema"
