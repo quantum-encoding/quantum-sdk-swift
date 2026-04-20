@@ -46,13 +46,19 @@ public struct AgentRequest: Codable, Sendable {
     /// System prompt for the conductor.
     public var systemPrompt: String?
 
+    /// Capability allowlist. If provided, the backend only exposes tools whose
+    /// capability IDs appear in this list. An empty array disables all tools
+    /// (pure chat mode). nil means "server default" — backward compatible.
+    public var capabilities: [String]?
+
     public init(
         task: String,
         sessionId: String? = nil,
         conductorModel: String? = nil,
         workers: [AgentWorker]? = nil,
         maxSteps: Int? = nil,
-        systemPrompt: String? = nil
+        systemPrompt: String? = nil,
+        capabilities: [String]? = nil
     ) {
         self.task = task
         self.sessionId = sessionId
@@ -60,10 +66,15 @@ public struct AgentRequest: Codable, Sendable {
         self.workers = workers
         self.maxSteps = maxSteps
         self.systemPrompt = systemPrompt
+        self.capabilities = capabilities
     }
 
     enum CodingKeys: String, CodingKey {
-        case task, workers
+        case workers, capabilities
+        // The server-side orchestrator (POST /qai/v1/missions) names this
+        // field "goal". Swift keeps "task" as the ergonomic identifier for
+        // callers; only the wire format is remapped.
+        case task = "goal"
         case sessionId = "session_id"
         case conductorModel = "conductor_model"
         case maxSteps = "max_steps"

@@ -221,21 +221,31 @@ public final class QuantumClient: Sendable {
         conductorModel: String? = nil,
         workers: [AgentWorkerConfig]? = nil,
         maxSteps: Int? = nil,
-        systemPrompt: String? = nil
+        systemPrompt: String? = nil,
+        capabilities: [String]? = nil
     ) -> AsyncThrowingStream<AgentEvent, any Error> {
         let request = AgentRequest(
             task: task,
             conductorModel: conductorModel,
             workers: workers,
             maxSteps: maxSteps,
-            systemPrompt: systemPrompt
+            systemPrompt: systemPrompt,
+            capabilities: capabilities
         )
         return agentRun(request)
     }
 
     /// Run an agent orchestration with a full ``AgentRequest``.
+    ///
+    /// Note: `/qai/v1/agent` is the stateless provider-passthrough endpoint
+    /// (Anthropic-style `{ model, messages, tools, ... }` shape).
+    /// `AgentRequest` carries the conductor-style
+    /// `{ goal, conductor_model, workers, max_steps, ... }` shape — that's
+    /// the Mission orchestrator's contract (POST `/qai/v1/missions`), so
+    /// that's where we post it. Swift exposes the field as `task` for
+    /// readability; `CodingKeys` remaps it to `goal` on the wire.
     public func agentRun(_ request: AgentRequest) -> AsyncThrowingStream<AgentEvent, any Error> {
-        return makeSSEStream(path: "/qai/v1/agent", body: request) { data in
+        return makeSSEStream(path: "/qai/v1/missions", body: request) { data in
             try self.parseAgentEvent(data)
         }
     }
