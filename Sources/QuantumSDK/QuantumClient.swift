@@ -1225,11 +1225,28 @@ public final class QuantumClient: Sendable {
             toolUse = StreamToolUse(id: id, name: name, input: raw.input ?? [:])
         }
 
+        // Only the model's own output fills `content`. Diagnostic /
+        // lifecycle events (tick_completed, mission_started, etc.)
+        // ship a `message` describing what happened — those belong
+        // in an activity timeline, not concatenated into the
+        // assistant's reply. Earlier we coalesced both via
+        //   `raw.content ?? raw.message`
+        // which leaked breadcrumbs like
+        //   "conductor step 0: 0 tool calls, content=32 chars, finish=stop"
+        // into the chat surface for every reply.
+        let contentBearingTypes: Set<String> = [
+            "content", "content_delta",
+            "thinking", "thinking_delta",
+            "worker_content"
+        ]
+        let isContentBearing = (raw.type).map { contentBearingTypes.contains($0) } ?? false
+        let resolvedContent = raw.content ?? (isContentBearing ? raw.message : nil)
+
         return AgentEvent(
             type: raw.type ?? "unknown",
             done: raw.type == "done",
             worker: raw.worker,
-            content: raw.content ?? raw.message,
+            content: resolvedContent,
             toolUse: toolUse,
             toolUseId: raw.toolUseId,
             toolOutput: raw.output,
