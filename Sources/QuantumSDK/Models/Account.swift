@@ -190,7 +190,7 @@ public typealias AccountPricingResponse = PricingResponse
 
 // MARK: - Model Info
 
-/// Information about an available model.
+/// Information about an available model, as returned by `GET /qai/v1/models`.
 public struct ModelInfo: Codable, Sendable {
     /// Model ID.
     public var id: String
@@ -198,27 +198,83 @@ public struct ModelInfo: Codable, Sendable {
     /// Provider name.
     public var provider: String
 
+    /// Model category ("Text", "Image", "Video", "TTS", "STT", "Music",
+    /// "Audio", "3D", "Embedding", "Realtime", "Vision").
+    public var category: String
+
     /// Display name.
     public var displayName: String
 
-    /// Input cost per million tokens.
-    public var inputPerMillion: Double
+    /// Human-readable context window (e.g. "200K"). Absent for media models.
+    public var contextWindow: String?
 
-    /// Output cost per million tokens.
-    public var outputPerMillion: Double
+    /// Input cost per million tokens. Absent for per-unit-priced models.
+    public var inputPerMillion: Double?
+
+    /// Output cost per million tokens. Absent for per-unit-priced models.
+    public var outputPerMillion: Double?
+
+    /// Flat price for media models (per image, per second, ...).
+    public var perUnitPrice: Double?
+
+    /// Unit for ``perUnitPrice`` (e.g. "per image").
+    public var priceUnit: String?
+
+    /// Per-model generation parameter schema — present on servers that
+    /// implement the v1+ `/qai/v1/models` contract, absent on older servers.
+    public var parameters: [ParameterSpec]?
 
     enum CodingKeys: String, CodingKey {
-        case id, provider
+        case id, provider, category, parameters
         case displayName = "display_name"
+        case contextWindow = "context_window"
         case inputPerMillion = "input_per_million"
         case outputPerMillion = "output_per_million"
+        case perUnitPrice = "per_unit_price"
+        case priceUnit = "price_unit"
+    }
+
+    public init(
+        id: String,
+        provider: String,
+        category: String,
+        displayName: String,
+        contextWindow: String? = nil,
+        inputPerMillion: Double? = nil,
+        outputPerMillion: Double? = nil,
+        perUnitPrice: Double? = nil,
+        priceUnit: String? = nil,
+        parameters: [ParameterSpec]? = nil
+    ) {
+        self.id = id
+        self.provider = provider
+        self.category = category
+        self.displayName = displayName
+        self.contextWindow = contextWindow
+        self.inputPerMillion = inputPerMillion
+        self.outputPerMillion = outputPerMillion
+        self.perUnitPrice = perUnitPrice
+        self.priceUnit = priceUnit
+        self.parameters = parameters
     }
 }
 
-/// Response from listing models.
+/// Response envelope from `GET /qai/v1/models`.
 public struct ModelsResponse: Codable, Sendable {
+    /// Version of the response envelope. Clients compare against their
+    /// supported range. `nil` means schema 0 / legacy backend.
+    public var schemaVersion: Int?
+
+    /// Number of models.
+    public var count: Int?
+
     /// Available models.
     public var models: [ModelInfo]
+
+    enum CodingKeys: String, CodingKey {
+        case schemaVersion = "schema_version"
+        case count, models
+    }
 }
 
 /// Pricing information for a model.

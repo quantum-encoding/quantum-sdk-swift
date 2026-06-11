@@ -683,9 +683,13 @@ public final class QuantumClient: Sendable {
 
     /// List all available models with provider and pricing information.
     public func listModels() async throws -> [ModelInfo] {
-        struct Body: Decodable { let models: [ModelInfo] }
-        let (data, _): (Body, _) = try await http.doJSON(method: "GET", path: "/qai/v1/models")
-        return data.models
+        try await listModelsResponse().models
+    }
+
+    /// List models including the response envelope (`schema_version`, `count`).
+    public func listModelsResponse() async throws -> ModelsResponse {
+        let (data, _): (ModelsResponse, _) = try await http.doJSON(method: "GET", path: "/qai/v1/models")
+        return data
     }
 
     /// Get the complete pricing table for all models.
