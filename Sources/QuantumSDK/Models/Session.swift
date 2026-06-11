@@ -57,6 +57,11 @@ public struct SessionChatRequest: Codable, Sendable {
     /// Context management configuration.
     public var contextConfig: ContextConfig?
 
+    /// How much chain-of-thought a reasoning model runs before answering.
+    /// One of `"none"`, `"low"`, `"medium"`, `"high"`, `"xhigh"`; `nil` =
+    /// provider default. Mirrors ``ChatRequest/reasoningEffort``.
+    public var reasoningEffort: String?
+
     /// Provider-specific settings.
     public var providerOptions: [String: [String: AnyCodable]]?
 
@@ -69,7 +74,8 @@ public struct SessionChatRequest: Codable, Sendable {
         stream: Bool? = nil,
         systemPrompt: String? = nil,
         contextConfig: ContextConfig? = nil,
-        providerOptions: [String: [String: AnyCodable]]? = nil
+        providerOptions: [String: [String: AnyCodable]]? = nil,
+        reasoningEffort: String? = nil
     ) {
         self.message = message
         self.sessionId = sessionId
@@ -80,6 +86,7 @@ public struct SessionChatRequest: Codable, Sendable {
         self.systemPrompt = systemPrompt
         self.contextConfig = contextConfig
         self.providerOptions = providerOptions
+        self.reasoningEffort = reasoningEffort
     }
 
     enum CodingKeys: String, CodingKey {
@@ -89,6 +96,7 @@ public struct SessionChatRequest: Codable, Sendable {
         case systemPrompt = "system_prompt"
         case contextConfig = "context_config"
         case providerOptions = "provider_options"
+        case reasoningEffort = "reasoning_effort"
     }
 }
 

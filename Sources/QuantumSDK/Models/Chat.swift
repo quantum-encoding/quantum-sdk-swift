@@ -43,6 +43,18 @@ public struct ChatRequest: Codable, Sendable {
     /// - non-empty: only tools whose names map to the allowed capabilities.
     public var capabilities: [String]?
 
+    /// How much chain-of-thought a reasoning model runs before answering.
+    /// One of `"none"`, `"low"`, `"medium"`, `"high"`, `"xhigh"`; `nil` =
+    /// provider default (medium on GPT-5.5+). An unknown value is rejected
+    /// with 400 by the gateway.
+    public var reasoningEffort: String?
+
+    /// Vertex resource name of a previously created context cache (e.g.
+    /// `"cachedContents/abc123"`). When set, the cached content is billed at
+    /// the cached-read rate and need not be re-sent. Gemini-only; the cache's
+    /// model must match this request's model.
+    public var cachedContent: String?
+
     public init(
         model: String,
         messages: [ChatMessage],
@@ -53,7 +65,9 @@ public struct ChatRequest: Codable, Sendable {
         toolChoice: String? = nil,
         outputSchema: [String: AnyCodable]? = nil,
         providerOptions: [String: [String: AnyCodable]]? = nil,
-        capabilities: [String]? = nil
+        capabilities: [String]? = nil,
+        reasoningEffort: String? = nil,
+        cachedContent: String? = nil
     ) {
         self.model = model
         self.messages = messages
@@ -65,6 +79,8 @@ public struct ChatRequest: Codable, Sendable {
         self.outputSchema = outputSchema
         self.providerOptions = providerOptions
         self.capabilities = capabilities
+        self.reasoningEffort = reasoningEffort
+        self.cachedContent = cachedContent
     }
 
     enum CodingKeys: String, CodingKey {
@@ -73,6 +89,8 @@ public struct ChatRequest: Codable, Sendable {
         case toolChoice = "tool_choice"
         case outputSchema = "output_schema"
         case providerOptions = "provider_options"
+        case reasoningEffort = "reasoning_effort"
+        case cachedContent = "cached_content"
     }
 }
 
@@ -95,18 +113,25 @@ public struct ChatMessage: Codable, Sendable {
     /// Whether this tool result is an error.
     public var isError: Bool?
 
+    /// Provider-side reasoning state (OpenAI Responses API). Pass back the
+    /// `phase` received on the previous turn's ``ChatResponse`` so reasoning
+    /// state is preserved across replay. `nil` for providers without phase.
+    public var phase: String?
+
     public init(
         role: Role,
         content: String? = nil,
         contentBlocks: [ContentBlock]? = nil,
         toolCallId: String? = nil,
-        isError: Bool? = nil
+        isError: Bool? = nil,
+        phase: String? = nil
     ) {
         self.role = role
         self.content = content
         self.contentBlocks = contentBlocks
         self.toolCallId = toolCallId
         self.isError = isError
+        self.phase = phase
     }
 
     /// Create a user message with text content.
@@ -137,7 +162,7 @@ public struct ChatMessage: Codable, Sendable {
     }
 
     enum CodingKeys: String, CodingKey {
-        case role, content
+        case role, content, phase
         case contentBlocks = "content_blocks"
         case toolCallId = "tool_call_id"
         case isError = "is_error"
@@ -166,13 +191,30 @@ public struct ContentBlock: Codable, Sendable {
     /// Gemini thought signature -- must be echoed back with tool results.
     public var thoughtSignature: String?
 
+    /// Base64-encoded content for `"image"` and `"file"` blocks.
+    public var data: String?
+
+    /// MIME type for `"image"`/`"file"` blocks (e.g. `"image/png"`, `"application/pdf"`).
+    public var mimeType: String?
+
+    /// Original filename for `"file"` blocks.
+    public var fileName: String?
+
+    /// Remote resource URL for `"file_uri"` blocks (YouTube, `gs://`, etc.) —
+    /// the model fetches it directly instead of receiving inline data.
+    public var fileURI: String?
+
     public init(
         blockType: String,
         text: String? = nil,
         id: String? = nil,
         name: String? = nil,
         input: [String: AnyCodable]? = nil,
-        thoughtSignature: String? = nil
+        thoughtSignature: String? = nil,
+        data: String? = nil,
+        mimeType: String? = nil,
+        fileName: String? = nil,
+        fileURI: String? = nil
     ) {
         self.blockType = blockType
         self.text = text
@@ -180,6 +222,10 @@ public struct ContentBlock: Codable, Sendable {
         self.name = name
         self.input = input
         self.thoughtSignature = thoughtSignature
+        self.data = data
+        self.mimeType = mimeType
+        self.fileName = fileName
+        self.fileURI = fileURI
     }
 
     /// Legacy convenience init using `type` parameter name.
@@ -205,9 +251,12 @@ public struct ContentBlock: Codable, Sendable {
     }
 
     enum CodingKeys: String, CodingKey {
-        case text, id, name, input
+        case text, id, name, input, data
         case blockType = "type"
         case thoughtSignature = "thought_signature"
+        case mimeType = "mime_type"
+        case fileName = "file_name"
+        case fileURI = "file_uri"
     }
 }
 
@@ -275,30 +324,68 @@ public struct ChatUsage: Codable, Sendable {
     /// Number of input tokens processed.
     public var inputTokens: Int
 
+    /// Portion of `inputTokens` served from a prompt cache (billed at the
+    /// cheaper cached-read rate). Present on providers that report cache hits.
+    public var cachedTokens: Int
+
     /// Number of output tokens generated.
     public var outputTokens: Int
+
+    /// Chain-of-thought tokens billed on top of `outputTokens` for reasoning
+    /// models (Gemini/Vertex report these separately). Zero when folded in.
+    public var reasoningTokens: Int
 
     /// Cost in ticks (10 billion ticks = $1 USD). Optional — Zig backend may not send this.
     public var costTicks: Int
 
     enum CodingKeys: String, CodingKey {
         case inputTokens = "input_tokens"
+        case cachedTokens = "cached_tokens"
         case outputTokens = "output_tokens"
+        case reasoningTokens = "reasoning_tokens"
         case costTicks = "cost_ticks"
     }
 
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         inputTokens = try container.decode(Int.self, forKey: .inputTokens)
+        cachedTokens = try container.decodeIfPresent(Int.self, forKey: .cachedTokens) ?? 0
         outputTokens = try container.decode(Int.self, forKey: .outputTokens)
+        reasoningTokens = try container.decodeIfPresent(Int.self, forKey: .reasoningTokens) ?? 0
         costTicks = try container.decodeIfPresent(Int.self, forKey: .costTicks) ?? 0
     }
 
-    public init(inputTokens: Int, outputTokens: Int, costTicks: Int = 0) {
+    public init(inputTokens: Int, outputTokens: Int, costTicks: Int = 0, cachedTokens: Int = 0, reasoningTokens: Int = 0) {
         self.inputTokens = inputTokens
+        self.cachedTokens = cachedTokens
         self.outputTokens = outputTokens
+        self.reasoningTokens = reasoningTokens
         self.costTicks = costTicks
     }
+}
+
+// MARK: - Stop Reason
+
+/// Canonical `stop_reason` values emitted by the gateway. Every provider's
+/// native finish reason is normalized into this Anthropic-flavored space, so
+/// comparing ``ChatResponse/stopReason`` against these works regardless of
+/// which model served the request. A provider-specific reason the gateway
+/// cannot map passes through lowercased — treat any other value as terminal.
+public enum StopReason {
+    /// Natural completion.
+    public static let endTurn = "end_turn"
+    /// Model is requesting tool execution (tool_use blocks present).
+    public static let toolUse = "tool_use"
+    /// Output token cap reached — the response is truncated.
+    public static let maxTokens = "max_tokens"
+    /// A requested stop sequence matched.
+    public static let stopSequence = "stop_sequence"
+    /// Provider-side safety/policy stop.
+    public static let contentFilter = "content_filter"
+    /// A safety classifier declined the request; discard any partial output.
+    public static let refusal = "refusal"
+    /// Provider reported a terminal failure.
+    public static let error = "error"
 }
 
 // MARK: - Chat Response
@@ -323,6 +410,12 @@ public struct ChatResponse: Codable, Sendable {
     /// Citations from web search (when search is enabled via provider_options).
     public var citations: [Citation]?
 
+    /// Provider-side reasoning-state tag (OpenAI Responses API). Echo it back
+    /// on the corresponding assistant ``ChatMessage/phase`` of the next turn
+    /// to preserve reasoning state across replay. `nil` when the provider
+    /// doesn't surface phase.
+    public var phase: String?
+
     /// Unique request ID.
     public var requestId: String
 
@@ -330,11 +423,26 @@ public struct ChatResponse: Codable, Sendable {
     public var costTicks: Int
 
     enum CodingKeys: String, CodingKey {
-        case id, model, content, usage, citations
+        case id, model, content, usage, citations, phase
         case stopReason = "stop_reason"
         case requestId = "request_id"
         case costTicks = "cost_ticks"
     }
+
+    /// True when the model is requesting tool execution
+    /// (`stopReason == StopReason.toolUse`). The gateway guarantees this
+    /// whenever tool_use blocks are present, across every provider.
+    public var isToolUse: Bool { stopReason == StopReason.toolUse }
+
+    /// True when a safety classifier declined the request
+    /// (`stopReason == StopReason.refusal`). On a refusal the content may be
+    /// empty or a partial prefix that should be discarded — check this before
+    /// reading ``text``. (Claude Fable 5 can refuse with an HTTP 200.)
+    public var isRefusal: Bool { stopReason == StopReason.refusal }
+
+    /// True when output was cut off by the token cap
+    /// (`stopReason == StopReason.maxTokens`) — the response is incomplete.
+    public var isMaxTokens: Bool { stopReason == StopReason.maxTokens }
 
     /// Concatenated text content, ignoring thinking and tool_use blocks.
     public var text: String {

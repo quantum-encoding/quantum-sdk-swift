@@ -49,7 +49,7 @@ import QuantumSDK
 let client = QuantumClient(apiKey: "qai_k_your_key_here")
 
 let response = try await client.chat(
-    model: "claude-sonnet-4-6",
+    model: "claude-opus-4-8",
     messages: [
         .system("You are a helpful assistant."),
         .user("Explain protocols in Swift"),
@@ -64,7 +64,7 @@ print(response.text)
 
 ```swift
 for try await event in client.chatStream(
-    model: "claude-sonnet-4-6",
+    model: "claude-opus-4-8",
     messages: [.user("Write a haiku about Swift")]
 ) {
     if let text = event.delta?.text {
