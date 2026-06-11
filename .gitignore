@@ -1,0 +1,15 @@
+# Swift Package Manager build artifacts
+.build/
+/Packages
+Package.pins
+
+# Xcode / SwiftPM user-specific state
+.swiftpm/xcode/*/xcuserdata/
+.swiftpm/xcode/package.xcworkspace/xcuserdata/
+.swiftpm/configuration/registries.json
+xcuserdata/
+*.xcuserstate
+DerivedData/
+
+# macOS
+.DS_Store

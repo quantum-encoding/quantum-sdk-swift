@@ -1,3 +1,0 @@
-module QuantumSDK {
-    header "/Users/director/work/poly-repo/quantum-ai-polyrepo/qe-sdk-collection/swift_projects/quantum-sdk/.build/arm64-apple-macosx/debug/QuantumSDK.build/include/QuantumSDK-Swift.h"
-}
