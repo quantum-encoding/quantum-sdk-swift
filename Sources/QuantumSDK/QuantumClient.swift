@@ -285,15 +285,33 @@ public final class QuantumClient: Sendable {
     ///   - n: Number of images to generate.
     ///   - size: Image size (e.g. "1024x1024").
     ///   - quality: Quality level (e.g. "standard", "hd").
+    ///   - background: Background mode — "transparent", "opaque", or "auto".
+    ///     GPT-Image (gpt-image-1) honours this; other providers ignore it.
+    ///     Sent only when non-nil.
+    ///   - seed: Deterministic seed (provider support varies). Sent only when non-nil.
+    ///   - cfgScale: Classifier-free guidance scale (provider support varies).
+    ///     Sent only when non-nil.
     /// - Returns: The image response with URLs or base64 data.
     public func generateImage(
         model: String,
         prompt: String,
         n: Int? = nil,
         size: String? = nil,
-        quality: String? = nil
+        quality: String? = nil,
+        background: String? = nil,
+        seed: Int? = nil,
+        cfgScale: Double? = nil
     ) async throws -> ImageResponse {
-        let request = ImageRequest(model: model, prompt: prompt, count: n, size: size, quality: quality)
+        let request = ImageRequest(
+            model: model,
+            prompt: prompt,
+            count: n,
+            size: size,
+            quality: quality,
+            background: background,
+            seed: seed,
+            cfgScale: cfgScale
+        )
         let (data, _): (ImageResponse, _) = try await http.doJSON(
             method: "POST", path: "/qai/v1/images/generate", body: request
         )

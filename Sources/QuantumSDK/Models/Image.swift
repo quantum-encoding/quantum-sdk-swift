@@ -31,6 +31,14 @@ public struct ImageRequest: Codable, Sendable {
     /// Background mode (e.g. "auto", "transparent", "opaque"). GPT-Image specific.
     public var background: String?
 
+    /// Deterministic seed. Same seed + prompt + params reproduces an image
+    /// (provider support varies; ignored where unsupported).
+    public var seed: Int?
+
+    /// Classifier-free guidance scale — how strongly the model adheres to the
+    /// prompt (provider support varies; ignored where unsupported).
+    public var cfgScale: Double?
+
     /// Image URL or data URI for image-to-3D conversion (Meshy).
     public var imageUrl: String?
 
@@ -59,6 +67,8 @@ public struct ImageRequest: Codable, Sendable {
         outputFormat: String? = nil,
         style: String? = nil,
         background: String? = nil,
+        seed: Int? = nil,
+        cfgScale: Double? = nil,
         imageUrl: String? = nil,
         topology: String? = nil,
         targetPolycount: Int? = nil,
@@ -75,6 +85,8 @@ public struct ImageRequest: Codable, Sendable {
         self.outputFormat = outputFormat
         self.style = style
         self.background = background
+        self.seed = seed
+        self.cfgScale = cfgScale
         self.imageUrl = imageUrl
         self.topology = topology
         self.targetPolycount = targetPolycount
@@ -84,7 +96,8 @@ public struct ImageRequest: Codable, Sendable {
     }
 
     enum CodingKeys: String, CodingKey {
-        case model, prompt, count, size, quality, style, background, topology
+        case model, prompt, count, size, quality, style, background, seed, topology
+        case cfgScale = "cfg_scale"
         case aspectRatio = "aspect_ratio"
         case outputFormat = "output_format"
         case imageUrl = "image_url"

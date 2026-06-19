@@ -21,5 +21,10 @@ let package = Package(
             name: "QuantumSDK",
             path: "Sources/QuantumSDK"
         ),
+        .testTarget(
+            name: "QuantumSDKTests",
+            dependencies: ["QuantumSDK"],
+            path: "Tests/QuantumSDKTests"
+        ),
     ]
 )
