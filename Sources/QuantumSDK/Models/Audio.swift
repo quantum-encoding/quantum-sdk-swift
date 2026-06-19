@@ -19,16 +19,22 @@ public struct TtsRequest: Codable, Sendable {
     /// Speech rate (provider-dependent).
     public var speed: Double?
 
-    public init(model: String, text: String, voice: String? = nil, outputFormat: String? = nil, speed: Double? = nil) {
+    /// Voice-steering instructions (tone, emotion, accent). OpenAI
+    /// gpt-4o-mini-tts only — the backend drops it for tts-1/tts-1-hd, which
+    /// reject the field. Omitted from the JSON body when nil.
+    public var instructions: String?
+
+    public init(model: String, text: String, voice: String? = nil, outputFormat: String? = nil, speed: Double? = nil, instructions: String? = nil) {
         self.model = model
         self.text = text
         self.voice = voice
         self.outputFormat = outputFormat
         self.speed = speed
+        self.instructions = instructions
     }
 
     enum CodingKeys: String, CodingKey {
-        case model, text, voice, speed
+        case model, text, voice, speed, instructions
         case outputFormat = "format"
     }
 }

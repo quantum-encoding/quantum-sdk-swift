@@ -336,15 +336,18 @@ public final class QuantumClient: Sendable {
     ///   - voice: Voice ID.
     ///   - outputFormat: Output format (e.g. "mp3", "wav").
     ///   - speed: Speaking speed.
+    ///   - instructions: Voice-steering (tone/emotion/accent). gpt-4o-mini-tts
+    ///     only; the backend drops it for tts-1/tts-1-hd.
     /// - Returns: The TTS response with audio URL.
     public func speak(
         text: String,
         model: String,
         voice: String? = nil,
         outputFormat: String? = nil,
-        speed: Double? = nil
+        speed: Double? = nil,
+        instructions: String? = nil
     ) async throws -> TTSResponse {
-        let request = TTSRequest(model: model, text: text, voice: voice, outputFormat: outputFormat, speed: speed)
+        let request = TTSRequest(model: model, text: text, voice: voice, outputFormat: outputFormat, speed: speed, instructions: instructions)
         let (data, _): (TTSResponse, _) = try await http.doJSON(
             method: "POST", path: "/qai/v1/audio/tts", body: request
         )
