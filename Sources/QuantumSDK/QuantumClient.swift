@@ -85,6 +85,9 @@ public final class QuantumClient: Sendable {
     ///   - tools: Optional function tools the model can call.
     ///   - temperature: Controls randomness (0.0-2.0).
     ///   - maxTokens: Limits the response length.
+    ///   - toolChoice: "auto" (default), "any" (force a tool), "none", or a tool name.
+    ///   - outputSchema: JSON Schema for structured output — forces the model to
+    ///     return JSON matching this schema.
     ///   - providerOptions: Provider-specific settings.
     /// - Returns: The chat response.
     public func chat(
@@ -93,6 +96,8 @@ public final class QuantumClient: Sendable {
         tools: [ChatTool]? = nil,
         temperature: Double? = nil,
         maxTokens: Int? = nil,
+        toolChoice: String? = nil,
+        outputSchema: [String: AnyCodable]? = nil,
         providerOptions: [String: [String: AnyCodable]]? = nil
     ) async throws -> ChatResponse {
         let request = ChatRequest(
@@ -102,6 +107,8 @@ public final class QuantumClient: Sendable {
             stream: false,
             temperature: temperature,
             maxTokens: maxTokens,
+            toolChoice: toolChoice,
+            outputSchema: outputSchema,
             providerOptions: providerOptions
         )
         return try await chat(request)
