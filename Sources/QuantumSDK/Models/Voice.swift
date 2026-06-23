@@ -10,8 +10,13 @@ public struct Voice: Codable, Sendable {
     /// Human-readable voice name.
     public var name: String
 
-    /// Provider (e.g. "elevenlabs", "openai").
+    /// Provider (e.g. "elevenlabs", "openai", "gemini").
     public var provider: String?
+
+    /// TTS model id to pass to `speak(...)` to synthesize with this voice — so
+    /// callers don't hardcode the provider→model mapping. ElevenLabs carries the
+    /// standard default; callers may override.
+    public var model: String?
 
     /// Language/locale codes supported.
     public var languages: [String]?
@@ -26,7 +31,7 @@ public struct Voice: Codable, Sendable {
     public var previewUrl: String?
 
     enum CodingKeys: String, CodingKey {
-        case name, provider, languages, gender
+        case name, provider, model, languages, gender
         case voiceId = "voice_id"
         case isCloned = "is_cloned"
         case previewUrl = "preview_url"

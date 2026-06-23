@@ -25,6 +25,10 @@ public struct ImageRequest: Codable, Sendable {
     /// Image format (e.g. "png", "jpeg", "webp").
     public var outputFormat: String?
 
+    /// Output quality 0-100 for JPEG/WebP (GPT-Image). Schema id
+    /// `output_compression`; ignored for PNG and by other providers.
+    public var compression: Int?
+
     /// Style preset (e.g. "vivid", "natural"). DALL-E 3 specific.
     public var style: String?
 
@@ -65,6 +69,7 @@ public struct ImageRequest: Codable, Sendable {
         aspectRatio: String? = nil,
         quality: String? = nil,
         outputFormat: String? = nil,
+        compression: Int? = nil,
         style: String? = nil,
         background: String? = nil,
         seed: Int? = nil,
@@ -83,6 +88,7 @@ public struct ImageRequest: Codable, Sendable {
         self.aspectRatio = aspectRatio
         self.quality = quality
         self.outputFormat = outputFormat
+        self.compression = compression
         self.style = style
         self.background = background
         self.seed = seed
@@ -100,6 +106,7 @@ public struct ImageRequest: Codable, Sendable {
         case cfgScale = "cfg_scale"
         case aspectRatio = "aspect_ratio"
         case outputFormat = "output_format"
+        case compression = "output_compression"
         case imageUrl = "image_url"
         case targetPolycount = "target_polycount"
         case symmetryMode = "symmetry_mode"

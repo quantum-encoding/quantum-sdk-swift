@@ -32,16 +32,34 @@ public final class QuantumClient: Sendable {
     let http: HTTPClient
     private let baseURLString: String
 
+    /// Default URLSession tuned for the Quantum AI API.
+    ///
+    /// `URLSession.shared` defaults to `timeoutIntervalForRequest = 60`, which
+    /// aborts long-running *buffered* calls — image and video generation return a
+    /// single JSON blob only once the provider finishes, so no bytes flow for the
+    /// whole generation and the request dies at 60s even though the server is
+    /// still working. We raise the per-request (inactivity) timeout to 5 minutes
+    /// and the overall resource timeout to 1 hour so synchronous media generation
+    /// completes. Streaming chat is unaffected (data flows continuously).
+    public static let defaultSession: URLSession = {
+        let config = URLSessionConfiguration.default
+        config.timeoutIntervalForRequest = 300   // 5 min between bytes (buffered media gen)
+        config.timeoutIntervalForResource = 3600 // 1 hour overall ceiling
+        return URLSession(configuration: config)
+    }()
+
     /// Create a new Quantum AI client.
     ///
     /// - Parameters:
     ///   - apiKey: Your API key (starts with `qai_` or `qai_k_`).
     ///   - baseURL: Override the default API base URL.
-    ///   - session: Custom URLSession (defaults to `.shared`).
+    ///   - session: Custom URLSession. Defaults to ``defaultSession``, which is
+    ///     tuned with long timeouts for buffered image/video generation. Pass
+    ///     `.shared` explicitly only if you want the 60s default behaviour.
     public init(
         apiKey: String,
         baseURL: String = defaultBaseURL,
-        session: URLSession = .shared
+        session: URLSession = QuantumClient.defaultSession
     ) {
         guard let url = URL(string: baseURL) else {
             fatalError("Invalid base URL: \(baseURL)")
@@ -292,12 +310,20 @@ public final class QuantumClient: Sendable {
     ///   - cfgScale: Classifier-free guidance scale (provider support varies).
     ///     Sent only when non-nil.
     /// - Returns: The image response with URLs or base64 data.
+    ///   - aspectRatio: Aspect ratio (e.g. "16:9", "1:1"). Gemini/Imagen honour this.
+    ///   - outputFormat: Output image format (e.g. "png", "jpeg", "webp").
+    ///   - compression: JPEG/WebP quality 0-100 (GPT-Image). Sent only when non-nil.
+    ///   - style: DALL-E 3 preset — "vivid" or "natural". Sent only when non-nil.
     public func generateImage(
         model: String,
         prompt: String,
         n: Int? = nil,
         size: String? = nil,
+        aspectRatio: String? = nil,
         quality: String? = nil,
+        outputFormat: String? = nil,
+        compression: Int? = nil,
+        style: String? = nil,
         background: String? = nil,
         seed: Int? = nil,
         cfgScale: Double? = nil
@@ -307,11 +333,24 @@ public final class QuantumClient: Sendable {
             prompt: prompt,
             count: n,
             size: size,
+            aspectRatio: aspectRatio,
             quality: quality,
+            outputFormat: outputFormat,
+            compression: compression,
+            style: style,
             background: background,
             seed: seed,
             cfgScale: cfgScale
         )
+        return try await generateImage(request)
+    }
+
+    /// Generate images from a fully-specified ``ImageRequest``.
+    ///
+    /// Use this when you want to thread an arbitrary parameter set — e.g. one
+    /// built from a model's parameter schema (`GET /qai/v1/models`) — or provider
+    /// params the convenience overload doesn't surface (Meshy image-to-3D fields).
+    public func generateImage(_ request: ImageRequest) async throws -> ImageResponse {
         let (data, _): (ImageResponse, _) = try await http.doJSON(
             method: "POST", path: "/qai/v1/images/generate", body: request
         )
