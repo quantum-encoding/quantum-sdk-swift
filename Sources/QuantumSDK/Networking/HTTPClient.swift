@@ -74,8 +74,16 @@ final class HTTPClient: Sendable {
             let decoder = JSONDecoder()
             let decoded = try decoder.decode(T.self, from: data)
             return (decoded, meta)
-        } catch {
-            throw QuantumError.decodingFailed(underlying: error)
+        } catch let decodeError {
+            // Some providers/gateways return an error envelope (e.g. a moderation /
+            // content-policy block) with a 2xx status. The success decode then fails
+            // on missing fields — surface the REAL message instead of a generic
+            // "decoding failed". `APIErrorBody` requires `error.message`, so a true
+            // success response can't false-match here.
+            if (try? JSONDecoder().decode(APIErrorBody.self, from: data)) != nil {
+                throw parseAPIError(data: data, statusCode: httpResponse.statusCode, requestId: meta.requestId)
+            }
+            throw QuantumError.decodingFailed(underlying: decodeError)
         }
     }
 
@@ -158,8 +166,13 @@ final class HTTPClient: Sendable {
             let decoder = JSONDecoder()
             let decoded = try decoder.decode(T.self, from: data)
             return (decoded, meta)
-        } catch {
-            throw QuantumError.decodingFailed(underlying: error)
+        } catch let decodeError {
+            // Error envelope returned with a 2xx status (e.g. moderation block) —
+            // surface the real message rather than a generic "decoding failed".
+            if (try? JSONDecoder().decode(APIErrorBody.self, from: data)) != nil {
+                throw parseAPIError(data: data, statusCode: httpResponse.statusCode, requestId: meta.requestId)
+            }
+            throw QuantumError.decodingFailed(underlying: decodeError)
         }
     }
 
@@ -198,8 +211,13 @@ final class HTTPClient: Sendable {
             let decoder = JSONDecoder()
             let decoded = try decoder.decode(T.self, from: data)
             return (decoded, meta)
-        } catch {
-            throw QuantumError.decodingFailed(underlying: error)
+        } catch let decodeError {
+            // Error envelope returned with a 2xx status (e.g. moderation block) —
+            // surface the real message rather than a generic "decoding failed".
+            if (try? JSONDecoder().decode(APIErrorBody.self, from: data)) != nil {
+                throw parseAPIError(data: data, statusCode: httpResponse.statusCode, requestId: meta.requestId)
+            }
+            throw QuantumError.decodingFailed(underlying: decodeError)
         }
     }
 
