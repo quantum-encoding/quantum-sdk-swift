@@ -837,6 +837,9 @@ public struct StarfishTTSResponse: Codable, Sendable {
 // MARK: - Advanced Music
 
 /// Advanced music generation request.
+///
+/// Superseded by ``ElevenMusicRequest`` (full sections/styles/finetune
+/// support); kept for source compatibility with existing callers.
 public struct MusicAdvancedRequest: Codable, Sendable {
     /// Text prompt describing the music.
     public var prompt: String

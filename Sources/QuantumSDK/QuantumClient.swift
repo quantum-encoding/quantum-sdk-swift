@@ -452,6 +452,16 @@ public final class QuantumClient: Sendable {
         return data
     }
 
+    /// Generate music via the advanced endpoint with the full Eleven Music
+    /// surface — sections (composition plan), vocals toggle, global styles,
+    /// and finetunes. Rust-SDK parity (ElevenMusicRequest).
+    public func generateElevenMusic(_ request: ElevenMusicRequest) async throws -> ElevenMusicResponse {
+        let (data, _): (ElevenMusicResponse, _) = try await http.doJSON(
+            method: "POST", path: "/qai/v1/audio/music/advanced", body: request
+        )
+        return data
+    }
+
     // MARK: - Audio: Dialogue
 
     /// Generate multi-speaker dialogue audio (ElevenLabs).
