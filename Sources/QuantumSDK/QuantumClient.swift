@@ -845,6 +845,37 @@ public final class QuantumClient: Sendable {
         return data
     }
 
+    // MARK: - Learn Courses
+
+    /// List the published Learn course catalog.
+    public func listCourses() async throws -> [CatalogCourse] {
+        let (data, _): (CourseListResponse, _) = try await http.doJSON(
+            method: "GET", path: "/qai/v1/courses"
+        )
+        return data.courses
+    }
+
+    /// Get a signed download URL for a (free) course bundle.
+    public func courseDownload(id: String) async throws -> CourseDownloadResponse {
+        let (data, _): (CourseDownloadResponse, _) = try await http.doJSON(
+            method: "GET", path: "/qai/v1/courses/\(id)/download"
+        )
+        return data
+    }
+
+    /// Publish a .duckcourse zip bundle to the catalog (admin only).
+    public func publishCourse(zipData: Data) async throws -> CoursePublishResponse {
+        struct PublishRequest: Encodable {
+            let zipBase64: String
+            enum CodingKeys: String, CodingKey { case zipBase64 = "zip_base64" }
+        }
+        let (data, _): (CoursePublishResponse, _) = try await http.doJSON(
+            method: "POST", path: "/qai/v1/courses/publish",
+            body: PublishRequest(zipBase64: zipData.base64EncodedString())
+        )
+        return data
+    }
+
     // MARK: - Jobs
 
     /// Create an async job. Returns the job ID for polling.
