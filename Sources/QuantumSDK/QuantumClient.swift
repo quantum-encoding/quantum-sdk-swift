@@ -391,9 +391,10 @@ public final class QuantumClient: Sendable {
         voice: String? = nil,
         outputFormat: String? = nil,
         speed: Double? = nil,
-        instructions: String? = nil
+        instructions: String? = nil,
+        voiceSettings: TTSVoiceSettings? = nil
     ) async throws -> TTSResponse {
-        let request = TTSRequest(model: model, text: text, voice: voice, outputFormat: outputFormat, speed: speed, instructions: instructions)
+        let request = TTSRequest(model: model, text: text, voice: voice, outputFormat: outputFormat, speed: speed, instructions: instructions, voiceSettings: voiceSettings)
         let (data, _): (TTSResponse, _) = try await http.doJSON(
             method: "POST", path: "/qai/v1/audio/tts", body: request
         )
@@ -526,6 +527,26 @@ public final class QuantumClient: Sendable {
     // MARK: - Audio: Voice Design
 
     /// Generate voice previews from a text description (ElevenLabs).
+    /// Save a voice-design preview as a permanent account voice.
+    /// Completes the two-step design flow: voiceDesign() returns previews
+    /// (each with a generatedVoiceId); this persists the chosen one.
+    public func saveDesignedVoice(generatedVoiceId: String, name: String, description: String? = nil) async throws -> SavedDesignedVoice {
+        struct Body: Codable {
+            let generatedVoiceId: String
+            let name: String
+            let description: String?
+            enum CodingKeys: String, CodingKey {
+                case name, description
+                case generatedVoiceId = "generated_voice_id"
+            }
+        }
+        let (data, _): (SavedDesignedVoice, _) = try await http.doJSON(
+            method: "POST", path: "/qai/v1/audio/voice-design/save",
+            body: Body(generatedVoiceId: generatedVoiceId, name: name, description: description)
+        )
+        return data
+    }
+
     public func voiceDesign(_ request: VoiceDesignRequest) async throws -> VoiceDesignResponse {
         let (data, _): (VoiceDesignResponse, _) = try await http.doJSON(
             method: "POST", path: "/qai/v1/audio/voice-design", body: request
@@ -546,6 +567,15 @@ public final class QuantumClient: Sendable {
     // MARK: - Audio: Finetunes
 
     /// List all music finetunes.
+    /// Poll one music finetune's training status. When status == "complete",
+    /// modelId carries the usable model identifier for generation.
+    public func getFinetune(id: String) async throws -> MusicFinetuneStatus {
+        let (data, _): (MusicFinetuneStatus, _) = try await http.doJSON(
+            method: "GET", path: "/qai/v1/audio/finetunes/\(id)"
+        )
+        return data
+    }
+
     public func listFinetunes() async throws -> MusicFinetuneListResponse {
         let (data, _): (MusicFinetuneListResponse, _) = try await http.doJSON(
             method: "GET", path: "/qai/v1/audio/finetunes"

@@ -2,6 +2,30 @@ import Foundation
 
 // MARK: - TTS
 
+/// ElevenLabs voice synthesis tuning. All 0–1 ranges; unset fields use the
+/// provider defaults (stability 0.5, similarity 0.75, style 0, boost on).
+/// Ignored by non-ElevenLabs models.
+public struct TTSVoiceSettings: Codable, Sendable, Hashable {
+    public var stability: Double?
+    public var similarityBoost: Double?
+    public var style: Double?
+    public var useSpeakerBoost: Bool?
+
+    public init(stability: Double? = nil, similarityBoost: Double? = nil,
+                style: Double? = nil, useSpeakerBoost: Bool? = nil) {
+        self.stability = stability
+        self.similarityBoost = similarityBoost
+        self.style = style
+        self.useSpeakerBoost = useSpeakerBoost
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case stability, style
+        case similarityBoost = "similarity_boost"
+        case useSpeakerBoost = "use_speaker_boost"
+    }
+}
+
 /// Request body for text-to-speech.
 public struct TtsRequest: Codable, Sendable {
     /// TTS model (e.g. "tts-1", "eleven_multilingual_v2", "grok-3-tts").
@@ -24,18 +48,23 @@ public struct TtsRequest: Codable, Sendable {
     /// reject the field. Omitted from the JSON body when nil.
     public var instructions: String?
 
-    public init(model: String, text: String, voice: String? = nil, outputFormat: String? = nil, speed: Double? = nil, instructions: String? = nil) {
+    /// ElevenLabs synthesis tuning (ignored by other providers).
+    public var voiceSettings: TTSVoiceSettings?
+
+    public init(model: String, text: String, voice: String? = nil, outputFormat: String? = nil, speed: Double? = nil, instructions: String? = nil, voiceSettings: TTSVoiceSettings? = nil) {
         self.model = model
         self.text = text
         self.voice = voice
         self.outputFormat = outputFormat
         self.speed = speed
         self.instructions = instructions
+        self.voiceSettings = voiceSettings
     }
 
     enum CodingKeys: String, CodingKey {
         case model, text, voice, speed, instructions
         case outputFormat = "format"
+        case voiceSettings = "voice_settings"
     }
 }
 
@@ -927,6 +956,30 @@ public struct MusicFinetuneInfo: Codable, Sendable {
         case finetuneId = "finetune_id"
         case modelId = "model_id"
         case createdAt = "created_at"
+    }
+}
+
+/// One music finetune's training status (single-finetune poll endpoint).
+public struct MusicFinetuneStatus: Codable, Sendable {
+    public var id: String
+    public var status: String
+    /// Usable generation model id, present once status == "complete".
+    public var modelId: String?
+
+    enum CodingKeys: String, CodingKey {
+        case id, status
+        case modelId = "model_id"
+    }
+}
+
+/// A designed voice persisted to the account.
+public struct SavedDesignedVoice: Codable, Sendable {
+    public var voiceId: String
+    public var name: String
+
+    enum CodingKeys: String, CodingKey {
+        case name
+        case voiceId = "voice_id"
     }
 }
 
