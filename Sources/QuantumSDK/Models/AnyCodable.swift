@@ -44,6 +44,12 @@ public struct AnyCodable: Codable, Sendable, Hashable {
         var container = encoder.singleValueContainer()
 
         switch value {
+        case let nested as AnyCodable:
+            // Unwrap nested boxes — AnyCodable([String: AnyCodable]) double-wraps
+            // its values via the dict case below, and a wrapped wrapper matched
+            // no case, throwing EncodingError ("data couldn't be written") on
+            // every createJob(params:) call.
+            try container.encode(nested)
         case is NSNull:
             try container.encodeNil()
         case let bool as Bool:
