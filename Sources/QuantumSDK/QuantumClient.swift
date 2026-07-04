@@ -876,6 +876,14 @@ public final class QuantumClient: Sendable {
         return data
     }
 
+    /// Get the Learn sandbox guest image manifest (signed URLs + checksums).
+    public func learnGuestImage() async throws -> GuestImageResponse {
+        let (data, _): (GuestImageResponse, _) = try await http.doJSON(
+            method: "GET", path: "/qai/v1/learn/guest-image"
+        )
+        return data
+    }
+
     // MARK: - Jobs
 
     /// Create an async job. Returns the job ID for polling.

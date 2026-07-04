@@ -52,3 +52,15 @@ public struct CourseDownloadResponse: Codable, Sendable {
 public struct CoursePublishResponse: Codable, Sendable {
     public let published: CatalogCourse
 }
+
+/// Learn sandbox guest image manifest (GET /qai/v1/learn/guest-image):
+/// per-file SHA-256 + short-lived signed download URLs.
+public struct GuestImageResponse: Codable, Sendable {
+    public struct File: Codable, Sendable {
+        public let sha256: String
+        public let size: Int64?
+        public let url: String
+    }
+    public let version: String
+    public let files: [String: File]
+}
