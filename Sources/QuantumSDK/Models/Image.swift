@@ -178,6 +178,27 @@ public struct ImageEditRequest: Codable, Sendable {
     /// Output dimensions.
     public var size: String?
 
+    /// Aspect ratio, e.g. "1:1", "16:9" (Gemini image edit).
+    public var aspectRatio: String?
+
+    /// Output resolution tier: "1K", "2K", "4K" (Gemini Pro image edit).
+    public var imageSize: String?
+
+    /// Quality: "auto", "low", "medium", "high" (GPT-Image).
+    public var quality: String?
+
+    /// Output format: "png", "jpeg", "webp" (GPT-Image).
+    public var outputFormat: String?
+
+    /// Background: "auto", "transparent", "opaque" (GPT-Image).
+    public var background: String?
+
+    /// "high" preserves faces/details from the input (GPT-Image).
+    public var inputFidelity: String?
+
+    /// Enable Google Search grounding (Gemini Pro only).
+    public var grounding: Bool?
+
     /// Base64-encoded source image (legacy).
     public var image: String?
 
@@ -190,6 +211,13 @@ public struct ImageEditRequest: Codable, Sendable {
         inputImages: [String]? = nil,
         count: Int? = nil,
         size: String? = nil,
+        aspectRatio: String? = nil,
+        imageSize: String? = nil,
+        quality: String? = nil,
+        outputFormat: String? = nil,
+        background: String? = nil,
+        inputFidelity: String? = nil,
+        grounding: Bool? = nil,
         image: String? = nil,
         mask: String? = nil
     ) {
@@ -198,13 +226,24 @@ public struct ImageEditRequest: Codable, Sendable {
         self.inputImages = inputImages
         self.count = count
         self.size = size
+        self.aspectRatio = aspectRatio
+        self.imageSize = imageSize
+        self.quality = quality
+        self.outputFormat = outputFormat
+        self.background = background
+        self.inputFidelity = inputFidelity
+        self.grounding = grounding
         self.image = image
         self.mask = mask
     }
 
     enum CodingKeys: String, CodingKey {
-        case model, prompt, count, size, image, mask
+        case model, prompt, count, size, quality, background, grounding, image, mask
         case inputImages = "input_images"
+        case aspectRatio = "aspect_ratio"
+        case imageSize = "image_size"
+        case outputFormat = "output_format"
+        case inputFidelity = "input_fidelity"
     }
 }
 
