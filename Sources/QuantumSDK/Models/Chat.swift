@@ -263,33 +263,36 @@ public struct ContentBlock: Codable, Sendable {
 // MARK: - Chat Tool
 
 /// A function tool definition for chat completions.
+///
+/// Wire shape is FLAT to match the Go gateway contract
+/// (`internal/server/convert.go` `ChatTool`): `{"name","description","parameters","strict"}`.
+/// The previous SDK emitted the OpenAI/Anthropic nested shape
+/// `{"type":"function","function":{...}}`, which the backend silently dropped
+/// (it has no custom UnmarshalJSON), so every tool definition was lost on the
+/// wire. This is a breaking change but the prior shape never worked.
 public struct ChatTool: Codable, Sendable {
-    /// Tool type (always "function").
-    public var type: String
+    /// Tool name.
+    public var name: String
 
-    /// Function definition.
-    public var function: FunctionDefinition
+    /// Human-readable description of what the tool does.
+    public var description: String?
 
-    /// Enable strict schema validation (Anthropic, OpenAI).
-    /// First call has ~1s extra latency for grammar compilation, then cached 24h.
+    /// JSON Schema describing the tool's parameters.
+    public var parameters: [String: AnyCodable]?
+
+    /// Enable strict schema validation (Anthropic, OpenAI). First call has
+    /// ~1s extra latency for grammar compilation, then cached 24h.
     public var strict: Bool?
 
     public init(name: String, description: String? = nil, parameters: [String: AnyCodable]? = nil, strict: Bool? = nil) {
-        self.type = "function"
-        self.function = FunctionDefinition(name: name, description: description, parameters: parameters)
+        self.name = name
+        self.description = description
+        self.parameters = parameters
         self.strict = strict
     }
 
-    public struct FunctionDefinition: Codable, Sendable {
-        public var name: String
-        public var description: String?
-        public var parameters: [String: AnyCodable]?
-
-        public init(name: String, description: String? = nil, parameters: [String: AnyCodable]? = nil) {
-            self.name = name
-            self.description = description
-            self.parameters = parameters
-        }
+    enum CodingKeys: String, CodingKey {
+        case name, description, parameters, strict
     }
 }
 
@@ -416,17 +419,62 @@ public struct ChatResponse: Codable, Sendable {
     /// doesn't surface phase.
     public var phase: String?
 
-    /// Unique request ID.
-    public var requestId: String
+    /// Unique request ID. The Go gateway body does NOT carry `request_id` at
+    /// the top level (it's only in the `X-QAI-Request-Id` header, and the body
+    /// `id` field holds it). Decoded as optional and populated from
+    /// ``ResponseMeta`` after decode via ``apply(_:)-4gior``.
+    public var requestId: String?
 
-    /// Cost in ticks.
-    public var costTicks: Int
+    /// Cost in ticks. The Go gateway body does NOT carry `cost_ticks` at the
+    /// top level (it lives inside `usage` and the `X-QAI-Cost-Ticks` header).
+    /// Decoded as optional and populated from ``ResponseMeta`` after decode.
+    public var costTicks: Int?
+
+    /// Post-charge wallet balance in ticks (from `X-QAI-Balance-After`).
+    /// Signed: the claw-back path can make it negative. Populated from
+    /// ``ResponseMeta`` after decode.
+    public var balanceAfter: Int64?
+
+    /// True when this response was served from the semantic cache
+    /// (`convert.go` sets `cached` on cache hits). `nil` on fresh responses.
+    public var cached: Bool?
 
     enum CodingKeys: String, CodingKey {
-        case id, model, content, usage, citations, phase
+        case id, model, content, usage, citations, phase, cached
         case stopReason = "stop_reason"
         case requestId = "request_id"
         case costTicks = "cost_ticks"
+        case balanceAfter = "balance_after"
+    }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decodeIfPresent(String.self, forKey: .id) ?? ""
+        model = try c.decodeIfPresent(String.self, forKey: .model) ?? ""
+        content = try c.decodeIfPresent([ContentBlock].self, forKey: .content) ?? []
+        stopReason = try c.decodeIfPresent(String.self, forKey: .stopReason) ?? ""
+        usage = try c.decodeIfPresent(ChatUsage.self, forKey: .usage)
+            ?? ChatUsage(inputTokens: 0, outputTokens: 0)
+        citations = try c.decodeIfPresent([Citation].self, forKey: .citations)
+        phase = try c.decodeIfPresent(String.self, forKey: .phase)
+        cached = try c.decodeIfPresent(Bool.self, forKey: .cached)
+        // The body never carries these at top level; they're populated from
+        // response headers via apply(_:). decodeIfPresent keeps decode from
+        // throwing if a future gateway revision does include them.
+        requestId = try c.decodeIfPresent(String.self, forKey: .requestId)
+        costTicks = try c.decodeIfPresent(Int.self, forKey: .costTicks)
+        balanceAfter = try c.decodeIfPresent(Int64.self, forKey: .balanceAfter)
+    }
+
+    /// Populate header-derived fields (requestId, costTicks, model,
+    /// balanceAfter) from ``ResponseMeta`` when the body didn't carry them.
+    /// Called by ``QuantumClient`` after decode so callers see per-request
+    /// cost and balance without reading headers themselves.
+    public mutating func apply(_ meta: ResponseMeta) {
+        if requestId == nil { requestId = meta.requestId.isEmpty ? nil : meta.requestId }
+        if costTicks == nil { costTicks = Int(truncatingIfNeeded: meta.costTicks) }
+        if model.isEmpty { model = meta.model }
+        if balanceAfter == nil { balanceAfter = meta.balanceAfter }
     }
 
     /// True when the model is requesting tool execution
@@ -494,8 +542,16 @@ public struct StreamEvent: Sendable {
     /// Text delta for content_delta/thinking_delta events.
     public var delta: StreamDelta?
 
-    /// Tool use information for tool_use events.
+    /// Tool use information for `tool_use` / `tool_use_start` /
+    /// `tool_use_complete` events. For `tool_use_start` the `input` is empty
+    /// (args haven't streamed yet); for `tool_use_complete` it carries the
+    /// server-accumulated, fully-parsed arguments.
     public var toolUse: StreamToolUse?
+
+    /// Raw argument-JSON fragment for `tool_use_input_delta` events. A partial
+    /// fragment that may not parse on its own; concatenate across deltas for
+    /// the full args, or ignore and wait for `tool_use_complete`.
+    public var partialJSON: String?
 
     /// Usage information for usage events.
     public var usage: ChatUsage?
@@ -510,6 +566,7 @@ public struct StreamEvent: Sendable {
         eventType: String,
         delta: StreamDelta? = nil,
         toolUse: StreamToolUse? = nil,
+        partialJSON: String? = nil,
         usage: ChatUsage? = nil,
         error: String? = nil,
         done: Bool = false
@@ -517,6 +574,7 @@ public struct StreamEvent: Sendable {
         self.eventType = eventType
         self.delta = delta
         self.toolUse = toolUse
+        self.partialJSON = partialJSON
         self.usage = usage
         self.error = error
         self.done = done
@@ -527,6 +585,7 @@ public struct StreamEvent: Sendable {
         type: String,
         delta: StreamDelta? = nil,
         toolUse: StreamToolUse? = nil,
+        partialJSON: String? = nil,
         usage: ChatUsage? = nil,
         error: String? = nil,
         done: Bool = false
@@ -534,6 +593,7 @@ public struct StreamEvent: Sendable {
         self.eventType = type
         self.delta = delta
         self.toolUse = toolUse
+        self.partialJSON = partialJSON
         self.usage = usage
         self.error = error
         self.done = done
@@ -557,7 +617,10 @@ struct RawStreamEvent: Decodable {
     var message: String?
     var inputTokens: Int?
     var outputTokens: Int?
+    var reasoningTokens: Int?
     var costTicks: Int?
+    /// `partial_json` fragment from `tool_use_input_delta` events.
+    var partialJSON: String?
     // Zig backend format: full response in one SSE event
     var content: [ContentBlock]?
     var usage: ChatUsage?
@@ -569,7 +632,9 @@ struct RawStreamEvent: Decodable {
         case type, delta, id, name, input, message, content, usage, model, error
         case inputTokens = "input_tokens"
         case outputTokens = "output_tokens"
+        case reasoningTokens = "reasoning_tokens"
         case costTicks = "cost_ticks"
+        case partialJSON = "partial_json"
         case stopReason = "stop_reason"
     }
 }

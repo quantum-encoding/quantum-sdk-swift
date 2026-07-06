@@ -34,15 +34,31 @@ final class HTTPClient: Sendable {
         var requestId: String
         var model: String
         var costTicks: Int
+        /// Post-charge wallet balance (signed — claw-back can go negative).
+        var balanceAfter: Int64?
+    }
+
+    /// Parse `X-QAI-Balance-After` as a signed Int64. Nil when absent.
+    private static func parseBalanceAfter(_ response: HTTPURLResponse) -> Int64? {
+        guard let raw = response.value(forHTTPHeaderField: "X-QAI-Balance-After") else { return nil }
+        return Int64(raw)
     }
 
     // MARK: - JSON Request
 
     /// Send a JSON request and decode the response.
+    ///
+    /// - Parameters:
+    ///   - idempotencyKey: Optional `Idempotency-Key` header value. When
+    ///     non-nil the gateway dedups retries against this key (see
+    ///     `middleware.go` `requestIDMiddleware`). Billing-bearing POSTs
+    ///     should pass a UUID (auto-generate at the call site when the caller
+    ///     doesn't supply one); GETs leave this nil so no header is sent.
     func doJSON<T: Decodable>(
         method: String,
         path: String,
-        body: (any Encodable)? = nil
+        body: (any Encodable)? = nil,
+        idempotencyKey: String? = nil
     ) async throws -> (data: T, meta: ResponseMeta) {
         guard let url = URL(string: baseURLString + path) else {
             throw QuantumError.invalidArgument("Invalid path: \(path)")
@@ -57,13 +73,18 @@ final class HTTPClient: Sendable {
             request.httpBody = try encoder.encode(EncodableWrapper(body))
         }
 
+        if let idempotencyKey {
+            request.setValue(idempotencyKey, forHTTPHeaderField: "Idempotency-Key")
+        }
+
         let (data, response) = try await performRequest(request)
         let httpResponse = response as! HTTPURLResponse
 
         let meta = ResponseMeta(
             requestId: httpResponse.value(forHTTPHeaderField: "X-QAI-Request-Id") ?? "",
             model: httpResponse.value(forHTTPHeaderField: "X-QAI-Model") ?? "",
-            costTicks: Int(httpResponse.value(forHTTPHeaderField: "X-QAI-Cost-Ticks") ?? "0") ?? 0
+            costTicks: Int(httpResponse.value(forHTTPHeaderField: "X-QAI-Cost-Ticks") ?? "0") ?? 0,
+            balanceAfter: Self.parseBalanceAfter(httpResponse)
         )
 
         guard httpResponse.statusCode >= 200, httpResponse.statusCode < 300 else {
@@ -90,9 +111,14 @@ final class HTTPClient: Sendable {
     // MARK: - Stream Request
 
     /// Send a JSON request expecting an SSE response. Returns the raw byte stream.
+    ///
+    /// - Parameters:
+    ///   - idempotencyKey: Optional `Idempotency-Key` header value (billing
+    ///     streams like chat should pass a UUID; nil sends no header).
     func doStreamRequest(
         path: String,
-        body: any Encodable
+        body: any Encodable,
+        idempotencyKey: String? = nil
     ) async throws -> (URLSession.AsyncBytes, HTTPURLResponse) {
         guard let url = URL(string: baseURLString + path) else {
             throw QuantumError.invalidArgument("Invalid path: \(path)")
@@ -102,6 +128,9 @@ final class HTTPClient: Sendable {
         setAuth(&request)
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("text/event-stream", forHTTPHeaderField: "Accept")
+        if let idempotencyKey {
+            request.setValue(idempotencyKey, forHTTPHeaderField: "Idempotency-Key")
+        }
         let encoder = JSONEncoder()
         request.httpBody = try encoder.encode(EncodableWrapper(body))
 
@@ -155,7 +184,8 @@ final class HTTPClient: Sendable {
         let meta = ResponseMeta(
             requestId: httpResponse.value(forHTTPHeaderField: "X-QAI-Request-Id") ?? "",
             model: httpResponse.value(forHTTPHeaderField: "X-QAI-Model") ?? "",
-            costTicks: Int(httpResponse.value(forHTTPHeaderField: "X-QAI-Cost-Ticks") ?? "0") ?? 0
+            costTicks: Int(httpResponse.value(forHTTPHeaderField: "X-QAI-Cost-Ticks") ?? "0") ?? 0,
+            balanceAfter: Self.parseBalanceAfter(httpResponse)
         )
 
         guard httpResponse.statusCode >= 200, httpResponse.statusCode < 300 else {
@@ -200,7 +230,8 @@ final class HTTPClient: Sendable {
         let meta = ResponseMeta(
             requestId: httpResponse.value(forHTTPHeaderField: "X-QAI-Request-Id") ?? "",
             model: httpResponse.value(forHTTPHeaderField: "X-QAI-Model") ?? "",
-            costTicks: Int(httpResponse.value(forHTTPHeaderField: "X-QAI-Cost-Ticks") ?? "0") ?? 0
+            costTicks: Int(httpResponse.value(forHTTPHeaderField: "X-QAI-Cost-Ticks") ?? "0") ?? 0,
+            balanceAfter: Self.parseBalanceAfter(httpResponse)
         )
 
         guard httpResponse.statusCode >= 200, httpResponse.statusCode < 300 else {
@@ -241,7 +272,8 @@ final class HTTPClient: Sendable {
         let meta = ResponseMeta(
             requestId: httpResponse.value(forHTTPHeaderField: "X-QAI-Request-Id") ?? "",
             model: httpResponse.value(forHTTPHeaderField: "X-QAI-Model") ?? "",
-            costTicks: Int(httpResponse.value(forHTTPHeaderField: "X-QAI-Cost-Ticks") ?? "0") ?? 0
+            costTicks: Int(httpResponse.value(forHTTPHeaderField: "X-QAI-Cost-Ticks") ?? "0") ?? 0,
+            balanceAfter: Self.parseBalanceAfter(httpResponse)
         )
 
         guard httpResponse.statusCode >= 200, httpResponse.statusCode < 300 else {

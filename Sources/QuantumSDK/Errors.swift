@@ -32,6 +32,14 @@ public struct ApiError: Codable, Sendable {
     /// Returns true if this is a 404 not found response.
     public var isNotFound: Bool { statusCode == 404 }
 
+    /// Returns true if this is a 402 payment-required / insufficient-balance
+    /// response. Matches the gateway's `INSUFFICIENT_BALANCE` code
+    /// (`errors.go`: `CodeInsufficientBalance`), emitted as HTTP 402 when the
+    /// wallet can't cover a step's cost.
+    public var isPaymentRequired: Bool {
+        statusCode == 402 || code == "INSUFFICIENT_BALANCE"
+    }
+
     enum CodingKeys: String, CodingKey {
         case code, message
         case statusCode = "status_code"
@@ -105,6 +113,17 @@ public enum QuantumError: Error, LocalizedError, Sendable {
         if case let .api(statusCode, _, _, _) = self { return statusCode == 404 }
         return false
     }
+
+    /// True if the error is a 402 / insufficient-balance response. Matches
+    /// the gateway's `INSUFFICIENT_BALANCE` code (`errors.go`), emitted as
+    /// HTTP 402 when the wallet can't cover a step's cost. Use this to branch
+    /// retry vs. top-up-CTA in caller code.
+    public var isInsufficientBalance: Bool {
+        if case let .api(statusCode, code, _, _) = self {
+            return statusCode == 402 || code == "INSUFFICIENT_BALANCE"
+        }
+        return false
+    }
 }
 
 // MARK: - Error (enum matching Rust)
@@ -144,15 +163,23 @@ public struct ResponseMeta: Codable, Sendable {
     /// Model from X-QAI-Model header.
     public var model: String
 
-    public init(costTicks: Int64 = 0, requestId: String = "", model: String = "") {
+    /// Post-charge wallet balance in ticks from `X-QAI-Balance-After`.
+    /// Signed Int64: the new claw-back path (`SettleHold`'s `DeductStrict`)
+    /// can drive the balance negative, and the header carries that signed
+    /// value. `nil` when the header is absent (non-media routes don't set it).
+    public var balanceAfter: Int64?
+
+    public init(costTicks: Int64 = 0, requestId: String = "", model: String = "", balanceAfter: Int64? = nil) {
         self.costTicks = costTicks
         self.requestId = requestId
         self.model = model
+        self.balanceAfter = balanceAfter
     }
 
     enum CodingKeys: String, CodingKey {
         case model
         case costTicks = "cost_ticks"
         case requestId = "request_id"
+        case balanceAfter = "balance_after"
     }
 }

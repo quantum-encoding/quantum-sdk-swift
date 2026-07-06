@@ -75,6 +75,58 @@ public final class QuantumClient: Sendable {
         http.cloudRunIdentityToken = token
     }
 
+    // MARK: - Response Metadata
+
+    /// Lock guarding `_lastResponseMeta`. `QuantumClient` is `Sendable`; the
+    /// mutable last-meta slot is protected so concurrent callers don't race.
+    private let metaLock = NSLock()
+    private var _lastResponseMeta: ResponseMeta?
+
+    /// Metadata from the most recent response (cost ticks, request id, model,
+    /// post-charge balance). Updated on every ``doJSON``-backed call. Use this
+    /// to surface per-request cost / balance for endpoints whose response
+    /// types don't carry those fields directly (chat responses populate
+    /// ``ChatResponse/requestId`` / ``ChatResponse/costTicks`` /
+    /// ``ChatResponse/balanceAfter`` via ``ChatResponse/apply(_:)``).
+    public var lastResponseMeta: ResponseMeta? {
+        metaLock.lock()
+        defer { metaLock.unlock() }
+        return _lastResponseMeta
+    }
+
+    /// Record header-derived meta on the client and return the meta upstream.
+    @discardableResult
+    private func recordMeta(_ m: HTTPClient.ResponseMeta) -> ResponseMeta {
+        let publicMeta = ResponseMeta(
+            costTicks: Int64(m.costTicks),
+            requestId: m.requestId,
+            model: m.model,
+            balanceAfter: m.balanceAfter
+        )
+        metaLock.lock()
+        _lastResponseMeta = publicMeta
+        metaLock.unlock()
+        return publicMeta
+    }
+
+    /// JSON POST/GET chokepoint that records response meta into
+    /// ``lastResponseMeta``. Every ``doJSON`` call routes through here so meta
+    /// is never discarded. Billing-bearing callers pass an `idempotencyKey`
+    /// (UUID when the caller didn't supply one) so the gateway can dedup
+    /// retries; GETs leave it nil.
+    private func doReq<T: Decodable>(
+        method: String,
+        path: String,
+        body: (any Encodable)? = nil,
+        idempotencyKey: String? = nil
+    ) async throws -> (data: T, meta: HTTPClient.ResponseMeta) {
+        let pair: (data: T, meta: HTTPClient.ResponseMeta) = try await http.doJSON(
+            method: method, path: path, body: body, idempotencyKey: idempotencyKey
+        )
+        _ = recordMeta(pair.meta)
+        return pair
+    }
+
     // MARK: - Chat
 
     /// Send a non-streaming chat request.
@@ -98,7 +150,8 @@ public final class QuantumClient: Sendable {
         maxTokens: Int? = nil,
         toolChoice: String? = nil,
         outputSchema: [String: AnyCodable]? = nil,
-        providerOptions: [String: [String: AnyCodable]]? = nil
+        providerOptions: [String: [String: AnyCodable]]? = nil,
+        idempotencyKey: String? = nil
     ) async throws -> ChatResponse {
         let request = ChatRequest(
             model: model,
@@ -111,15 +164,30 @@ public final class QuantumClient: Sendable {
             outputSchema: outputSchema,
             providerOptions: providerOptions
         )
-        return try await chat(request)
+        return try await chat(request, idempotencyKey: idempotencyKey)
     }
 
     /// Send a non-streaming chat request with a full ``ChatRequest``.
-    public func chat(_ request: ChatRequest) async throws -> ChatResponse {
+    ///
+    /// - Parameters:
+    ///   - idempotencyKey: Optional `Idempotency-Key`. When nil the SDK
+    ///     auto-generates a UUID so retries against the gateway dedup; pass an
+    ///     explicit value only when you want caller-controlled dedup scope.
+    public func chat(_ request: ChatRequest, idempotencyKey: String? = nil) async throws -> ChatResponse {
         var req = request
         req.stream = false
-        let (data, _): (ChatResponse, _) = try await http.doJSON(method: "POST", path: "/qai/v1/chat", body: req)
-        return data
+        let (data, meta): (ChatResponse, HTTPClient.ResponseMeta) = try await doReq(
+            method: "POST", path: "/qai/v1/chat", body: req,
+            idempotencyKey: idempotencyKey ?? UUID().uuidString
+        )
+        var response = data
+        response.apply(ResponseMeta(
+            costTicks: Int64(meta.costTicks),
+            requestId: meta.requestId,
+            model: meta.model,
+            balanceAfter: meta.balanceAfter
+        ))
+        return response
     }
 
     /// Send a streaming chat request. Returns an `AsyncThrowingStream` of ``StreamEvent`` values.
@@ -137,7 +205,8 @@ public final class QuantumClient: Sendable {
         maxTokens: Int? = nil,
         toolChoice: String? = nil,
         outputSchema: [String: AnyCodable]? = nil,
-        providerOptions: [String: [String: AnyCodable]]? = nil
+        providerOptions: [String: [String: AnyCodable]]? = nil,
+        idempotencyKey: String? = nil
     ) -> AsyncThrowingStream<StreamEvent, any Error> {
         let request = ChatRequest(
             model: model,
@@ -150,18 +219,24 @@ public final class QuantumClient: Sendable {
             outputSchema: outputSchema,
             providerOptions: providerOptions
         )
-        return chatStream(request)
+        return chatStream(request, idempotencyKey: idempotencyKey)
     }
 
     /// Send a streaming chat request with a full ``ChatRequest``.
-    public func chatStream(_ request: ChatRequest) -> AsyncThrowingStream<StreamEvent, any Error> {
+    ///
+    /// - Parameters:
+    ///   - idempotencyKey: Optional `Idempotency-Key`. When nil the SDK
+    ///     auto-generates a UUID so a reconnected/duplicated stream request
+    ///     dedups at the gateway.
+    public func chatStream(_ request: ChatRequest, idempotencyKey: String? = nil) -> AsyncThrowingStream<StreamEvent, any Error> {
         var req = request
         req.stream = true
+        let key = idempotencyKey ?? UUID().uuidString
 
         return AsyncThrowingStream { continuation in
             Task {
                 do {
-                    let (bytes, _) = try await http.doStreamRequest(path: "/qai/v1/chat", body: req)
+                    let (bytes, _) = try await http.doStreamRequest(path: "/qai/v1/chat", body: req, idempotencyKey: key)
                     let parser = SSEParser(bytes: bytes)
 
                     for try await sseEvent in parser {
@@ -226,7 +301,7 @@ public final class QuantumClient: Sendable {
     public func chatSession(_ request: SessionChatRequest) async throws -> SessionChatResponse {
         var req = request
         req.stream = false
-        let (data, _): (SessionChatResponse, _) = try await http.doJSON(
+        let (data, _): (SessionChatResponse, _) = try await doReq(
             method: "POST", path: "/qai/v1/chat/session", body: req
         )
         return data
@@ -333,7 +408,8 @@ public final class QuantumClient: Sendable {
         style: String? = nil,
         background: String? = nil,
         seed: Int? = nil,
-        cfgScale: Double? = nil
+        cfgScale: Double? = nil,
+        idempotencyKey: String? = nil
     ) async throws -> ImageResponse {
         let request = ImageRequest(
             model: model,
@@ -349,7 +425,7 @@ public final class QuantumClient: Sendable {
             seed: seed,
             cfgScale: cfgScale
         )
-        return try await generateImage(request)
+        return try await generateImage(request, idempotencyKey: idempotencyKey)
     }
 
     /// Generate images from a fully-specified ``ImageRequest``.
@@ -357,17 +433,19 @@ public final class QuantumClient: Sendable {
     /// Use this when you want to thread an arbitrary parameter set — e.g. one
     /// built from a model's parameter schema (`GET /qai/v1/models`) — or provider
     /// params the convenience overload doesn't surface (Meshy image-to-3D fields).
-    public func generateImage(_ request: ImageRequest) async throws -> ImageResponse {
-        let (data, _): (ImageResponse, _) = try await http.doJSON(
-            method: "POST", path: "/qai/v1/images/generate", body: request
+    public func generateImage(_ request: ImageRequest, idempotencyKey: String? = nil) async throws -> ImageResponse {
+        let (data, _): (ImageResponse, _) = try await doReq(
+            method: "POST", path: "/qai/v1/images/generate", body: request,
+            idempotencyKey: idempotencyKey ?? UUID().uuidString
         )
         return data
     }
 
     /// Edit images using an AI model.
-    public func editImage(_ request: ImageEditRequest) async throws -> ImageEditResponse {
-        let (data, _): (ImageEditResponse, _) = try await http.doJSON(
-            method: "POST", path: "/qai/v1/images/edit", body: request
+    public func editImage(_ request: ImageEditRequest, idempotencyKey: String? = nil) async throws -> ImageEditResponse {
+        let (data, _): (ImageEditResponse, _) = try await doReq(
+            method: "POST", path: "/qai/v1/images/edit", body: request,
+            idempotencyKey: idempotencyKey ?? UUID().uuidString
         )
         return data
     }
@@ -392,11 +470,13 @@ public final class QuantumClient: Sendable {
         outputFormat: String? = nil,
         speed: Double? = nil,
         instructions: String? = nil,
-        voiceSettings: TTSVoiceSettings? = nil
+        voiceSettings: TTSVoiceSettings? = nil,
+        idempotencyKey: String? = nil
     ) async throws -> TTSResponse {
         let request = TTSRequest(model: model, text: text, voice: voice, outputFormat: outputFormat, speed: speed, instructions: instructions, voiceSettings: voiceSettings)
-        let (data, _): (TTSResponse, _) = try await http.doJSON(
-            method: "POST", path: "/qai/v1/audio/tts", body: request
+        let (data, _): (TTSResponse, _) = try await doReq(
+            method: "POST", path: "/qai/v1/audio/tts", body: request,
+            idempotencyKey: idempotencyKey ?? UUID().uuidString
         )
         return data
     }
@@ -415,11 +495,13 @@ public final class QuantumClient: Sendable {
         audioBase64: String,
         model: String,
         filename: String? = nil,
-        language: String? = nil
+        language: String? = nil,
+        idempotencyKey: String? = nil
     ) async throws -> STTResponse {
         let request = STTRequest(model: model, audioBase64: audioBase64, filename: filename, language: language)
-        let (data, _): (STTResponse, _) = try await http.doJSON(
-            method: "POST", path: "/qai/v1/audio/stt", body: request
+        let (data, _): (STTResponse, _) = try await doReq(
+            method: "POST", path: "/qai/v1/audio/stt", body: request,
+            idempotencyKey: idempotencyKey ?? UUID().uuidString
         )
         return data
     }
@@ -428,7 +510,7 @@ public final class QuantumClient: Sendable {
 
     /// Generate sound effects from a text prompt (ElevenLabs).
     public func soundEffects(_ request: SoundEffectRequest) async throws -> SoundEffectResponse {
-        let (data, _): (SoundEffectResponse, _) = try await http.doJSON(
+        let (data, _): (SoundEffectResponse, _) = try await doReq(
             method: "POST", path: "/qai/v1/audio/sound-effects", body: request
         )
         return data
@@ -437,17 +519,18 @@ public final class QuantumClient: Sendable {
     // MARK: - Audio: Music
 
     /// Generate music from a text prompt.
-    public func generateMusic(prompt: String, durationSeconds: Int? = nil, model: String) async throws -> MusicResponse {
+    public func generateMusic(prompt: String, durationSeconds: Int? = nil, model: String, idempotencyKey: String? = nil) async throws -> MusicResponse {
         let request = MusicRequest(model: model, prompt: prompt, durationSeconds: durationSeconds)
-        let (data, _): (MusicResponse, _) = try await http.doJSON(
-            method: "POST", path: "/qai/v1/audio/music", body: request
+        let (data, _): (MusicResponse, _) = try await doReq(
+            method: "POST", path: "/qai/v1/audio/music", body: request,
+            idempotencyKey: idempotencyKey ?? UUID().uuidString
         )
         return data
     }
 
     /// Generate music via the advanced endpoint (ElevenLabs, finetunes).
     public func generateMusicAdvanced(_ request: MusicAdvancedRequest) async throws -> MusicAdvancedResponse {
-        let (data, _): (MusicAdvancedResponse, _) = try await http.doJSON(
+        let (data, _): (MusicAdvancedResponse, _) = try await doReq(
             method: "POST", path: "/qai/v1/audio/music/advanced", body: request
         )
         return data
@@ -457,7 +540,7 @@ public final class QuantumClient: Sendable {
     /// surface — sections (composition plan), vocals toggle, global styles,
     /// and finetunes. Rust-SDK parity (ElevenMusicRequest).
     public func generateElevenMusic(_ request: ElevenMusicRequest) async throws -> ElevenMusicResponse {
-        let (data, _): (ElevenMusicResponse, _) = try await http.doJSON(
+        let (data, _): (ElevenMusicResponse, _) = try await doReq(
             method: "POST", path: "/qai/v1/audio/music/advanced", body: request
         )
         return data
@@ -467,7 +550,7 @@ public final class QuantumClient: Sendable {
 
     /// Generate multi-speaker dialogue audio (ElevenLabs).
     public func dialogue(_ request: DialogueRequest) async throws -> DialogueResponse {
-        let (data, _): (DialogueResponse, _) = try await http.doJSON(
+        let (data, _): (DialogueResponse, _) = try await doReq(
             method: "POST", path: "/qai/v1/audio/dialogue", body: request
         )
         return data
@@ -477,7 +560,7 @@ public final class QuantumClient: Sendable {
 
     /// Convert speech audio to a different voice (ElevenLabs).
     public func speechToSpeech(_ request: SpeechToSpeechRequest) async throws -> SpeechToSpeechResponse {
-        let (data, _): (SpeechToSpeechResponse, _) = try await http.doJSON(
+        let (data, _): (SpeechToSpeechResponse, _) = try await doReq(
             method: "POST", path: "/qai/v1/audio/speech-to-speech", body: request
         )
         return data
@@ -488,7 +571,7 @@ public final class QuantumClient: Sendable {
     /// Remove background noise and isolate speech (ElevenLabs).
     public func isolateVoice(audioBase64: String) async throws -> IsolateVoiceResponse {
         let request = IsolateVoiceRequest(audioBase64: audioBase64)
-        let (data, _): (IsolateVoiceResponse, _) = try await http.doJSON(
+        let (data, _): (IsolateVoiceResponse, _) = try await doReq(
             method: "POST", path: "/qai/v1/audio/isolate", body: request
         )
         return data
@@ -498,7 +581,7 @@ public final class QuantumClient: Sendable {
 
     /// Transform a voice by modifying attributes (ElevenLabs).
     public func remixVoice(_ request: RemixVoiceRequest) async throws -> RemixVoiceResponse {
-        let (data, _): (RemixVoiceResponse, _) = try await http.doJSON(
+        let (data, _): (RemixVoiceResponse, _) = try await doReq(
             method: "POST", path: "/qai/v1/audio/remix", body: request
         )
         return data
@@ -508,7 +591,7 @@ public final class QuantumClient: Sendable {
 
     /// Dub audio/video into a target language (ElevenLabs).
     public func dub(_ request: DubRequest) async throws -> DubResponse {
-        let (data, _): (DubResponse, _) = try await http.doJSON(
+        let (data, _): (DubResponse, _) = try await doReq(
             method: "POST", path: "/qai/v1/audio/dub", body: request
         )
         return data
@@ -518,7 +601,7 @@ public final class QuantumClient: Sendable {
 
     /// Get word-level timestamps for audio+text alignment (ElevenLabs).
     public func align(_ request: AlignRequest) async throws -> AlignResponse {
-        let (data, _): (AlignResponse, _) = try await http.doJSON(
+        let (data, _): (AlignResponse, _) = try await doReq(
             method: "POST", path: "/qai/v1/audio/align", body: request
         )
         return data
@@ -540,7 +623,7 @@ public final class QuantumClient: Sendable {
                 case generatedVoiceId = "generated_voice_id"
             }
         }
-        let (data, _): (SavedDesignedVoice, _) = try await http.doJSON(
+        let (data, _): (SavedDesignedVoice, _) = try await doReq(
             method: "POST", path: "/qai/v1/audio/voice-design/save",
             body: Body(generatedVoiceId: generatedVoiceId, name: name, description: description)
         )
@@ -548,7 +631,7 @@ public final class QuantumClient: Sendable {
     }
 
     public func voiceDesign(_ request: VoiceDesignRequest) async throws -> VoiceDesignResponse {
-        let (data, _): (VoiceDesignResponse, _) = try await http.doJSON(
+        let (data, _): (VoiceDesignResponse, _) = try await doReq(
             method: "POST", path: "/qai/v1/audio/voice-design", body: request
         )
         return data
@@ -558,7 +641,7 @@ public final class QuantumClient: Sendable {
 
     /// Generate speech using HeyGen's Starfish TTS model.
     public func starfishTTS(_ request: StarfishTTSRequest) async throws -> StarfishTTSResponse {
-        let (data, _): (StarfishTTSResponse, _) = try await http.doJSON(
+        let (data, _): (StarfishTTSResponse, _) = try await doReq(
             method: "POST", path: "/qai/v1/audio/starfish-tts", body: request
         )
         return data
@@ -570,14 +653,14 @@ public final class QuantumClient: Sendable {
     /// Poll one music finetune's training status. When status == "complete",
     /// modelId carries the usable model identifier for generation.
     public func getFinetune(id: String) async throws -> MusicFinetuneStatus {
-        let (data, _): (MusicFinetuneStatus, _) = try await http.doJSON(
+        let (data, _): (MusicFinetuneStatus, _) = try await doReq(
             method: "GET", path: "/qai/v1/audio/finetunes/\(id)"
         )
         return data
     }
 
     public func listFinetunes() async throws -> MusicFinetuneListResponse {
-        let (data, _): (MusicFinetuneListResponse, _) = try await http.doJSON(
+        let (data, _): (MusicFinetuneListResponse, _) = try await doReq(
             method: "GET", path: "/qai/v1/audio/finetunes"
         )
         return data
@@ -585,7 +668,7 @@ public final class QuantumClient: Sendable {
 
     /// Create a new music finetune from audio samples.
     public func createFinetune(_ request: MusicFinetuneCreateRequest) async throws -> MusicFinetuneInfo {
-        let (data, _): (MusicFinetuneInfo, _) = try await http.doJSON(
+        let (data, _): (MusicFinetuneInfo, _) = try await doReq(
             method: "POST", path: "/qai/v1/audio/finetunes", body: request
         )
         return data
@@ -593,7 +676,7 @@ public final class QuantumClient: Sendable {
 
     /// Delete a music finetune by ID.
     public func deleteFinetune(id: String) async throws -> StatusResponse {
-        let (data, _): (StatusResponse, _) = try await http.doJSON(
+        let (data, _): (StatusResponse, _) = try await doReq(
             method: "DELETE", path: "/qai/v1/audio/finetunes/\(id)"
         )
         return data
@@ -609,18 +692,20 @@ public final class QuantumClient: Sendable {
         model: String,
         prompt: String,
         durationSeconds: Int? = nil,
-        aspectRatio: String? = nil
+        aspectRatio: String? = nil,
+        idempotencyKey: String? = nil
     ) async throws -> VideoResponse {
         let request = VideoRequest(model: model, prompt: prompt, durationSeconds: durationSeconds, aspectRatio: aspectRatio)
-        let (data, _): (VideoResponse, _) = try await http.doJSON(
-            method: "POST", path: "/qai/v1/video/generate", body: request
+        let (data, _): (VideoResponse, _) = try await doReq(
+            method: "POST", path: "/qai/v1/video/generate", body: request,
+            idempotencyKey: idempotencyKey ?? UUID().uuidString
         )
         return data
     }
 
     /// Create a talking-head video via HeyGen Studio. Returns an async job.
     public func videoStudio(_ request: VideoStudioRequest) async throws -> JobAcceptedResponse {
-        let (data, _): (JobAcceptedResponse, _) = try await http.doJSON(
+        let (data, _): (JobAcceptedResponse, _) = try await doReq(
             method: "POST", path: "/qai/v1/video/studio", body: request
         )
         return data
@@ -628,7 +713,7 @@ public final class QuantumClient: Sendable {
 
     /// Submit a video translation job via HeyGen. Returns an async job.
     public func videoTranslate(_ request: VideoTranslateRequest) async throws -> JobAcceptedResponse {
-        let (data, _): (JobAcceptedResponse, _) = try await http.doJSON(
+        let (data, _): (JobAcceptedResponse, _) = try await doReq(
             method: "POST", path: "/qai/v1/video/translate", body: request
         )
         return data
@@ -637,7 +722,7 @@ public final class QuantumClient: Sendable {
     /// Create a photo avatar via HeyGen. Returns an async job.
     public func videoPhotoAvatar(photoBase64: String, script: String) async throws -> JobAcceptedResponse {
         let request = PhotoAvatarRequest(photoBase64: photoBase64, script: script)
-        let (data, _): (JobAcceptedResponse, _) = try await http.doJSON(
+        let (data, _): (JobAcceptedResponse, _) = try await doReq(
             method: "POST", path: "/qai/v1/video/photo-avatar", body: request
         )
         return data
@@ -646,7 +731,7 @@ public final class QuantumClient: Sendable {
     /// Create a digital twin via HeyGen. Returns an async job.
     public func videoDigitalTwin(avatarId: String, script: String) async throws -> JobAcceptedResponse {
         let request = DigitalTwinRequest(avatarId: avatarId, script: script)
-        let (data, _): (JobAcceptedResponse, _) = try await http.doJSON(
+        let (data, _): (JobAcceptedResponse, _) = try await doReq(
             method: "POST", path: "/qai/v1/video/digital-twin", body: request
         )
         return data
@@ -654,7 +739,7 @@ public final class QuantumClient: Sendable {
 
     /// List available HeyGen avatars.
     public func videoAvatars() async throws -> AvatarsResponse {
-        let (data, _): (AvatarsResponse, _) = try await http.doJSON(
+        let (data, _): (AvatarsResponse, _) = try await doReq(
             method: "GET", path: "/qai/v1/video/avatars"
         )
         return data
@@ -662,7 +747,7 @@ public final class QuantumClient: Sendable {
 
     /// List available HeyGen templates.
     public func videoTemplates() async throws -> HeyGenTemplatesResponse {
-        let (data, _): (HeyGenTemplatesResponse, _) = try await http.doJSON(
+        let (data, _): (HeyGenTemplatesResponse, _) = try await doReq(
             method: "GET", path: "/qai/v1/video/templates"
         )
         return data
@@ -670,7 +755,7 @@ public final class QuantumClient: Sendable {
 
     /// List available HeyGen voices.
     public func videoHeygenVoices() async throws -> HeyGenVoicesResponse {
-        let (data, _): (HeyGenVoicesResponse, _) = try await http.doJSON(
+        let (data, _): (HeyGenVoicesResponse, _) = try await doReq(
             method: "GET", path: "/qai/v1/video/heygen-voices"
         )
         return data
@@ -686,7 +771,7 @@ public final class QuantumClient: Sendable {
     /// - Returns: The embedding response with vectors.
     public func embed(input: String, model: String? = nil) async throws -> EmbedResponse {
         let request = EmbedRequest(input: input, model: model)
-        let (data, _): (EmbedResponse, _) = try await http.doJSON(
+        let (data, _): (EmbedResponse, _) = try await doReq(
             method: "POST", path: "/qai/v1/embeddings", body: request
         )
         return data
@@ -695,7 +780,7 @@ public final class QuantumClient: Sendable {
     /// Generate text embeddings for multiple inputs.
     public func embed(inputs: [String], model: String? = nil) async throws -> EmbedResponse {
         let request = EmbedRequest(inputs: inputs, model: model)
-        let (data, _): (EmbedResponse, _) = try await http.doJSON(
+        let (data, _): (EmbedResponse, _) = try await doReq(
             method: "POST", path: "/qai/v1/embeddings", body: request
         )
         return data
@@ -705,7 +790,7 @@ public final class QuantumClient: Sendable {
 
     /// Extract text content from a document (PDF, image, etc.).
     public func extractDocument(_ request: DocumentRequest) async throws -> DocumentResponse {
-        let (data, _): (DocumentResponse, _) = try await http.doJSON(
+        let (data, _): (DocumentResponse, _) = try await doReq(
             method: "POST", path: "/qai/v1/documents/extract", body: request
         )
         return data
@@ -713,7 +798,7 @@ public final class QuantumClient: Sendable {
 
     /// Chunk a document into smaller pieces for embedding or processing.
     public func chunkDocument(_ request: ChunkDocumentRequest) async throws -> ChunkDocumentResponse {
-        let (data, _): (ChunkDocumentResponse, _) = try await http.doJSON(
+        let (data, _): (ChunkDocumentResponse, _) = try await doReq(
             method: "POST", path: "/qai/v1/documents/chunk", body: request
         )
         return data
@@ -721,7 +806,7 @@ public final class QuantumClient: Sendable {
 
     /// Process a document with extraction + optional instructions.
     public func processDocument(_ request: ProcessDocumentRequest) async throws -> ProcessDocumentResponse {
-        let (data, _): (ProcessDocumentResponse, _) = try await http.doJSON(
+        let (data, _): (ProcessDocumentResponse, _) = try await doReq(
             method: "POST", path: "/qai/v1/documents/process", body: request
         )
         return data
@@ -731,7 +816,7 @@ public final class QuantumClient: Sendable {
 
     /// Search Vertex AI RAG corpora for relevant documentation.
     public func ragSearch(_ request: RAGSearchRequest) async throws -> RAGSearchResponse {
-        let (data, _): (RAGSearchResponse, _) = try await http.doJSON(
+        let (data, _): (RAGSearchResponse, _) = try await doReq(
             method: "POST", path: "/qai/v1/rag/search", body: request
         )
         return data
@@ -740,13 +825,13 @@ public final class QuantumClient: Sendable {
     /// List available Vertex AI RAG corpora.
     public func ragCorpora() async throws -> [RAGCorpus] {
         struct Body: Decodable { let corpora: [RAGCorpus]; let request_id: String }
-        let (data, _): (Body, _) = try await http.doJSON(method: "GET", path: "/qai/v1/rag/corpora")
+        let (data, _): (Body, _) = try await doReq(method: "GET", path: "/qai/v1/rag/corpora")
         return data.corpora
     }
 
     /// Search provider API documentation via SurrealDB vector search.
     public func surrealRagSearch(_ request: SurrealRAGSearchRequest) async throws -> SurrealRAGSearchResponse {
-        let (data, _): (SurrealRAGSearchResponse, _) = try await http.doJSON(
+        let (data, _): (SurrealRAGSearchResponse, _) = try await doReq(
             method: "POST", path: "/qai/v1/rag/surreal/search", body: request
         )
         return data
@@ -754,7 +839,7 @@ public final class QuantumClient: Sendable {
 
     /// List available documentation providers in SurrealDB RAG.
     public func surrealRagProviders() async throws -> SurrealRAGProvidersResponse {
-        let (data, _): (SurrealRAGProvidersResponse, _) = try await http.doJSON(
+        let (data, _): (SurrealRAGProvidersResponse, _) = try await doReq(
             method: "GET", path: "/qai/v1/rag/surreal/providers"
         )
         return data
@@ -764,7 +849,7 @@ public final class QuantumClient: Sendable {
 
     /// Perform a web search. Returns web results, news, videos, infobox, discussions.
     public func webSearch(_ request: WebSearchRequest) async throws -> WebSearchResponse {
-        let (data, _): (WebSearchResponse, _) = try await http.doJSON(
+        let (data, _): (WebSearchResponse, _) = try await doReq(
             method: "POST", path: "/qai/v1/search/web", body: request
         )
         return data
@@ -772,7 +857,7 @@ public final class QuantumClient: Sendable {
 
     /// Get LLM-optimized content chunks for grounding.
     public func searchContext(_ request: SearchContextRequest) async throws -> SearchContextResponse {
-        let (data, _): (SearchContextResponse, _) = try await http.doJSON(
+        let (data, _): (SearchContextResponse, _) = try await doReq(
             method: "POST", path: "/qai/v1/search/context", body: request
         )
         return data
@@ -780,7 +865,7 @@ public final class QuantumClient: Sendable {
 
     /// Get a grounded AI answer with citations.
     public func searchAnswer(_ request: SearchAnswerRequest) async throws -> SearchAnswerResponse {
-        let (data, _): (SearchAnswerResponse, _) = try await http.doJSON(
+        let (data, _): (SearchAnswerResponse, _) = try await doReq(
             method: "POST", path: "/qai/v1/search/answer", body: request
         )
         return data
@@ -795,14 +880,14 @@ public final class QuantumClient: Sendable {
 
     /// List models including the response envelope (`schema_version`, `count`).
     public func listModelsResponse() async throws -> ModelsResponse {
-        let (data, _): (ModelsResponse, _) = try await http.doJSON(method: "GET", path: "/qai/v1/models")
+        let (data, _): (ModelsResponse, _) = try await doReq(method: "GET", path: "/qai/v1/models")
         return data
     }
 
     /// Get the complete pricing table for all models.
     public func getPricing() async throws -> [PricingInfo] {
         struct Body: Decodable { let pricing: [PricingInfo] }
-        let (data, _): (Body, _) = try await http.doJSON(method: "GET", path: "/qai/v1/pricing")
+        let (data, _): (Body, _) = try await doReq(method: "GET", path: "/qai/v1/pricing")
         return data.pricing
     }
 
@@ -810,7 +895,7 @@ public final class QuantumClient: Sendable {
 
     /// Get the account credit balance.
     public func accountBalance() async throws -> BalanceResponse {
-        let (data, _): (BalanceResponse, _) = try await http.doJSON(
+        let (data, _): (BalanceResponse, _) = try await doReq(
             method: "GET", path: "/qai/v1/account/balance"
         )
         return data
@@ -824,7 +909,7 @@ public final class QuantumClient: Sendable {
         if let startAfter = query?.startAfter { params.append("start_after=\(startAfter)") }
         if !params.isEmpty { path += "?" + params.joined(separator: "&") }
 
-        let (data, _): (UsageResponse, _) = try await http.doJSON(method: "GET", path: path)
+        let (data, _): (UsageResponse, _) = try await doReq(method: "GET", path: path)
         return data
     }
 
@@ -833,13 +918,13 @@ public final class QuantumClient: Sendable {
         var path = "/qai/v1/account/usage/summary"
         if let months { path += "?months=\(months)" }
 
-        let (data, _): (UsageSummaryResponse, _) = try await http.doJSON(method: "GET", path: path)
+        let (data, _): (UsageSummaryResponse, _) = try await doReq(method: "GET", path: path)
         return data
     }
 
     /// Get the full pricing table (model ID -> pricing entry map).
     public func accountPricing() async throws -> AccountPricingResponse {
-        let (data, _): (AccountPricingResponse, _) = try await http.doJSON(
+        let (data, _): (AccountPricingResponse, _) = try await doReq(
             method: "GET", path: "/qai/v1/pricing"
         )
         return data
@@ -849,7 +934,7 @@ public final class QuantumClient: Sendable {
 
     /// List the published Learn course catalog.
     public func listCourses() async throws -> [CatalogCourse] {
-        let (data, _): (CourseListResponse, _) = try await http.doJSON(
+        let (data, _): (CourseListResponse, _) = try await doReq(
             method: "GET", path: "/qai/v1/courses"
         )
         return data.courses
@@ -857,7 +942,7 @@ public final class QuantumClient: Sendable {
 
     /// Get a signed download URL for a (free) course bundle.
     public func courseDownload(id: String) async throws -> CourseDownloadResponse {
-        let (data, _): (CourseDownloadResponse, _) = try await http.doJSON(
+        let (data, _): (CourseDownloadResponse, _) = try await doReq(
             method: "GET", path: "/qai/v1/courses/\(id)/download"
         )
         return data
@@ -869,7 +954,7 @@ public final class QuantumClient: Sendable {
             let zipBase64: String
             enum CodingKeys: String, CodingKey { case zipBase64 = "zip_base64" }
         }
-        let (data, _): (CoursePublishResponse, _) = try await http.doJSON(
+        let (data, _): (CoursePublishResponse, _) = try await doReq(
             method: "POST", path: "/qai/v1/courses/publish",
             body: PublishRequest(zipBase64: zipData.base64EncodedString())
         )
@@ -878,7 +963,7 @@ public final class QuantumClient: Sendable {
 
     /// Get the Learn sandbox guest image manifest (signed URLs + checksums).
     public func learnGuestImage() async throws -> GuestImageResponse {
-        let (data, _): (GuestImageResponse, _) = try await http.doJSON(
+        let (data, _): (GuestImageResponse, _) = try await doReq(
             method: "GET", path: "/qai/v1/learn/guest-image"
         )
         return data
@@ -887,17 +972,18 @@ public final class QuantumClient: Sendable {
     // MARK: - Jobs
 
     /// Create an async job. Returns the job ID for polling.
-    public func createJob(type: String, params: [String: AnyCodable]) async throws -> JobCreateResponse {
+    public func createJob(type: String, params: [String: AnyCodable], idempotencyKey: String? = nil) async throws -> JobCreateResponse {
         let request = JobCreateRequest(jobType: type, params: AnyCodable(params))
-        let (data, _): (JobCreateResponse, _) = try await http.doJSON(
-            method: "POST", path: "/qai/v1/jobs", body: request
+        let (data, _): (JobCreateResponse, _) = try await doReq(
+            method: "POST", path: "/qai/v1/jobs", body: request,
+            idempotencyKey: idempotencyKey ?? UUID().uuidString
         )
         return data
     }
 
     /// Check the status of an async job.
     public func getJob(jobId: String) async throws -> JobStatusResponse {
-        let (data, _): (JobStatusResponse, _) = try await http.doJSON(
+        let (data, _): (JobStatusResponse, _) = try await doReq(
             method: "GET", path: "/qai/v1/jobs/\(jobId)"
         )
         return data
@@ -934,7 +1020,7 @@ public final class QuantumClient: Sendable {
 
     /// List all jobs for the authenticated user.
     public func listJobs() async throws -> JobListResponse {
-        let (data, _): (JobListResponse, _) = try await http.doJSON(
+        let (data, _): (JobListResponse, _) = try await doReq(
             method: "GET", path: "/qai/v1/jobs"
         )
         return data
@@ -952,7 +1038,7 @@ public final class QuantumClient: Sendable {
 
     /// Create a scoped API key.
     public func createKey(_ request: CreateKeyRequest) async throws -> CreateKeyResponse {
-        let (data, _): (CreateKeyResponse, _) = try await http.doJSON(
+        let (data, _): (CreateKeyResponse, _) = try await doReq(
             method: "POST", path: "/qai/v1/keys", body: request
         )
         return data
@@ -960,7 +1046,7 @@ public final class QuantumClient: Sendable {
 
     /// List all API keys for the authenticated user.
     public func listKeys() async throws -> ListKeysResponse {
-        let (data, _): (ListKeysResponse, _) = try await http.doJSON(
+        let (data, _): (ListKeysResponse, _) = try await doReq(
             method: "GET", path: "/qai/v1/keys"
         )
         return data
@@ -968,7 +1054,7 @@ public final class QuantumClient: Sendable {
 
     /// Revoke an API key.
     public func revokeKey(id: String) async throws -> StatusResponse {
-        let (data, _): (StatusResponse, _) = try await http.doJSON(
+        let (data, _): (StatusResponse, _) = try await doReq(
             method: "DELETE", path: "/qai/v1/keys/\(id)"
         )
         return data
@@ -978,7 +1064,7 @@ public final class QuantumClient: Sendable {
 
     /// Get available compute templates with pricing.
     public func computeTemplates() async throws -> TemplatesResponse {
-        let (data, _): (TemplatesResponse, _) = try await http.doJSON(
+        let (data, _): (TemplatesResponse, _) = try await doReq(
             method: "GET", path: "/qai/v1/compute/templates"
         )
         return data
@@ -986,7 +1072,7 @@ public final class QuantumClient: Sendable {
 
     /// Provision a new GPU compute instance.
     public func computeProvision(_ request: ProvisionRequest) async throws -> ProvisionResponse {
-        let (data, _): (ProvisionResponse, _) = try await http.doJSON(
+        let (data, _): (ProvisionResponse, _) = try await doReq(
             method: "POST", path: "/qai/v1/compute/provision", body: request
         )
         return data
@@ -994,7 +1080,7 @@ public final class QuantumClient: Sendable {
 
     /// List all compute instances for the authenticated user.
     public func computeInstances() async throws -> InstancesResponse {
-        let (data, _): (InstancesResponse, _) = try await http.doJSON(
+        let (data, _): (InstancesResponse, _) = try await doReq(
             method: "GET", path: "/qai/v1/compute/instances"
         )
         return data
@@ -1002,7 +1088,7 @@ public final class QuantumClient: Sendable {
 
     /// Get full status of a single compute instance.
     public func computeInstance(id: String) async throws -> InstanceResponse {
-        let (data, _): (InstanceResponse, _) = try await http.doJSON(
+        let (data, _): (InstanceResponse, _) = try await doReq(
             method: "GET", path: "/qai/v1/compute/instance/\(id)"
         )
         return data
@@ -1010,7 +1096,7 @@ public final class QuantumClient: Sendable {
 
     /// Tear down a compute instance and finalize billing.
     public func computeDelete(id: String) async throws -> DeleteResponse {
-        let (data, _): (DeleteResponse, _) = try await http.doJSON(
+        let (data, _): (DeleteResponse, _) = try await doReq(
             method: "DELETE", path: "/qai/v1/compute/instance/\(id)"
         )
         return data
@@ -1019,7 +1105,7 @@ public final class QuantumClient: Sendable {
     /// Inject an SSH public key into a running instance.
     public func computeSSHKey(id: String, sshPublicKey: String) async throws -> StatusResponse {
         let request = SSHKeyRequest(sshPublicKey: sshPublicKey)
-        let (data, _): (StatusResponse, _) = try await http.doJSON(
+        let (data, _): (StatusResponse, _) = try await doReq(
             method: "POST", path: "/qai/v1/compute/instance/\(id)/ssh-key", body: request
         )
         return data
@@ -1027,7 +1113,7 @@ public final class QuantumClient: Sendable {
 
     /// Reset the inactivity timer on a compute instance.
     public func computeKeepalive(id: String) async throws -> StatusResponse {
-        let (data, _): (StatusResponse, _) = try await http.doJSON(
+        let (data, _): (StatusResponse, _) = try await doReq(
             method: "POST", path: "/qai/v1/compute/instance/\(id)/keepalive"
         )
         return data
@@ -1037,7 +1123,7 @@ public final class QuantumClient: Sendable {
 
     /// List all available voices (ElevenLabs).
     public func listVoices() async throws -> VoicesResponse {
-        let (data, _): (VoicesResponse, _) = try await http.doJSON(
+        let (data, _): (VoicesResponse, _) = try await doReq(
             method: "GET", path: "/qai/v1/voices"
         )
         return data
@@ -1045,7 +1131,7 @@ public final class QuantumClient: Sendable {
 
     /// Create an instant voice clone from audio samples (ElevenLabs).
     public func cloneVoice(_ request: CloneVoiceRequest) async throws -> CloneVoiceResponse {
-        let (data, _): (CloneVoiceResponse, _) = try await http.doJSON(
+        let (data, _): (CloneVoiceResponse, _) = try await doReq(
             method: "POST", path: "/qai/v1/voices/clone", body: request
         )
         return data
@@ -1053,7 +1139,7 @@ public final class QuantumClient: Sendable {
 
     /// Delete a cloned voice (ElevenLabs).
     public func deleteVoice(id: String) async throws -> StatusResponse {
-        let (data, _): (StatusResponse, _) = try await http.doJSON(
+        let (data, _): (StatusResponse, _) = try await doReq(
             method: "DELETE", path: "/qai/v1/voices/\(id)"
         )
         return data
@@ -1072,13 +1158,13 @@ public final class QuantumClient: Sendable {
         var path = "/qai/v1/voices/library"
         if !params.isEmpty { path += "?" + params.joined(separator: "&") }
 
-        let (data, _): (SharedVoicesResponse, _) = try await http.doJSON(method: "GET", path: path)
+        let (data, _): (SharedVoicesResponse, _) = try await doReq(method: "GET", path: path)
         return data
     }
 
     /// Add a shared voice from the library to the user's account.
     public func addVoiceFromLibrary(_ request: AddVoiceFromLibraryRequest) async throws -> AddVoiceFromLibraryResponse {
-        let (data, _): (AddVoiceFromLibraryResponse, _) = try await http.doJSON(
+        let (data, _): (AddVoiceFromLibraryResponse, _) = try await doReq(
             method: "POST", path: "/qai/v1/voices/library/add", body: request
         )
         return data
@@ -1101,7 +1187,7 @@ public final class QuantumClient: Sendable {
             }
         }
 
-        let (data, _): (RealtimeSession, _) = try await http.doJSON(
+        let (data, _): (RealtimeSession, _) = try await doReq(
             method: "POST", path: "/qai/v1/realtime/session", body: Wrapper(body: body)
         )
         return data
@@ -1113,7 +1199,7 @@ public final class QuantumClient: Sendable {
             let session_id: String
             let duration_seconds: Double
         }
-        let _: (StatusResponse, _) = try await http.doJSON(
+        let _: (StatusResponse, _) = try await doReq(
             method: "POST", path: "/qai/v1/realtime/end",
             body: Body(session_id: sessionId, duration_seconds: durationSeconds)
         )
@@ -1124,7 +1210,7 @@ public final class QuantumClient: Sendable {
         struct Body: Encodable { let session_id: String }
         struct Response: Decodable { let ephemeral_token: String }
 
-        let (data, _): (Response, _) = try await http.doJSON(
+        let (data, _): (Response, _) = try await doReq(
             method: "POST", path: "/qai/v1/realtime/refresh",
             body: Body(session_id: sessionId)
         )
@@ -1135,7 +1221,7 @@ public final class QuantumClient: Sendable {
 
     /// Submit a batch of jobs for processing.
     public func batchSubmit(_ request: BatchSubmitRequest) async throws -> BatchSubmitResponse {
-        let (data, _): (BatchSubmitResponse, _) = try await http.doJSON(
+        let (data, _): (BatchSubmitResponse, _) = try await doReq(
             method: "POST", path: "/qai/v1/batch", body: request
         )
         return data
@@ -1144,7 +1230,7 @@ public final class QuantumClient: Sendable {
     /// Submit a batch of jobs using JSONL format.
     public func batchSubmitJsonl(_ jsonl: String) async throws -> BatchJsonlResponse {
         struct Body: Encodable { let jsonl: String }
-        let (data, _): (BatchJsonlResponse, _) = try await http.doJSON(
+        let (data, _): (BatchJsonlResponse, _) = try await doReq(
             method: "POST", path: "/qai/v1/batch/jsonl", body: Body(jsonl: jsonl)
         )
         return data
@@ -1152,7 +1238,7 @@ public final class QuantumClient: Sendable {
 
     /// List all batch jobs for the account.
     public func batchJobs() async throws -> BatchJobsResponse {
-        let (data, _): (BatchJobsResponse, _) = try await http.doJSON(
+        let (data, _): (BatchJobsResponse, _) = try await doReq(
             method: "GET", path: "/qai/v1/batch/jobs"
         )
         return data
@@ -1160,7 +1246,7 @@ public final class QuantumClient: Sendable {
 
     /// Get the status and result of a single batch job.
     public func batchJob(id: String) async throws -> BatchJobInfo {
-        let (data, _): (BatchJobInfo, _) = try await http.doJSON(
+        let (data, _): (BatchJobInfo, _) = try await doReq(
             method: "GET", path: "/qai/v1/batch/jobs/\(id)"
         )
         return data
@@ -1170,7 +1256,7 @@ public final class QuantumClient: Sendable {
 
     /// List available credit packs (no auth required).
     public func creditPacks() async throws -> CreditPacksResponse {
-        let (data, _): (CreditPacksResponse, _) = try await http.doJSON(
+        let (data, _): (CreditPacksResponse, _) = try await doReq(
             method: "GET", path: "/qai/v1/credits/packs"
         )
         return data
@@ -1178,7 +1264,7 @@ public final class QuantumClient: Sendable {
 
     /// Purchase a credit pack. Returns a checkout URL for payment.
     public func creditPurchase(_ request: CreditPurchaseRequest) async throws -> CreditPurchaseResponse {
-        let (data, _): (CreditPurchaseResponse, _) = try await http.doJSON(
+        let (data, _): (CreditPurchaseResponse, _) = try await doReq(
             method: "POST", path: "/qai/v1/credits/purchase", body: request
         )
         return data
@@ -1186,7 +1272,7 @@ public final class QuantumClient: Sendable {
 
     /// Get the current credit balance.
     public func creditBalance() async throws -> CreditBalanceResponse {
-        let (data, _): (CreditBalanceResponse, _) = try await http.doJSON(
+        let (data, _): (CreditBalanceResponse, _) = try await doReq(
             method: "GET", path: "/qai/v1/credits/balance"
         )
         return data
@@ -1194,7 +1280,7 @@ public final class QuantumClient: Sendable {
 
     /// List available credit tiers (no auth required).
     public func creditTiers() async throws -> CreditTiersResponse {
-        let (data, _): (CreditTiersResponse, _) = try await http.doJSON(
+        let (data, _): (CreditTiersResponse, _) = try await doReq(
             method: "GET", path: "/qai/v1/credits/tiers"
         )
         return data
@@ -1202,7 +1288,7 @@ public final class QuantumClient: Sendable {
 
     /// Apply for the developer program.
     public func devProgramApply(_ request: DevProgramApplyRequest) async throws -> DevProgramApplyResponse {
-        let (data, _): (DevProgramApplyResponse, _) = try await http.doJSON(
+        let (data, _): (DevProgramApplyResponse, _) = try await doReq(
             method: "POST", path: "/qai/v1/credits/dev-program", body: request
         )
         return data
@@ -1212,7 +1298,7 @@ public final class QuantumClient: Sendable {
 
     /// Authenticate with Apple Sign-In.
     public func authApple(_ request: AuthAppleRequest) async throws -> AuthResponse {
-        let (data, _): (AuthResponse, _) = try await http.doJSON(
+        let (data, _): (AuthResponse, _) = try await doReq(
             method: "POST", path: "/qai/v1/auth/apple", body: request
         )
         return data
@@ -1225,7 +1311,7 @@ public final class QuantumClient: Sendable {
     /// This is a public endpoint (no auth required), but will use the
     /// configured API key if present.
     public func contact(_ request: ContactRequest) async throws -> StatusResponse {
-        let (data, _): (StatusResponse, _) = try await http.doJSON(
+        let (data, _): (StatusResponse, _) = try await doReq(
             method: "POST", path: "/qai/v1/contact", body: request
         )
         return data
@@ -1321,6 +1407,32 @@ public final class QuantumClient: Sendable {
             event.delta = raw.delta
 
         case "tool_use":
+            // Legacy single-event tool call. Kept for back-compat; the gateway
+            // also emits the streaming triplet (start/input_delta/complete).
+            if let id = raw.id, let name = raw.name {
+                event.toolUse = StreamToolUse(
+                    id: id,
+                    name: name,
+                    input: raw.input ?? [:]
+                )
+            }
+
+        case "tool_use_start":
+            // Fires once per tool call before any input data arrives. Lets the
+            // client render a "card with spinner" immediately. input is empty
+            // here; the real args come via tool_use_input_delta / complete.
+            if let id = raw.id, let name = raw.name {
+                event.toolUse = StreamToolUse(id: id, name: name, input: [:])
+            }
+
+        case "tool_use_input_delta":
+            // Raw partial-JSON fragment of the tool args. May not parse on its
+            // own; concatenate across deltas or wait for tool_use_complete.
+            event.partialJSON = raw.partialJSON
+
+        case "tool_use_complete":
+            // Fires once after all input fragments with the server-accumulated,
+            // fully-parsed arguments.
             if let id = raw.id, let name = raw.name {
                 event.toolUse = StreamToolUse(
                     id: id,
@@ -1330,10 +1442,14 @@ public final class QuantumClient: Sendable {
             }
 
         case "usage":
+            // Streaming usage carries reasoning_tokens so callers see hidden
+            // reasoning cost (billed at output rate, broken out for transparency).
             event.usage = ChatUsage(
                 inputTokens: raw.inputTokens ?? 0,
                 outputTokens: raw.outputTokens ?? 0,
-                costTicks: raw.costTicks ?? 0
+                costTicks: raw.costTicks ?? 0,
+                cachedTokens: 0,
+                reasoningTokens: raw.reasoningTokens ?? 0
             )
 
         case "error":
@@ -1401,7 +1517,11 @@ public final class QuantumClient: Sendable {
             toolUseId: raw.toolUseId,
             toolOutput: raw.output,
             diff: raw.diff,
-            error: raw.error ?? (raw.type == "agent_error" ? (raw.message ?? "Unknown agent error") : nil)
+            error: raw.error ?? (raw.type == "agent_error" ? (raw.message ?? "Unknown agent error") : nil),
+            role: raw.role,
+            data: raw.data,
+            timestamp: raw.timestamp,
+            index: raw.index
         )
     }
 
@@ -1433,9 +1553,14 @@ private struct RawAgentEvent: Decodable {
     var toolUseId: String?                  // links tool_result → tool_use
     var output: String?                     // tool_result output text
     var diff: String?                       // unified diff for file ops
+    // agentruntime.Event passthrough fields
+    var role: String?                       // event authoring role
+    var data: [String: AnyCodable]?         // free-form structured payload
+    var timestamp: String?                  // RFC3339 server-assigned time
+    var index: Int64?                       // Last-Event-ID resume cursor
 
     enum CodingKeys: String, CodingKey {
-        case type, worker, content, error, message, id, name, input, output, diff
+        case type, worker, content, error, message, id, name, input, output, diff, role, data, timestamp, index
         case toolUseId = "tool_use_id"
     }
 }

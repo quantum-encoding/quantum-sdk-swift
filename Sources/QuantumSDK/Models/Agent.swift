@@ -139,6 +139,24 @@ public struct AgentEvent: Sendable {
     /// Error message.
     public var error: String?
 
+    /// Authoring role of the event (e.g. "user", "assistant", "tool").
+    /// Mirrors `agentruntime.Event.Role`.
+    public var role: String?
+
+    /// Free-form structured payload (mirrors `agentruntime.Event.Data`).
+    public var data: [String: AnyCodable]?
+
+    /// Server-assigned event timestamp (RFC3339). Mirrors
+    /// `agentruntime.Event.Timestamp`.
+    public var timestamp: String?
+
+    /// 1-based sequential id for durable structural state-transition events.
+    /// The value a client sends back as `Last-Event-ID` to resume a dropped
+    /// stream. Zero/nil for high-frequency ephemeral events (token deltas,
+    /// bash output) which are never persisted. Mirrors
+    /// `agentruntime.Event.Index`.
+    public var index: Int64?
+
     public init(
         type: String,
         done: Bool = false,
@@ -148,7 +166,11 @@ public struct AgentEvent: Sendable {
         toolUseId: String? = nil,
         toolOutput: String? = nil,
         diff: String? = nil,
-        error: String? = nil
+        error: String? = nil,
+        role: String? = nil,
+        data: [String: AnyCodable]? = nil,
+        timestamp: String? = nil,
+        index: Int64? = nil
     ) {
         self.type = type
         self.done = done
@@ -159,6 +181,10 @@ public struct AgentEvent: Sendable {
         self.toolOutput = toolOutput
         self.diff = diff
         self.error = error
+        self.role = role
+        self.data = data
+        self.timestamp = timestamp
+        self.index = index
     }
 }
 
