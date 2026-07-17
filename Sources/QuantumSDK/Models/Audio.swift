@@ -1135,3 +1135,91 @@ public struct FinetuneInfo: Codable, Sendable {
 public struct ListFinetunesResponse: Codable, Sendable {
     public var finetunes: [FinetuneInfo]
 }
+
+// MARK: - HeyGen Sounds Search (background music + sound effects)
+
+/// Query parameters for searching the sounds catalog.
+public struct AudioSoundsQuery: Sendable {
+    /// Natural-language description of the sound wanted (required).
+    public var query: String
+
+    /// Catalog to search: "music" | "sound_effects" (API default: "music").
+    /// Wire param: `type`.
+    public var soundType: String?
+
+    /// Max results, 1–50 (API default 10).
+    public var limit: Int?
+
+    /// Minimum similarity score, 0–1 (API default 0.7).
+    public var minScore: Double?
+
+    /// Opaque cursor from a previous response's `nextToken`.
+    public var token: String?
+
+    public init(
+        query: String,
+        soundType: String? = nil,
+        limit: Int? = nil,
+        minScore: Double? = nil,
+        token: String? = nil
+    ) {
+        self.query = query
+        self.soundType = soundType
+        self.limit = limit
+        self.minScore = minScore
+        self.token = token
+    }
+}
+
+/// A track from the sounds catalog.
+public struct AudioSound: Codable, Sendable {
+    /// Track identifier.
+    public var id: String
+
+    /// Track name.
+    public var name: String
+
+    /// Track description.
+    public var description: String
+
+    /// Pre-signed WAV URL with a limited lifetime — download promptly,
+    /// do not cache.
+    public var audioUrl: String
+
+    /// Duration in seconds.
+    public var duration: Double
+
+    /// Similarity score 0–1 (best first).
+    public var score: Double
+
+    /// "music" | "sound_effects". Wire field: `type`.
+    public var soundType: String
+
+    enum CodingKeys: String, CodingKey {
+        case id, name, description, duration, score
+        case audioUrl = "audio_url"
+        case soundType = "type"
+    }
+}
+
+/// Response from searching the sounds catalog (unbilled).
+public struct AudioSoundsResponse: Codable, Sendable {
+    /// Matching tracks, best score first (empty page → `[]`).
+    public var sounds: [AudioSound]
+
+    /// More pages exist.
+    public var hasMore: Bool
+
+    /// Pass as `token` for the next page (may be empty).
+    public var nextToken: String
+
+    /// Unique request identifier.
+    public var requestId: String
+
+    enum CodingKeys: String, CodingKey {
+        case sounds
+        case hasMore = "has_more"
+        case nextToken = "next_token"
+        case requestId = "request_id"
+    }
+}
