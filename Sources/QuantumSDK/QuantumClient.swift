@@ -721,7 +721,12 @@ public final class QuantumClient: Sendable {
 
     /// Create a photo avatar via HeyGen. Returns an async job.
     public func videoPhotoAvatar(photoBase64: String, script: String) async throws -> JobAcceptedResponse {
-        let request = PhotoAvatarRequest(photoBase64: photoBase64, script: script)
+        try await videoPhotoAvatar(PhotoAvatarRequest(photoBase64: photoBase64, script: script))
+    }
+
+    /// Create a photo avatar via HeyGen from a full request (carries the
+    /// optional `voiceId` / `aspectRatio`). Returns an async job.
+    public func videoPhotoAvatar(_ request: PhotoAvatarRequest) async throws -> JobAcceptedResponse {
         let (data, _): (JobAcceptedResponse, _) = try await doReq(
             method: "POST", path: "/qai/v1/video/photo-avatar", body: request
         )
@@ -730,7 +735,12 @@ public final class QuantumClient: Sendable {
 
     /// Create a digital twin via HeyGen. Returns an async job.
     public func videoDigitalTwin(avatarId: String, script: String) async throws -> JobAcceptedResponse {
-        let request = DigitalTwinRequest(avatarId: avatarId, script: script)
+        try await videoDigitalTwin(DigitalTwinRequest(avatarId: avatarId, script: script))
+    }
+
+    /// Create a digital twin via HeyGen from a full request (carries the
+    /// optional `voiceId` / `aspectRatio`). Returns an async job.
+    public func videoDigitalTwin(_ request: DigitalTwinRequest) async throws -> JobAcceptedResponse {
         let (data, _): (JobAcceptedResponse, _) = try await doReq(
             method: "POST", path: "/qai/v1/video/digital-twin", body: request
         )
