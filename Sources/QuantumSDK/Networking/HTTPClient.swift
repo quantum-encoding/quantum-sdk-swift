@@ -153,12 +153,14 @@ final class HTTPClient: Sendable {
     // MARK: - Multipart Upload
 
     /// Send a multipart/form-data upload and decode the JSON response.
+    /// `fields` adds plain (non-file) form fields alongside the file part.
     func doMultipart<T: Decodable>(
         path: String,
         fieldName: String,
         filename: String,
         data fileData: Data,
-        contentType: String = "application/octet-stream"
+        contentType: String = "application/octet-stream",
+        fields: [String: String] = [:]
     ) async throws -> (data: T, meta: ResponseMeta) {
         guard let url = URL(string: baseURLString + path) else {
             throw QuantumError.invalidArgument("Invalid path: \(path)")
@@ -171,6 +173,12 @@ final class HTTPClient: Sendable {
         request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
 
         var body = Data()
+        for (name, value) in fields.sorted(by: { $0.key < $1.key }) {
+            body.append("--\(boundary)\r\n".data(using: .utf8)!)
+            body.append("Content-Disposition: form-data; name=\"\(name)\"\r\n\r\n".data(using: .utf8)!)
+            body.append(value.data(using: .utf8)!)
+            body.append("\r\n".data(using: .utf8)!)
+        }
         body.append("--\(boundary)\r\n".data(using: .utf8)!)
         body.append("Content-Disposition: form-data; name=\"\(fieldName)\"; filename=\"\(filename)\"\r\n".data(using: .utf8)!)
         body.append("Content-Type: \(contentType)\r\n\r\n".data(using: .utf8)!)

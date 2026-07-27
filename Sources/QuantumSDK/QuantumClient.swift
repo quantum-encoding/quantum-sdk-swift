@@ -733,18 +733,28 @@ public final class QuantumClient: Sendable {
         return data
     }
 
-    /// Create a digital twin via HeyGen. Returns an async job.
+    /// Render a video of a trained twin avatar. Returns an async job.
+    ///
+    /// Historical note: this method used to POST its render payload to
+    /// `/qai/v1/video/digital-twin`, which is the twin *training* endpoint —
+    /// the call never worked. It now forwards to ``twinVideo(_:)``
+    /// (`/qai/v1/video/twin-video`). Twin *creation* is
+    /// ``createDigitalTwin(name:footage:filename:contentType:avatarGroupId:)``.
+    @available(*, deprecated, renamed: "twinVideo(_:)")
     public func videoDigitalTwin(avatarId: String, script: String) async throws -> JobAcceptedResponse {
         try await videoDigitalTwin(DigitalTwinRequest(avatarId: avatarId, script: script))
     }
 
-    /// Create a digital twin via HeyGen from a full request (carries the
-    /// optional `voiceId` / `aspectRatio`). Returns an async job.
+    /// Render a video of a trained twin avatar from a full request (carries
+    /// the optional `voiceId` / `aspectRatio`). Returns an async job.
+    @available(*, deprecated, renamed: "twinVideo(_:)")
     public func videoDigitalTwin(_ request: DigitalTwinRequest) async throws -> JobAcceptedResponse {
-        let (data, _): (JobAcceptedResponse, _) = try await doReq(
-            method: "POST", path: "/qai/v1/video/digital-twin", body: request
-        )
-        return data
+        try await twinVideo(TwinVideoRequest(
+            avatarId: request.avatarId,
+            script: request.script,
+            voiceId: request.voiceId,
+            aspectRatio: request.aspectRatio
+        ))
     }
 
     /// List available HeyGen avatars.
