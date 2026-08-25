@@ -33,7 +33,17 @@ public struct ChatRequest: Codable, Sendable {
     public var outputSchema: [String: AnyCodable]?
 
     /// Provider-specific settings (e.g. Anthropic thinking, xAI search).
+    /// The routing-region override (`provider_options.region`) rides here
+    /// too — prefer the typed ``region`` property for it.
     public var providerOptions: [String: [String: AnyCodable]]?
+
+    /// Routing region override for THIS chat request — encoded as
+    /// `provider_options.region` on the wire (it is not a standalone JSON
+    /// field) and wins over the key's scope region. Honored by
+    /// `/qai/v1/chat` only: the agent endpoint routes by the key's scope by
+    /// design. Decoding a request extracts a string `provider_options.region`
+    /// back into this property.
+    public var region: Region?
 
     /// Capability allowlist. Filters which client-declared tools are forwarded
     /// to the model by matching their names against the server's capability
@@ -65,6 +75,7 @@ public struct ChatRequest: Codable, Sendable {
         toolChoice: String? = nil,
         outputSchema: [String: AnyCodable]? = nil,
         providerOptions: [String: [String: AnyCodable]]? = nil,
+        region: Region? = nil,
         capabilities: [String]? = nil,
         reasoningEffort: String? = nil,
         cachedContent: String? = nil
@@ -78,6 +89,7 @@ public struct ChatRequest: Codable, Sendable {
         self.toolChoice = toolChoice
         self.outputSchema = outputSchema
         self.providerOptions = providerOptions
+        self.region = region
         self.capabilities = capabilities
         self.reasoningEffort = reasoningEffort
         self.cachedContent = cachedContent
@@ -91,6 +103,62 @@ public struct ChatRequest: Codable, Sendable {
         case providerOptions = "provider_options"
         case reasoningEffort = "reasoning_effort"
         case cachedContent = "cached_content"
+    }
+
+    // Custom Codable: `region` has no JSON field of its own — it rides
+    // INSIDE `provider_options` as the one entry whose value is a plain
+    // string, which the nested-dictionary type of `providerOptions` cannot
+    // represent. Encoding merges it in; decoding extracts it back out.
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(model, forKey: .model)
+        try container.encode(messages, forKey: .messages)
+        try container.encodeIfPresent(tools, forKey: .tools)
+        try container.encodeIfPresent(stream, forKey: .stream)
+        try container.encodeIfPresent(temperature, forKey: .temperature)
+        try container.encodeIfPresent(maxTokens, forKey: .maxTokens)
+        try container.encodeIfPresent(toolChoice, forKey: .toolChoice)
+        try container.encodeIfPresent(outputSchema, forKey: .outputSchema)
+        var merged: [String: AnyCodable]? =
+            providerOptions?.mapValues { AnyCodable($0) }
+        if let region {
+            var opts = merged ?? [:]
+            opts["region"] = AnyCodable(region.rawValue)
+            merged = opts
+        }
+        try container.encodeIfPresent(merged, forKey: .providerOptions)
+        try container.encodeIfPresent(capabilities, forKey: .capabilities)
+        try container.encodeIfPresent(reasoningEffort, forKey: .reasoningEffort)
+        try container.encodeIfPresent(cachedContent, forKey: .cachedContent)
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        model = try container.decode(String.self, forKey: .model)
+        messages = try container.decode([ChatMessage].self, forKey: .messages)
+        tools = try container.decodeIfPresent([ChatTool].self, forKey: .tools)
+        stream = try container.decodeIfPresent(Bool.self, forKey: .stream)
+        temperature = try container.decodeIfPresent(Double.self, forKey: .temperature)
+        maxTokens = try container.decodeIfPresent(Int.self, forKey: .maxTokens)
+        toolChoice = try container.decodeIfPresent(String.self, forKey: .toolChoice)
+        outputSchema = try container.decodeIfPresent([String: AnyCodable].self, forKey: .outputSchema)
+        let rawOptions = try container.decodeIfPresent([String: AnyCodable].self, forKey: .providerOptions)
+        if let rawOptions {
+            if let raw = rawOptions["region"]?.value as? String {
+                region = Region(parsing: raw)
+            }
+            var rest: [String: [String: AnyCodable]] = [:]
+            for (key, value) in rawOptions where key != "region" {
+                if let nested = value.value as? [String: Any] {
+                    rest[key] = nested.mapValues { AnyCodable($0) }
+                }
+            }
+            providerOptions = rest.isEmpty ? nil : rest
+        }
+        capabilities = try container.decodeIfPresent([String].self, forKey: .capabilities)
+        reasoningEffort = try container.decodeIfPresent(String.self, forKey: .reasoningEffort)
+        cachedContent = try container.decodeIfPresent(String.self, forKey: .cachedContent)
     }
 }
 

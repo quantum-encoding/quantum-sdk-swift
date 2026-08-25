@@ -16,15 +16,29 @@ public struct CreateKeyRequest: Codable, Sendable {
     /// Rate limit in requests per minute.
     public var rateLimit: Int?
 
-    public init(name: String, endpoints: [String]? = nil, spendCapUsd: Double? = nil, rateLimit: Int? = nil) {
+    /// Routing region for every request made with this key: `"americas"`,
+    /// `"europe"`, or `"asia"` (see ``Region``). The gateway scopes the
+    /// key's inference routing to that region; nil = unscoped legacy
+    /// routing. Honored on standard key creation only — partner and
+    /// ephemeral keys ignore it.
+    public var region: String?
+
+    public init(
+        name: String,
+        endpoints: [String]? = nil,
+        spendCapUsd: Double? = nil,
+        rateLimit: Int? = nil,
+        region: Region? = nil
+    ) {
         self.name = name
         self.endpoints = endpoints
         self.spendCapUsd = spendCapUsd
         self.rateLimit = rateLimit
+        self.region = region?.rawValue
     }
 
     enum CodingKeys: String, CodingKey {
-        case name, endpoints
+        case name, endpoints, region
         case spendCapUsd = "spend_cap_usd"
         case rateLimit = "rate_limit"
     }
@@ -64,6 +78,17 @@ public struct KeyDetails: Codable, Sendable {
         case spentTicks = "spent_ticks"
         case createdAt = "created_at"
         case lastUsed = "last_used"
+    }
+
+    /// The key's effective routing region from its scope (`scope.region`) —
+    /// `nil` for unscoped legacy keys. Compare against ``Region`` raw
+    /// values or re-parse with ``Region/init(parsing:)``.
+    public var scopeRegion: String? {
+        guard let scopeDict = scope?.value as? [String: Any],
+              let region = scopeDict["region"] as? String,
+              !region.isEmpty
+        else { return nil }
+        return region
     }
 }
 
