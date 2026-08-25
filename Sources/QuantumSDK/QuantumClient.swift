@@ -109,6 +109,47 @@ public final class QuantumClient: Sendable {
         return publicMeta
     }
 
+    // MARK: - Routing Region
+
+    /// Lock guarding `_region`. Same Sendable discipline as the meta slot.
+    private let regionLock = NSLock()
+    private var _region: Region?
+
+    /// The client-level routing region applied to chat requests
+    /// (region-scoped inference routing — EU AI Act Art 50). `nil` = no
+    /// client-level routing; the key's scope (or unscoped legacy) decides.
+    public var region: Region? {
+        regionLock.lock()
+        defer { regionLock.unlock() }
+        return _region
+    }
+
+    /// Sets (or clears, with `nil`) the routing region for this client's
+    /// chat traffic.
+    ///
+    /// The region rides `provider_options.region` on every chat /
+    /// chatStream request the client sends — unless the request itself
+    /// already sets one (``ChatRequest/region`` wins). Only `/qai/v1/chat`
+    /// honors the override; the agent endpoint routes by the key's scope.
+    /// Apps that let their user pick a region call this once at startup and
+    /// again whenever the pick changes — no per-call-site wiring needed.
+    public func setRegion(_ region: Region?) {
+        regionLock.lock()
+        _region = region
+        regionLock.unlock()
+    }
+
+    /// Applies the client-level routing region to a chat request unless the
+    /// request already chose one. Internal so the wire-shape tests can
+    /// exercise it without a network round trip.
+    func applyRegion(_ request: ChatRequest) -> ChatRequest {
+        var req = request
+        if req.region == nil, let region = self.region {
+            req.region = region
+        }
+        return req
+    }
+
     /// JSON POST/GET chokepoint that records response meta into
     /// ``lastResponseMeta``. Every ``doJSON`` call routes through here so meta
     /// is never discarded. Billing-bearing callers pass an `idempotencyKey`
@@ -174,7 +215,7 @@ public final class QuantumClient: Sendable {
     ///     auto-generates a UUID so retries against the gateway dedup; pass an
     ///     explicit value only when you want caller-controlled dedup scope.
     public func chat(_ request: ChatRequest, idempotencyKey: String? = nil) async throws -> ChatResponse {
-        var req = request
+        var req = applyRegion(request)
         req.stream = false
         let (data, meta): (ChatResponse, HTTPClient.ResponseMeta) = try await doReq(
             method: "POST", path: "/qai/v1/chat", body: req,
@@ -229,7 +270,7 @@ public final class QuantumClient: Sendable {
     ///     auto-generates a UUID so a reconnected/duplicated stream request
     ///     dedups at the gateway.
     public func chatStream(_ request: ChatRequest, idempotencyKey: String? = nil) -> AsyncThrowingStream<StreamEvent, any Error> {
-        var req = request
+        var req = applyRegion(request)
         req.stream = true
         let key = idempotencyKey ?? UUID().uuidString
 

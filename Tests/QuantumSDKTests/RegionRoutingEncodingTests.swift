@@ -131,4 +131,48 @@ final class RegionRoutingEncodingTests: XCTestCase {
         XCTAssertEqual(request.region, .asia)
         XCTAssertEqual(request.providerOptions?["anthropic"]?["thinking"]?.value as? Bool, true)
     }
+
+    // MARK: Client-level hook
+
+    func testClientRegionAppliesToChatRequests() throws {
+        let client = QuantumClient(apiKey: "qai_k_test")
+        client.setRegion(.asia)
+        let request = ChatRequest(model: "qwen3.8-27b", messages: [.user("hi")])
+        let applied = client.applyRegion(request)
+        XCTAssertEqual(applied.region, .asia)
+        XCTAssertNil(request.region, "the caller's request stays untouched")
+        // And the applied request encodes the override on the wire.
+        let decoded = try XCTUnwrap(
+            try JSONSerialization.jsonObject(with: try JSONEncoder().encode(applied))
+                as? [String: Any]
+        )
+        let options = try XCTUnwrap(decoded["provider_options"] as? [String: Any])
+        XCTAssertEqual(options["region"] as? String, "asia")
+    }
+
+    func testRequestLevelRegionWinsOverClientLevel() {
+        let client = QuantumClient(apiKey: "qai_k_test")
+        client.setRegion(.europe)
+        let request = ChatRequest(
+            model: "claude-sonnet-4-6",
+            messages: [.user("hi")],
+            region: .americas
+        )
+        XCTAssertEqual(client.applyRegion(request).region, .americas)
+    }
+
+    func testClientWithoutRegionLeavesRequestsAlone() {
+        let client = QuantumClient(apiKey: "qai_k_test")
+        let request = ChatRequest(model: "gemini-flash-latest", messages: [.user("hi")])
+        XCTAssertNil(client.applyRegion(request).region)
+        XCTAssertNil(client.region)
+    }
+
+    func testSetRegionNilClearsTheHook() {
+        let client = QuantumClient(apiKey: "qai_k_test")
+        client.setRegion(.asia)
+        XCTAssertEqual(client.region, .asia)
+        client.setRegion(nil)
+        XCTAssertNil(client.region)
+    }
 }
