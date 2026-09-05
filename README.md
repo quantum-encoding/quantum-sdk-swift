@@ -8,7 +8,7 @@ Add to your `Package.swift`:
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/quantum-encoding/quantum-sdk-swift.git", from: "0.7.0"),
+    .package(url: "https://github.com/quantum-encoding/quantum-sdk-swift.git", from: "0.9.0"),
 ]
 ```
 
@@ -211,7 +211,7 @@ before assuming a method exists.
 | Go | quantum-sdk | 0.7.0 | `go get github.com/quantum-encoding/quantum-sdk` |
 | TypeScript | @quantum-encoding/quantum-sdk | 0.7.1 | `npm i @quantum-encoding/quantum-sdk` |
 | Python | quantum-sdk | 0.7.1 | `pip install quantum-sdk` |
-| **Swift** | QuantumSDK | 0.7.0 | Swift Package Manager |
+| **Swift** | QuantumSDK | 0.9.0 | Swift Package Manager |
 | Kotlin | quantum-sdk | 0.5.0 | Gradle dependency |
 
 MCP server: `npx @quantum-encoding/ai-conductor-mcp`

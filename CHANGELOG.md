@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.9.0 — unreleased
+## 0.9.0
 
 Parity with the Rust reference crate at 0.9.0, and with the gateway as of
 September 2026. Every request body now carries the keys its handler reads, and
