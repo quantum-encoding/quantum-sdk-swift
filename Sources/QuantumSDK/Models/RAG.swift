@@ -1,39 +1,5 @@
 import Foundation
 
-// MARK: - Null-tolerant map decoding
-
-// The list form, ``NullToEmpty``, lives in Models/WireDecoding.swift.
-
-/// Decodes a JSON object keyed by string that the gateway may send as `null`
-/// (a nil Go map) or omit entirely, yielding an empty dictionary in both
-/// cases.
-@propertyWrapper
-public struct NullToEmptyMap<Value: Codable & Sendable>: Codable, Sendable {
-    public var wrappedValue: [String: Value]
-
-    public init(wrappedValue: [String: Value] = [:]) {
-        self.wrappedValue = wrappedValue
-    }
-
-    public init(from decoder: Decoder) throws {
-        let container = try decoder.singleValueContainer()
-        wrappedValue = container.decodeNil() ? [:] : try container.decode([String: Value].self)
-    }
-
-    public func encode(to encoder: Encoder) throws {
-        try wrappedValue.encode(to: encoder)
-    }
-}
-
-extension NullToEmptyMap: Equatable where Value: Equatable {}
-
-extension KeyedDecodingContainer {
-    /// A missing key decodes to an empty dictionary, the same as an explicit `null`.
-    public func decode<V>(_ type: NullToEmptyMap<V>.Type, forKey key: Key) throws -> NullToEmptyMap<V> {
-        try decodeIfPresent(type, forKey: key) ?? NullToEmptyMap()
-    }
-}
-
 // MARK: - RAG Search
 
 /// Request body for Vertex AI RAG search.
