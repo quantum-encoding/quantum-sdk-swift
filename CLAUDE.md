@@ -46,6 +46,18 @@ cannot judge. These rows are intended divergence — do not "fix" them:
 - The `Scrape*` / `Screenshot*` types — those gateway routes were retired to
   close an abuse vector. Rust still carries deprecated stubs; Swift carries
   nothing. This gap is permanent by design.
+- Types that are `Sendable` but not `Codable`: the multipart document bodies
+  (`DocumentRequest`, `ChunkDocumentRequest`, `ProcessDocumentRequest`), the
+  query-parameter configs (`AudioSoundsQuery`, `ElevenLabsProxyConfig`), the
+  local stream wrappers (`StreamSession`, `SessionChatStream`,
+  `StreamToolUseInputDelta`) and `RuntimeAgentUpdate`. None of these travels as
+  JSON — their properties are read as form parts, query values or plain Swift —
+  so they have no `CodingKeys`, and the diff compares a camelCase property name
+  against a snake_case wire tag that was never there.
+- `balance_after` on `TtsResponse`, `SttResponse` and `MusicResponse`. The
+  gateway sends it as the `X-QAI-Balance-After` header, and
+  `QuantumClient.lastResponseMeta` is the documented way to read per-request
+  cost for a response that does not carry it inline.
 
 Anything else in the diff is worth investigating against the Rust source before
 changing Swift: the scanner has had blind spots before (property-wrapped
@@ -61,7 +73,13 @@ When adding missing types, follow the Rust SDK's field names and JSON serializat
 - Rust `Vec<T>` → Swift `[T]`
 - Rust `String` → Swift `String`
 - Rust `serde(rename = "snake_case")` → Swift `CodingKeys` enum with `case camelCase = "snake_case"`
-- All public types should conform to `Codable, Sendable`
+- A type that travels as JSON conforms to `Codable, Sendable`. One that does not
+  — a multipart body, a query-parameter config, a local wrapper around a stream
+  — is `Sendable` only, and adding `Codable` to it would invent a wire shape
+  that nothing reads.
+- Rust `#[serde(flatten)]` → an `extra: [String: AnyCodable]` encoded into the
+  same container as the typed keys; see `ImageRequest` and the helpers in
+  `Models/WireDecoding.swift`.
 
 ## API Server
 
