@@ -332,9 +332,11 @@ extension QuantumClient {
     /// Poll one music finetune's training status. When status == "complete",
     /// `modelId` carries the usable model identifier for generation.
     ///
-    /// The gateway registers only `DELETE` on this path today, so the call
-    /// answers 405 until `GET /qai/v1/audio/finetunes/{id}` is wired;
-    /// ``listFinetunes()`` carries the same per-finetune shape meanwhile.
+    /// Only the caller's own finetunes are readable. ElevenLabs is the only
+    /// provider with music finetunes, so another provider's account gets a
+    /// `provider_error`.
+    ///
+    /// `GET /qai/v1/audio/finetunes/{id}`
     public func getFinetune(id: String) async throws -> FinetuneInfo {
         let (data, _): (FinetuneInfo, _) = try await doReq(
             method: "GET", path: "/qai/v1/audio/finetunes/\(id)"
