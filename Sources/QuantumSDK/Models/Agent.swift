@@ -497,6 +497,15 @@ public struct MissionRequest: Codable, Sendable {
     /// `"codegen"`; ignored otherwise.
     public var workspacePath: String?
 
+    /// Reference material for the conductor: uploaded files, pasted docs.
+    /// Free-form. Prepended to ``goal`` only when ``useContext`` is true and
+    /// this is non-empty, so the harness sees context followed by the goal.
+    public var context: String?
+
+    /// Whether ``context`` is prepended to the goal. False or absent leaves
+    /// the goal as written, whatever ``context`` holds.
+    public var useContext: Bool?
+
     public init(
         goal: String,
         strategy: String? = nil,
@@ -509,7 +518,9 @@ public struct MissionRequest: Codable, Sendable {
         contextConfig: ContextConfig? = nil,
         deploymentId: String? = nil,
         buildCommand: String? = nil,
-        workspacePath: String? = nil
+        workspacePath: String? = nil,
+        context: String? = nil,
+        useContext: Bool? = nil
     ) {
         self.goal = goal
         self.strategy = strategy
@@ -523,10 +534,12 @@ public struct MissionRequest: Codable, Sendable {
         self.deploymentId = deploymentId
         self.buildCommand = buildCommand
         self.workspacePath = workspacePath
+        self.context = context
+        self.useContext = useContext
     }
 
     enum CodingKeys: String, CodingKey {
-        case goal, strategy, workers
+        case goal, strategy, workers, context
         case conductorModel = "conductor_model"
         case conductorTier = "conductor_tier"
         case maxSteps = "max_steps"
@@ -536,6 +549,7 @@ public struct MissionRequest: Codable, Sendable {
         case deploymentId = "deployment_id"
         case buildCommand = "build_command"
         case workspacePath = "workspace_path"
+        case useContext = "use_context"
     }
 }
 

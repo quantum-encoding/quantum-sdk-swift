@@ -36,6 +36,15 @@ public struct MissionCreateRequest: Codable, Sendable {
     /// caller (404 otherwise).
     public var sessionId: String?
 
+    /// Reference material for the conductor: uploaded files, pasted docs.
+    /// Free-form. Prepended to ``goal`` only when ``useContext`` is true and
+    /// this is non-empty, so the harness sees context followed by the goal.
+    public var context: String?
+
+    /// Whether ``context`` is prepended to the goal. False or absent leaves
+    /// the goal as written, whatever ``context`` holds.
+    public var useContext: Bool?
+
     public init(
         goal: String,
         strategy: String? = nil,
@@ -44,7 +53,9 @@ public struct MissionCreateRequest: Codable, Sendable {
         workers: [String: MissionWorkerDetail]? = nil,
         maxSteps: Int? = nil,
         systemPrompt: String? = nil,
-        sessionId: String? = nil
+        sessionId: String? = nil,
+        context: String? = nil,
+        useContext: Bool? = nil
     ) {
         self.goal = goal
         self.strategy = strategy
@@ -54,15 +65,18 @@ public struct MissionCreateRequest: Codable, Sendable {
         self.maxSteps = maxSteps
         self.systemPrompt = systemPrompt
         self.sessionId = sessionId
+        self.context = context
+        self.useContext = useContext
     }
 
     enum CodingKeys: String, CodingKey {
-        case goal, strategy, workers
+        case goal, strategy, workers, context
         case conductorModel = "conductor_model"
         case conductorTier = "conductor_tier"
         case maxSteps = "max_steps"
         case systemPrompt = "system_prompt"
         case sessionId = "session_id"
+        case useContext = "use_context"
     }
 }
 

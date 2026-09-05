@@ -37,6 +37,35 @@ final class AgentsMissionsTests: XCTestCase {
         XCTAssertEqual(Set(json.keys), ["goal", "strategy", "conductor_tier", "workers", "build_command", "workspace_path"])
     }
 
+    func testMissionContextReachesBothMissionRoutes() throws {
+        // `/qai/v1/missions` and `/qai/v1/missions/create` decode the same
+        // gateway struct and both call EffectiveGoal(), which prepends
+        // `context` to `goal` only when `use_context` is set. Neither key
+        // implies the other, so both have to travel.
+        let streamed = try encodeToObject(MissionRequest(
+            goal: "summarise the spec",
+            context: "[File: spec.md]```draft```",
+            useContext: true
+        ))
+        XCTAssertEqual(streamed["context"] as? String, "[File: spec.md]```draft```")
+        XCTAssertEqual(streamed["use_context"] as? Bool, true)
+
+        let created = try encodeToObject(MissionCreateRequest(
+            goal: "summarise the spec",
+            context: "[File: spec.md]```draft```",
+            useContext: true
+        ))
+        XCTAssertEqual(created["context"] as? String, "[File: spec.md]```draft```")
+        XCTAssertEqual(created["use_context"] as? Bool, true)
+
+        // Context without the flag is sent but not applied, and the flag
+        // alone sends no context: both are the caller's to get wrong.
+        let unflagged = try encodeToObject(MissionRequest(goal: "g", context: "c"))
+        XCTAssertEqual(unflagged["context"] as? String, "c")
+        XCTAssertNil(unflagged["use_context"])
+        XCTAssertNil(try encodeToObject(MissionRequest(goal: "g"))["context"])
+    }
+
     func testWorkersEncodeAsAMapKeyedByName() throws {
         let json = try encodeToObject(MissionCreateRequest(
             goal: "g",

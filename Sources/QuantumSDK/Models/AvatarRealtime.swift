@@ -65,17 +65,27 @@ public struct AvatarRealtimeRequest: Codable, Sendable {
     /// HeyGen photo-avatar / motion-avatar look id (required for all kinds).
     public var avatarId: String
 
-    /// Voice id — required for "tts" and "text_stream", must be omitted for "audio".
+    /// Voice id — required for "tts" and "text_stream", must be omitted for
+    /// "audio". Nothing here enforces that against ``audio``. Setting both
+    /// passes the gateway's own validation and reserves the full prepaid block
+    /// before the upstream rejects the combination; the hold is released, so
+    /// nothing is charged, but the failure arrives as a 502 `provider_error`
+    /// rather than the 400 the combination deserves.
     public var voiceId: String?
 
     /// The fixed script ("tts") or the initial non-empty seed ("text_stream").
     public var text: String?
 
-    /// Audio input — required for "audio", must be omitted for "tts"/"text_stream".
+    /// Audio input — required for "audio", must be omitted for
+    /// "tts"/"text_stream". Mutually exclusive with ``voiceId``, which is not
+    /// enforced here; see there for what a violation costs.
     public var audio: AvatarAudioInput?
 
-    /// Prepaid block in seconds (1–3600). The whole block is charged at
-    /// create time; early cancel does not refund.
+    /// Prepaid block in seconds, 1–3600. The whole block is held at create
+    /// time and settled in full once the session exists, so an early cancel
+    /// does not refund it. The range is not checked here either, and an
+    /// out-of-range value fails upstream the same way — after the hold, not
+    /// before it.
     public var maxDurationSeconds: Int
 
     public init(
