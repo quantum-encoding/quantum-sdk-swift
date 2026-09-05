@@ -113,12 +113,17 @@ public struct ParameterSpec: Codable, Identifiable, Hashable, Sendable {
 // MARK: - ParameterValue
 
 /// Heterogeneous JSON-like value carried in `default` and in user-selected
-/// settings. Supports the four primitive shapes the schema uses.
-public enum ParameterValue: Codable, Hashable, Sendable {
+/// settings. The four primitive shapes are what the schema uses; an array
+/// or object default (the gateway's `default` is untyped) decodes as
+/// ``array(_:)`` / ``object(_:)`` so one such entry cannot fail the whole
+/// model list.
+public indirect enum ParameterValue: Codable, Hashable, Sendable {
     case string(String)
     case int(Int)
     case double(Double)
     case bool(Bool)
+    case array([ParameterValue])
+    case object([String: ParameterValue])
 
     // MARK: Codable
 
@@ -128,9 +133,11 @@ public enum ParameterValue: Codable, Hashable, Sendable {
         if let v = try? c.decode(Int.self) { self = .int(v); return }
         if let v = try? c.decode(Double.self) { self = .double(v); return }
         if let v = try? c.decode(String.self) { self = .string(v); return }
+        if let v = try? c.decode([ParameterValue].self) { self = .array(v); return }
+        if let v = try? c.decode([String: ParameterValue].self) { self = .object(v); return }
         throw DecodingError.dataCorruptedError(
             in: c,
-            debugDescription: "ParameterValue must be string/int/double/bool"
+            debugDescription: "ParameterValue must be a JSON string, number, bool, array or object"
         )
     }
 
@@ -141,6 +148,8 @@ public enum ParameterValue: Codable, Hashable, Sendable {
         case .int(let v):    try c.encode(v)
         case .double(let v): try c.encode(v)
         case .bool(let v):   try c.encode(v)
+        case .array(let v):  try c.encode(v)
+        case .object(let v): try c.encode(v)
         }
     }
 
@@ -152,6 +161,7 @@ public enum ParameterValue: Codable, Hashable, Sendable {
         case .int(let v):    return String(v)
         case .double(let v): return String(v)
         case .bool(let v):   return String(v)
+        case .array, .object: return nil
         }
     }
 
@@ -161,6 +171,7 @@ public enum ParameterValue: Codable, Hashable, Sendable {
         case .double(let v): return Int(v)
         case .string(let v): return Int(v)
         case .bool(let v):   return v ? 1 : 0
+        case .array, .object: return nil
         }
     }
 
@@ -170,6 +181,7 @@ public enum ParameterValue: Codable, Hashable, Sendable {
         case .int(let v):    return Double(v)
         case .string(let v): return Double(v)
         case .bool(let v):   return v ? 1 : 0
+        case .array, .object: return nil
         }
     }
 
@@ -179,6 +191,7 @@ public enum ParameterValue: Codable, Hashable, Sendable {
         case .int(let v):    return v != 0
         case .string(let v): return Bool(v)
         case .double(let v): return v != 0
+        case .array, .object: return nil
         }
     }
 }

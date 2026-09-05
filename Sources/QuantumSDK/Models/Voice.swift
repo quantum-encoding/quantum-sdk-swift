@@ -10,6 +10,9 @@ public struct Voice: Codable, Sendable {
     /// Human-readable voice name.
     public var name: String
 
+    /// Voice category (e.g. "premade", "cloned", "professional").
+    public var category: String
+
     /// Provider (e.g. "elevenlabs", "openai", "gemini").
     public var provider: String?
 
@@ -18,23 +21,40 @@ public struct Voice: Codable, Sendable {
     /// standard default; callers may override.
     public var model: String?
 
-    /// Language/locale codes supported.
+    /// Language/locale codes supported (not sent by the gateway today).
     public var languages: [String]?
 
-    /// Voice gender.
+    /// Voice gender (not sent by the gateway today).
     public var gender: String?
 
     /// Whether this is a cloned voice.
     public var isCloned: Bool?
 
+    /// Voice description.
+    public var description: String?
+
     /// Preview audio URL.
     public var previewUrl: String?
 
     enum CodingKeys: String, CodingKey {
-        case name, provider, model, languages, gender
+        case name, category, provider, model, languages, gender, description
         case voiceId = "voice_id"
         case isCloned = "is_cloned"
         case previewUrl = "preview_url"
+    }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        voiceId = try c.decode(String.self, forKey: .voiceId)
+        name = try c.decode(String.self, forKey: .name)
+        category = try c.decodeIfPresent(String.self, forKey: .category) ?? ""
+        provider = try c.decodeIfPresent(String.self, forKey: .provider)
+        model = try c.decodeIfPresent(String.self, forKey: .model)
+        languages = try c.decodeIfPresent([String].self, forKey: .languages)
+        gender = try c.decodeIfPresent(String.self, forKey: .gender)
+        isCloned = try c.decodeIfPresent(Bool.self, forKey: .isCloned)
+        description = try c.decodeIfPresent(String.self, forKey: .description)
+        previewUrl = try c.decodeIfPresent(String.self, forKey: .previewUrl)
     }
 }
 
@@ -43,27 +63,47 @@ public typealias VoiceInfo = Voice
 
 /// Response from listing voices.
 public struct VoicesResponse: Codable, Sendable {
-    /// Available voices.
-    public var voices: [Voice]
+    /// Available voices: built-in catalogs first, then the live ElevenLabs
+    /// library (omitted when that fetch fails).
+    @NullToEmpty public var voices: [Voice]
+
+    /// Unique request identifier.
+    public var requestId: String
+
+    enum CodingKeys: String, CodingKey {
+        case voices
+        case requestId = "request_id"
+    }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        _voices = try c.decode(NullToEmpty<Voice>.self, forKey: .voices)
+        requestId = try c.decodeIfPresent(String.self, forKey: .requestId) ?? ""
+    }
 }
 
 // MARK: - Clone Voice
 
-/// A file to include in a voice clone request.
-public struct CloneVoiceFile: Sendable {
-    /// Original filename (e.g. "sample.mp3").
-    public var filename: String
+/// Request body for instant voice cloning from audio samples.
+public struct CloneVoiceRequest: Codable, Sendable {
+    /// Display name for the cloned voice.
+    public var name: String
 
-    /// Raw file bytes.
-    public var data: Data
+    /// Description of the voice.
+    public var description: String?
 
-    /// MIME type (e.g. "audio/mpeg").
-    public var mimeType: String
+    /// Base64-encoded audio files for cloning (at least one).
+    public var audioSamples: [String]
 
-    public init(filename: String, data: Data, mimeType: String) {
-        self.filename = filename
-        self.data = data
-        self.mimeType = mimeType
+    public init(name: String, description: String? = nil, audioSamples: [String]) {
+        self.name = name
+        self.description = description
+        self.audioSamples = audioSamples
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case name, description
+        case audioSamples = "audio_samples"
     }
 }
 
@@ -72,16 +112,23 @@ public struct CloneVoiceResponse: Codable, Sendable {
     /// The new voice identifier.
     public var voiceId: String
 
-    /// The name assigned to the cloned voice. Optional because the gateway
-    /// may return only `voice_id` and `request_id`.
-    public var name: String?
+    /// The name assigned to the cloned voice (echo of the request).
+    public var name: String
 
-    /// Status message.
-    public var status: String?
+    /// Unique request identifier.
+    public var requestId: String
 
     enum CodingKeys: String, CodingKey {
-        case name, status
+        case name
         case voiceId = "voice_id"
+        case requestId = "request_id"
+    }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        voiceId = try c.decode(String.self, forKey: .voiceId)
+        name = try c.decodeIfPresent(String.self, forKey: .name) ?? ""
+        requestId = try c.decodeIfPresent(String.self, forKey: .requestId) ?? ""
     }
 }
 
@@ -98,7 +145,7 @@ public struct SharedVoice: Codable, Sendable {
     /// Voice name.
     public var name: String
 
-    /// Category.
+    /// Category (e.g. "professional", "generated").
     public var category: String?
 
     /// Description.
@@ -122,6 +169,12 @@ public struct SharedVoice: Codable, Sendable {
     /// Use case.
     public var useCase: String?
 
+    /// Free-text descriptive tag.
+    public var descriptive: String?
+
+    /// Characters synthesised with this voice across the library.
+    public var usageCharacterCount: Int64?
+
     /// Rating.
     public var rate: Double?
 
@@ -131,44 +184,57 @@ public struct SharedVoice: Codable, Sendable {
     /// Whether free users can use this voice.
     public var freeUsersAllowed: Bool?
 
+    /// Whether live moderation applies to this voice.
+    public var liveModerationEnabled: Bool?
+
     enum CodingKeys: String, CodingKey {
-        case name, category, description, gender, age, accent, language, rate
+        case name, category, description, gender, age, accent, language, rate, descriptive
         case publicOwnerId = "public_owner_id"
         case voiceId = "voice_id"
         case previewUrl = "preview_url"
         case useCase = "use_case"
+        case usageCharacterCount = "usage_character_count"
         case clonedByCount = "cloned_by_count"
         case freeUsersAllowed = "free_users_allowed"
+        case liveModerationEnabled = "live_moderation_enabled"
     }
 }
 
 /// Response from browsing the voice library.
 public struct SharedVoicesResponse: Codable, Sendable {
-    /// Shared voices.
-    public var voices: [SharedVoice]
-
-    /// Cursor for pagination.
-    public var nextCursor: String?
+    /// Shared voices matching the query.
+    @NullToEmpty public var voices: [SharedVoice]
 
     /// Whether more results are available.
     public var hasMore: Bool
 
+    /// Pagination cursor: pass as ``VoiceLibraryQuery/cursor`` to fetch the
+    /// next page while `hasMore` is true.
+    public var lastSortId: String?
+
     enum CodingKeys: String, CodingKey {
         case voices
-        case nextCursor = "next_cursor"
         case hasMore = "has_more"
+        case lastSortId = "last_sort_id"
+    }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        _voices = try c.decode(NullToEmpty<SharedVoice>.self, forKey: .voices)
+        hasMore = try c.decodeIfPresent(Bool.self, forKey: .hasMore) ?? false
+        lastSortId = try c.decodeIfPresent(String.self, forKey: .lastSortId)
     }
 }
 
 /// Query parameters for browsing the voice library.
 public struct VoiceLibraryQuery: Codable, Sendable {
-    /// Search query.
+    /// Search text. Wire param: `q`.
     public var query: String?
 
-    /// Page size.
+    /// Maximum number of results per page (gateway default 30).
     public var pageSize: Int?
 
-    /// Pagination cursor.
+    /// Pagination cursor: the previous response's `lastSortId`.
     public var cursor: String?
 
     /// Filter by gender.
@@ -197,9 +263,26 @@ public struct VoiceLibraryQuery: Codable, Sendable {
     }
 
     enum CodingKeys: String, CodingKey {
-        case query, cursor, gender, language
+        case cursor, gender, language
+        case query = "q"
         case pageSize = "page_size"
         case useCase = "use_case"
+    }
+
+    /// The route's query-string pairs, in wire order, values percent-encoded.
+    var queryItems: [String] {
+        var params: [String] = []
+        if let q = query { params.append("q=\(Self.encode(q))") }
+        if let ps = pageSize { params.append("page_size=\(ps)") }
+        if let c = cursor { params.append("cursor=\(Self.encode(c))") }
+        if let g = gender { params.append("gender=\(Self.encode(g))") }
+        if let l = language { params.append("language=\(Self.encode(l))") }
+        if let u = useCase { params.append("use_case=\(Self.encode(u))") }
+        return params
+    }
+
+    private static func encode(_ value: String) -> String {
+        value.addingPercentEncoding(withAllowedCharacters: .urlQueryValueAllowed) ?? value
     }
 }
 
@@ -232,32 +315,28 @@ public struct AddVoiceFromLibraryResponse: Codable, Sendable {
     /// ID of the added voice.
     public var voiceId: String
 
+    /// Always "added".
+    public var status: String
+
     enum CodingKeys: String, CodingKey {
+        case status
         case voiceId = "voice_id"
+    }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        voiceId = try c.decode(String.self, forKey: .voiceId)
+        status = try c.decodeIfPresent(String.self, forKey: .status) ?? ""
     }
 }
 
-// MARK: - Clone Voice Request
-
-/// Request body for instant voice cloning from audio samples (JSON path).
-public struct CloneVoiceRequest: Codable, Sendable {
-    /// Display name for the cloned voice.
-    public var name: String
-
-    /// Description of the voice.
-    public var description: String?
-
-    /// Base64-encoded audio files for cloning.
-    public var audioSamples: [String]
-
-    public init(name: String, description: String? = nil, audioSamples: [String]) {
-        self.name = name
-        self.description = description
-        self.audioSamples = audioSamples
-    }
-
-    enum CodingKeys: String, CodingKey {
-        case name, description
-        case audioSamples = "audio_samples"
-    }
+extension CharacterSet {
+    /// Characters that may appear unescaped in a query-string *value*:
+    /// unreserved characters only, so `&`, `=`, `+`, `?` and `/` inside a
+    /// value are escaped rather than parsed as delimiters.
+    static let urlQueryValueAllowed: CharacterSet = {
+        var set = CharacterSet.alphanumerics
+        set.insert(charactersIn: "-._~")
+        return set
+    }()
 }

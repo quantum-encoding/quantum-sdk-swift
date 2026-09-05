@@ -85,15 +85,14 @@ extension QuantumClient {
     /// `audioUrl` values are pre-signed WAV links with a limited lifetime —
     /// download promptly, do not cache.
     public func searchAudioSounds(_ query: AudioSoundsQuery) async throws -> AudioSoundsResponse {
-        var params: [String] = [
-            "query=\(query.query.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? query.query)"
-        ]
-        if let t = query.soundType { params.append("type=\(t)") }
+        let encode = { (value: String) in
+            value.addingPercentEncoding(withAllowedCharacters: .urlQueryValueAllowed) ?? value
+        }
+        var params: [String] = ["query=\(encode(query.query))"]
+        if let t = query.soundType { params.append("type=\(encode(t))") }
         if let limit = query.limit { params.append("limit=\(limit)") }
         if let minScore = query.minScore { params.append("min_score=\(minScore)") }
-        if let token = query.token {
-            params.append("token=\(token.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? token)")
-        }
+        if let token = query.token { params.append("token=\(encode(token))") }
         let path = "/qai/v1/audio/sounds?" + params.joined(separator: "&")
 
         let (data, _): (AudioSoundsResponse, _) = try await http.doJSON(method: "GET", path: path)
@@ -121,8 +120,10 @@ extension QuantumClient {
     /// Returns the accepted-job envelope — poll with ``getJob(jobId:)`` /
     /// ``pollJob(jobId:interval:maxAttempts:)`` (or SSE via
     /// ``streamJob(jobId:)``) until "completed"/"failed", then read
-    /// `result.video_url`. Deep validation happens at execution time, so
-    /// violations surface as a failed job rather than a 4xx at submit.
+    /// `result.video_url`. Submit rejects at once with 400 for an empty
+    /// `variables` map and 402 when the balance is below the $1 render
+    /// preflight; only HeyGen-side validation of the variable values is
+    /// deferred and surfaces as a failed job.
     public func videoTemplateGenerate(
         templateId: String,
         _ request: VideoTemplateGenerateRequest,
@@ -161,7 +162,7 @@ extension QuantumClient {
         var params: [String] = []
         if let limit = query?.limit { params.append("limit=\(limit)") }
         if let token = query?.token {
-            params.append("token=\(token.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? token)")
+            params.append("token=\(token.addingPercentEncoding(withAllowedCharacters: .urlQueryValueAllowed) ?? token)")
         }
         var path = "/qai/v1/video/batch/\(batchId)"
         if !params.isEmpty { path += "?" + params.joined(separator: "&") }

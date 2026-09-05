@@ -34,24 +34,29 @@ public struct VideoRequest: Codable, Sendable {
 
 /// A single generated video.
 public struct GeneratedVideo: Codable, Sendable {
-    /// Base64-encoded video data (or a URL).
-    public var base64: String?
+    /// Base64-encoded video bytes (never a URL on this route).
+    public var base64: String
 
     /// Video format (e.g. "mp4").
-    public var format: String?
+    public var format: String
 
     /// Video file size.
-    public var sizeBytes: Int64?
+    public var sizeBytes: Int64
 
     /// Video index within the batch.
-    public var index: Int?
-
-    /// URL of the generated video (legacy).
-    public var url: String?
+    public var index: Int
 
     enum CodingKeys: String, CodingKey {
-        case base64, format, index, url
+        case base64, format, index
         case sizeBytes = "size_bytes"
+    }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        base64 = try c.decode(String.self, forKey: .base64)
+        format = try c.decodeIfPresent(String.self, forKey: .format) ?? ""
+        sizeBytes = try c.decodeIfPresent(Int64.self, forKey: .sizeBytes) ?? 0
+        index = try c.decodeIfPresent(Int.self, forKey: .index) ?? 0
     }
 }
 
@@ -60,7 +65,7 @@ public struct GeneratedVideo: Codable, Sendable {
 /// Response from video generation.
 public struct VideoResponse: Codable, Sendable {
     /// Generated videos.
-    public var videos: [GeneratedVideo]
+    @NullToEmpty public var videos: [GeneratedVideo]
 
     /// Model used.
     public var model: String
@@ -68,129 +73,101 @@ public struct VideoResponse: Codable, Sendable {
     /// Total cost in ticks.
     public var costTicks: Int64
 
+    /// Post-charge credit balance in ticks, when the body carries it.
+    public var balanceAfter: Int64?
+
     /// Unique request identifier.
     public var requestId: String
 
     enum CodingKeys: String, CodingKey {
         case videos, model
         case costTicks = "cost_ticks"
+        case balanceAfter = "balance_after"
         case requestId = "request_id"
     }
-}
 
-// MARK: - Job Response
-
-/// Response from async video job submission.
-public struct JobResponse: Codable, Sendable {
-    /// Job identifier for polling status.
-    public var jobId: String
-
-    /// Current status.
-    public var status: String
-
-    /// Total cost in ticks (may be 0 until job completes).
-    public var costTicks: Int64
-
-    enum CodingKeys: String, CodingKey {
-        case status
-        case jobId = "job_id"
-        case costTicks = "cost_ticks"
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        _videos = try c.decode(NullToEmpty<GeneratedVideo>.self, forKey: .videos)
+        model = try c.decode(String.self, forKey: .model)
+        costTicks = try c.decodeIfPresent(Int64.self, forKey: .costTicks) ?? 0
+        balanceAfter = try c.decodeIfPresent(Int64.self, forKey: .balanceAfter)
+        requestId = try c.decodeIfPresent(String.self, forKey: .requestId) ?? ""
     }
 }
+
+/// Backwards-compatible alias: the HeyGen video routes answer with the
+/// shared 202 job envelope (which never carries a cost).
+public typealias JobResponse = JobAcceptedResponse
 
 // MARK: - HeyGen Studio
 
-/// A clip in a studio video.
-public struct StudioClip: Codable, Sendable {
-    /// Avatar ID.
-    public var avatarId: String?
+/// Request body for a HeyGen studio talking-head video: one avatar reading
+/// one script in one voice. All three fields are required.
+///
+/// Submission is gated by a balance preflight estimated from the script
+/// length, so an under-funded caller gets 402 at submit rather than a
+/// failed job.
+public struct VideoStudioRequest: Codable, Sendable {
+    /// HeyGen avatar id.
+    public var avatarId: String
 
-    /// Voice ID.
-    public var voiceId: String?
+    /// Script the avatar speaks.
+    public var script: String
 
-    /// Script text for this clip.
-    public var script: String?
+    /// HeyGen voice id.
+    public var voiceId: String
 
-    /// Background settings.
-    public var background: AnyCodable?
-
-    public init(avatarId: String? = nil, voiceId: String? = nil, script: String? = nil, background: AnyCodable? = nil) {
+    public init(avatarId: String, script: String, voiceId: String) {
         self.avatarId = avatarId
-        self.voiceId = voiceId
         self.script = script
-        self.background = background
+        self.voiceId = voiceId
     }
 
     enum CodingKeys: String, CodingKey {
-        case script, background
+        case script
         case avatarId = "avatar_id"
         case voiceId = "voice_id"
     }
 }
 
-/// Request body for HeyGen studio video creation.
-public struct StudioVideoRequest: Codable, Sendable {
-    /// Video title.
-    public var title: String?
-
-    /// Video clips.
-    public var clips: [StudioClip]
-
-    /// Video dimensions.
-    public var dimension: String?
-
-    /// Aspect ratio.
-    public var aspectRatio: String?
-
-    public init(clips: [StudioClip], title: String? = nil, dimension: String? = nil, aspectRatio: String? = nil) {
-        self.clips = clips
-        self.title = title
-        self.dimension = dimension
-        self.aspectRatio = aspectRatio
-    }
-
-    enum CodingKeys: String, CodingKey {
-        case title, clips, dimension
-        case aspectRatio = "aspect_ratio"
-    }
-}
-
-/// Parity alias matching Rust SDK naming.
-public typealias VideoStudioRequest = StudioVideoRequest
+/// Backwards-compatible alias.
+public typealias StudioVideoRequest = VideoStudioRequest
 
 // MARK: - HeyGen Translate
 
-/// Request body for video translation.
-public struct TranslateRequest: Codable, Sendable {
-    /// URL of the video to translate.
-    public var videoUrl: String?
+/// Request body for video translation. The source must be reachable by
+/// URL; there is no inline-bytes variant on this route.
+public struct VideoTranslateRequest: Codable, Sendable {
+    /// URL of the video to translate (required).
+    public var videoUrl: String
 
-    /// Base64-encoded video (alternative to URL).
-    public var videoBase64: String?
+    /// Target language (required). Wire field `output_language`.
+    public var outputLanguage: String
 
-    /// Target language code.
-    public var targetLanguage: String
-
-    /// Source language code (auto-detected if omitted).
+    /// Source language (auto-detected if omitted).
     public var sourceLanguage: String?
 
-    public init(targetLanguage: String, videoUrl: String? = nil, videoBase64: String? = nil, sourceLanguage: String? = nil) {
-        self.targetLanguage = targetLanguage
+    /// Title for the translated video.
+    public var title: String?
+
+    public init(videoUrl: String, outputLanguage: String, sourceLanguage: String? = nil, title: String? = nil) {
         self.videoUrl = videoUrl
-        self.videoBase64 = videoBase64
+        self.outputLanguage = outputLanguage
         self.sourceLanguage = sourceLanguage
+        self.title = title
     }
 
     enum CodingKeys: String, CodingKey {
+        case title
         case videoUrl = "video_url"
-        case videoBase64 = "video_base64"
-        case targetLanguage = "target_language"
+        case outputLanguage = "output_language"
         case sourceLanguage = "source_language"
     }
 }
 
-/// Parity alias matching Rust SDK naming.
-public typealias VideoTranslateRequest = TranslateRequest
+/// Backwards-compatible alias.
+public typealias TranslateRequest = VideoTranslateRequest
 
 // MARK: - HeyGen Photo Avatar
 
@@ -223,88 +200,140 @@ public struct PhotoAvatarRequest: Codable, Sendable {
     }
 }
 
-// MARK: - HeyGen Digital Twin
+// MARK: - HeyGen Digital Twin (creation)
 
-/// Request body for digital twin video generation.
-public struct DigitalTwinRequest: Codable, Sendable {
-    /// Digital twin / avatar ID.
-    public var avatarId: String
+/// Request body for creating a digital twin from training footage
+/// (`POST /qai/v1/video/digital-twin`, JSON variant). This trains an avatar;
+/// it does not render a video — see ``TwinVideoRequest`` for that.
+///
+/// A flat fee is held before the body is decoded and released on every
+/// error path, so a rejected request costs nothing but a ledger round-trip.
+public struct DigitalTwinCreateRequest: Codable, Sendable {
+    /// Display name for the twin.
+    public var name: String
 
-    /// Script text.
-    public var script: String
+    /// URL of the training footage (required).
+    public var videoUrl: String
 
-    /// Voice ID (uses twin's default voice if omitted).
-    public var voiceId: String?
+    /// Add the look to an existing avatar group instead of creating one.
+    public var avatarGroupId: String?
 
-    /// Aspect ratio.
-    public var aspectRatio: String?
-
-    public init(avatarId: String, script: String, voiceId: String? = nil, aspectRatio: String? = nil) {
-        self.avatarId = avatarId
-        self.script = script
-        self.voiceId = voiceId
-        self.aspectRatio = aspectRatio
+    public init(name: String, videoUrl: String, avatarGroupId: String? = nil) {
+        self.name = name
+        self.videoUrl = videoUrl
+        self.avatarGroupId = avatarGroupId
     }
 
     enum CodingKeys: String, CodingKey {
-        case script
-        case avatarId = "avatar_id"
-        case voiceId = "voice_id"
-        case aspectRatio = "aspect_ratio"
+        case name
+        case videoUrl = "video_url"
+        case avatarGroupId = "avatar_group_id"
     }
 }
 
 // MARK: - HeyGen Avatars
 
-/// A HeyGen avatar.
+/// A HeyGen avatar look.
 public struct Avatar: Codable, Sendable {
-    /// Avatar identifier.
+    /// Avatar identifier (what the video routes accept as `avatar_id`).
     public var avatarId: String
 
-    /// Avatar name.
-    public var name: String?
+    /// Avatar name. Wire field: `avatar_name`.
+    public var name: String
 
     /// Avatar gender.
-    public var gender: String?
+    public var gender: String
 
-    /// Preview image URL.
-    public var previewUrl: String?
+    /// Preview image URL. Wire field: `preview_image_url`.
+    public var previewUrl: String
+
+    /// Look type: "studio_avatar" | "digital_twin" | "photo_avatar".
+    /// Wire field: `type`.
+    public var avatarType: String
 
     enum CodingKeys: String, CodingKey {
-        case name, gender
+        case gender
         case avatarId = "avatar_id"
-        case previewUrl = "preview_url"
+        case name = "avatar_name"
+        case previewUrl = "preview_image_url"
+        case avatarType = "type"
+    }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        avatarId = try c.decode(String.self, forKey: .avatarId)
+        name = try c.decodeIfPresent(String.self, forKey: .name) ?? ""
+        gender = try c.decodeIfPresent(String.self, forKey: .gender) ?? ""
+        previewUrl = try c.decodeIfPresent(String.self, forKey: .previewUrl) ?? ""
+        avatarType = try c.decodeIfPresent(String.self, forKey: .avatarType) ?? ""
     }
 }
 
 /// Response from listing HeyGen avatars.
 public struct AvatarsResponse: Codable, Sendable {
-    public var avatars: [Avatar]
+    /// Available avatars.
+    @NullToEmpty public var avatars: [Avatar]
+
+    /// Unique request identifier.
+    public var requestId: String
+
+    enum CodingKeys: String, CodingKey {
+        case avatars
+        case requestId = "request_id"
+    }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        _avatars = try c.decode(NullToEmpty<Avatar>.self, forKey: .avatars)
+        requestId = try c.decodeIfPresent(String.self, forKey: .requestId) ?? ""
+    }
 }
 
 // MARK: - HeyGen Templates
 
-/// A HeyGen video template.
+/// A HeyGen video template (API-ready, draft-v4 templates only).
 public struct VideoTemplate: Codable, Sendable {
     /// Template identifier.
     public var templateId: String
 
     /// Template name.
-    public var name: String?
+    public var name: String
 
-    /// Preview image URL.
-    public var previewUrl: String?
+    /// Thumbnail image URL. Wire field: `thumbnail_image_url`.
+    public var thumbnailUrl: String
 
     enum CodingKeys: String, CodingKey {
         case name
         case templateId = "template_id"
-        case previewUrl = "preview_url"
+        case thumbnailUrl = "thumbnail_image_url"
+    }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        templateId = try c.decode(String.self, forKey: .templateId)
+        name = try c.decodeIfPresent(String.self, forKey: .name) ?? ""
+        thumbnailUrl = try c.decodeIfPresent(String.self, forKey: .thumbnailUrl) ?? ""
     }
 }
 
 /// Response from listing HeyGen video templates.
 public struct VideoTemplatesResponse: Codable, Sendable {
-    public var templates: [VideoTemplate]
+    /// Available templates.
+    @NullToEmpty public var templates: [VideoTemplate]
+
+    /// Unique request identifier.
+    public var requestId: String
+
+    enum CodingKeys: String, CodingKey {
+        case templates
+        case requestId = "request_id"
+    }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        _templates = try c.decode(NullToEmpty<VideoTemplate>.self, forKey: .templates)
+        requestId = try c.decodeIfPresent(String.self, forKey: .requestId) ?? ""
+    }
 }
 
 // MARK: - HeyGen Voices
@@ -314,56 +343,53 @@ public struct HeyGenVoice: Codable, Sendable {
     /// Voice identifier.
     public var voiceId: String
 
-    /// Voice name.
-    public var name: String?
+    /// Voice name. Wire field: `display_name`.
+    public var name: String
 
     /// Language.
-    public var language: String?
+    public var language: String
 
     /// Gender.
-    public var gender: String?
+    public var gender: String
 
-    /// Additional fields.
-    public var extra: [String: AnyCodable]?
+    /// Preview audio URL. Wire field: `preview_audio`.
+    public var previewUrl: String
 
     enum CodingKeys: String, CodingKey {
-        case name, language, gender, extra
+        case language, gender
         case voiceId = "voice_id"
+        case name = "display_name"
+        case previewUrl = "preview_audio"
+    }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        voiceId = try c.decode(String.self, forKey: .voiceId)
+        name = try c.decodeIfPresent(String.self, forKey: .name) ?? ""
+        language = try c.decodeIfPresent(String.self, forKey: .language) ?? ""
+        gender = try c.decodeIfPresent(String.self, forKey: .gender) ?? ""
+        previewUrl = try c.decodeIfPresent(String.self, forKey: .previewUrl) ?? ""
     }
 }
 
 /// Response from listing HeyGen voices.
 public struct HeyGenVoicesResponse: Codable, Sendable {
-    public var voices: [HeyGenVoice]
-}
-
-// MARK: - HeyGen Typed Responses
-
-/// Response from listing HeyGen avatars (includes requestId).
-public struct HeyGenAvatarsResponse: Codable, Sendable {
-    /// Available avatars (raw JSON items).
-    public var avatars: [AnyCodable]?
+    /// Available voices (public catalog followed by the account's private
+    /// voices).
+    @NullToEmpty public var voices: [HeyGenVoice]
 
     /// Unique request identifier.
-    public var requestId: String?
+    public var requestId: String
 
     enum CodingKeys: String, CodingKey {
-        case avatars
+        case voices
         case requestId = "request_id"
     }
-}
 
-/// Response from listing HeyGen templates (includes requestId).
-public struct HeyGenTemplatesResponse: Codable, Sendable {
-    /// Available templates (raw JSON items).
-    public var templates: [AnyCodable]?
-
-    /// Unique request identifier.
-    public var requestId: String?
-
-    enum CodingKeys: String, CodingKey {
-        case templates
-        case requestId = "request_id"
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        _voices = try c.decode(NullToEmpty<HeyGenVoice>.self, forKey: .voices)
+        requestId = try c.decodeIfPresent(String.self, forKey: .requestId) ?? ""
     }
 }
 
@@ -381,6 +407,12 @@ public struct VideoTemplateSceneVariable: Codable, Sendable {
         case name
         case variableType = "variable_type"
     }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        name = try c.decode(String.self, forKey: .name)
+        variableType = try c.decodeIfPresent(String.self, forKey: .variableType) ?? ""
+    }
 }
 
 /// A scene in a template, in template order.
@@ -392,7 +424,7 @@ public struct VideoTemplateScene: Codable, Sendable {
     public var script: String
 
     /// Variables referenced by this scene.
-    public var variables: [VideoTemplateSceneVariable]
+    @NullToEmpty public var variables: [VideoTemplateSceneVariable]
 
     enum CodingKeys: String, CodingKey {
         case script, variables
@@ -403,7 +435,7 @@ public struct VideoTemplateScene: Codable, Sendable {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         sceneId = try container.decode(String.self, forKey: .sceneId)
         script = try container.decodeIfPresent(String.self, forKey: .script) ?? ""
-        variables = try container.decodeIfPresent([VideoTemplateSceneVariable].self, forKey: .variables) ?? []
+        _variables = try container.decode(NullToEmpty<VideoTemplateSceneVariable>.self, forKey: .variables)
     }
 }
 
@@ -428,7 +460,7 @@ public struct VideoTemplateDetail: Codable, Sendable {
     public var variables: [String: AnyCodable]
 
     /// Scenes in template order.
-    public var scenes: [VideoTemplateScene]
+    @NullToEmpty public var scenes: [VideoTemplateScene]
 
     enum CodingKeys: String, CodingKey {
         case id, name, variables, scenes
@@ -441,7 +473,7 @@ public struct VideoTemplateDetail: Codable, Sendable {
         name = try container.decodeIfPresent(String.self, forKey: .name) ?? ""
         aspectRatio = try container.decodeIfPresent(String.self, forKey: .aspectRatio) ?? ""
         variables = try container.decodeIfPresent([String: AnyCodable].self, forKey: .variables) ?? [:]
-        scenes = try container.decodeIfPresent([VideoTemplateScene].self, forKey: .scenes) ?? []
+        _scenes = try container.decode(NullToEmpty<VideoTemplateScene>.self, forKey: .scenes)
     }
 }
 
@@ -457,10 +489,18 @@ public struct VideoTemplateDetailResponse: Codable, Sendable {
         case template
         case requestId = "request_id"
     }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        template = try c.decode(VideoTemplateDetail.self, forKey: .template)
+        requestId = try c.decodeIfPresent(String.self, forKey: .requestId) ?? ""
+    }
 }
 
-/// Output dimension for a template render. Both values must be even,
-/// each 128–4096, and keep the template aspect ratio.
+/// Output dimension for a template render. HeyGen requires both values
+/// even, each 128–4096, and matching the template aspect ratio; neither the
+/// SDK nor the gateway checks this at submit, so a bad dimension is accepted
+/// with 202 and surfaces later as a failed job.
 public struct VideoTemplateDimension: Codable, Sendable {
     public var width: Int
     public var height: Int
@@ -665,6 +705,12 @@ public struct VideoBatchStatusQuery: Sendable {
 public struct VideoBatchItemError: Codable, Sendable {
     public var code: String
     public var message: String
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        code = try c.decodeIfPresent(String.self, forKey: .code) ?? ""
+        message = try c.decodeIfPresent(String.self, forKey: .message) ?? ""
+    }
 }
 
 /// One item of a batch status page, ordered by `itemIndex`.
@@ -689,6 +735,15 @@ public struct VideoBatchItem: Codable, Sendable {
         case itemIndex = "item_index"
         case videoId = "video_id"
         case videoUrl = "video_url"
+    }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        itemIndex = try c.decodeIfPresent(Int.self, forKey: .itemIndex) ?? 0
+        status = try c.decodeIfPresent(String.self, forKey: .status) ?? ""
+        videoId = try c.decodeIfPresent(String.self, forKey: .videoId)
+        videoUrl = try c.decodeIfPresent(String.self, forKey: .videoUrl)
+        error = try c.decodeIfPresent(VideoBatchItemError.self, forKey: .error)
     }
 }
 
@@ -717,7 +772,7 @@ public struct VideoBatchStatusResponse: Codable, Sendable {
     public var createdAt: Int64
 
     /// One page of items, ordered by `itemIndex`.
-    public var items: [VideoBatchItem]
+    @NullToEmpty public var items: [VideoBatchItem]
 
     /// More item pages exist.
     public var hasMore: Bool
@@ -755,7 +810,7 @@ public struct VideoBatchStatusResponse: Codable, Sendable {
         totalItems = try container.decodeIfPresent(Int.self, forKey: .totalItems) ?? 0
         countsByStatus = try container.decodeIfPresent([String: Int].self, forKey: .countsByStatus) ?? [:]
         createdAt = try container.decodeIfPresent(Int64.self, forKey: .createdAt) ?? 0
-        items = try container.decodeIfPresent([VideoBatchItem].self, forKey: .items) ?? []
+        _items = try container.decode(NullToEmpty<VideoBatchItem>.self, forKey: .items)
         hasMore = try container.decodeIfPresent(Bool.self, forKey: .hasMore) ?? false
         nextToken = try container.decodeIfPresent(String.self, forKey: .nextToken) ?? ""
         billingStatus = try container.decodeIfPresent(String.self, forKey: .billingStatus) ?? ""

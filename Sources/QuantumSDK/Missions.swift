@@ -7,28 +7,40 @@ public struct MissionCreateRequest: Codable, Sendable {
     /// High-level task description.
     public var goal: String
 
-    /// Strategy: "wave" (default), "dag", "mapreduce", "refinement", "branch".
+    /// Strategy: "wave" (default), "dag", "mapreduce", "refinement",
+    /// "branch", "codegen" (dedicated pipeline), or the pre-built teams
+    /// "coding_team", "security_team", "pipeline" (which read `workers` only
+    /// for named overrides).
     public var strategy: String?
 
     /// Conductor model (default: claude-sonnet-4-6).
     public var conductorModel: String?
 
-    /// Worker team configuration keyed by worker name.
+    /// Conductor tier override. Default: "expensive". Set to "cheap" when
+    /// using a fast router as conductor; it decides what the budget guard
+    /// prices the conductor at.
+    public var conductorTier: String?
+
+    /// Worker team configuration keyed by worker name. Default team:
+    /// reader, coder, reviewer.
     public var workers: [String: MissionWorkerDetail]?
 
-    /// Maximum orchestration steps (default: 25).
+    /// Maximum orchestration steps (default: 25, ceiling 50).
     public var maxSteps: Int?
 
-    /// Custom system prompt for the conductor.
+    /// Custom system prompt for the conductor. Applied only when a session
+    /// is created; a re-used `sessionId` ignores it.
     public var systemPrompt: String?
 
-    /// Existing session ID for context continuity.
+    /// Existing session ID for context continuity. Must belong to the
+    /// caller (404 otherwise).
     public var sessionId: String?
 
     public init(
         goal: String,
         strategy: String? = nil,
         conductorModel: String? = nil,
+        conductorTier: String? = nil,
         workers: [String: MissionWorkerDetail]? = nil,
         maxSteps: Int? = nil,
         systemPrompt: String? = nil,
@@ -37,6 +49,7 @@ public struct MissionCreateRequest: Codable, Sendable {
         self.goal = goal
         self.strategy = strategy
         self.conductorModel = conductorModel
+        self.conductorTier = conductorTier
         self.workers = workers
         self.maxSteps = maxSteps
         self.systemPrompt = systemPrompt
@@ -46,6 +59,7 @@ public struct MissionCreateRequest: Codable, Sendable {
     enum CodingKeys: String, CodingKey {
         case goal, strategy, workers
         case conductorModel = "conductor_model"
+        case conductorTier = "conductor_tier"
         case maxSteps = "max_steps"
         case systemPrompt = "system_prompt"
         case sessionId = "session_id"
@@ -57,16 +71,41 @@ public struct MissionWorkerDetail: Codable, Sendable {
     /// Model to use for this worker.
     public var model: String
 
-    /// Cost tier: "cheap", "mid", "expensive".
+    /// Cost tier: "cheap", "mid", "expensive". The gateway prices and
+    /// routes any other value, an empty string included, as "cheap", so the
+    /// tier is required here.
     public var tier: String
 
     /// Worker description / capabilities.
     public var description: String?
 
-    public init(model: String, tier: String = "", description: String? = nil) {
+    /// Worker to escalate to on failure (e.g. cheap coder to expensive coder).
+    public var escalateTo: String?
+
+    /// Max retries before escalating (default 1 = escalate on first failure).
+    public var maxRetries: Int?
+
+    public init(model: String, tier: String, description: String? = nil, escalateTo: String? = nil, maxRetries: Int? = nil) {
         self.model = model
         self.tier = tier
         self.description = description
+        self.escalateTo = escalateTo
+        self.maxRetries = maxRetries
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        model = try container.decodeIfPresent(String.self, forKey: .model) ?? ""
+        tier = try container.decodeIfPresent(String.self, forKey: .tier) ?? ""
+        description = try container.decodeIfPresent(String.self, forKey: .description)
+        escalateTo = try container.decodeIfPresent(String.self, forKey: .escalateTo)
+        maxRetries = try container.decodeIfPresent(Int.self, forKey: .maxRetries)
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case model, tier, description
+        case escalateTo = "escalate_to"
+        case maxRetries = "max_retries"
     }
 }
 
@@ -75,7 +114,8 @@ public struct MissionChatRequest: Codable, Sendable {
     /// Message to send to the architect.
     public var message: String
 
-    /// Enable streaming (not yet supported).
+    /// Request a streamed reply. The chat route does not stream, so the flag
+    /// has no effect.
     public var stream: Bool?
 
     public init(message: String, stream: Bool? = nil) {
@@ -84,40 +124,38 @@ public struct MissionChatRequest: Codable, Sendable {
     }
 }
 
-/// Request body for updating a mission plan.
+/// Request body for updating a mission plan. Only a pending, paused, or
+/// running mission accepts it (409 `invalid_state` otherwise).
 public struct MissionPlanUpdate: Codable, Sendable {
-    /// Updated task list.
+    /// Tasks to write or overwrite, in order. Each takes its id from an `id`
+    /// key or its position (`task_001`, ...); a missing `status` becomes
+    /// `pending`.
     public var tasks: [[String: AnyCodable]]?
 
     /// Updated worker configuration.
     public var workers: [String: MissionWorkerDetail]?
 
-    /// Additional system prompt.
-    public var systemPrompt: String?
-
-    /// Updated max steps.
+    /// Updated max steps. Values at or below zero are ignored.
     public var maxSteps: Int?
 
-    /// Additional context to inject.
+    /// Additional context, appended to the mission's session as a user turn
+    /// prefixed `[Plan Update]`.
     public var context: String?
 
     public init(
         tasks: [[String: AnyCodable]]? = nil,
         workers: [String: MissionWorkerDetail]? = nil,
-        systemPrompt: String? = nil,
         maxSteps: Int? = nil,
         context: String? = nil
     ) {
         self.tasks = tasks
         self.workers = workers
-        self.systemPrompt = systemPrompt
         self.maxSteps = maxSteps
         self.context = context
     }
 
     enum CodingKeys: String, CodingKey {
         case tasks, workers, context
-        case systemPrompt = "system_prompt"
         case maxSteps = "max_steps"
     }
 }
@@ -141,7 +179,7 @@ public struct MissionApproveRequest: Codable, Sendable {
     /// Git commit SHA associated with the mission output.
     public var commitSHA: String?
 
-    /// Approval comment.
+    /// Approval comment, stored as `approval_comment` on the mission.
     public var comment: String?
 
     public init(commitSHA: String? = nil, comment: String? = nil) {
@@ -169,7 +207,7 @@ public struct MissionImportRequest: Codable, Sendable {
     /// Worker configuration.
     public var workers: [String: MissionWorkerDetail]?
 
-    /// Pre-defined tasks.
+    /// Pre-defined tasks. Always sent, empty included.
     public var tasks: [[String: AnyCodable]]
 
     /// System prompt.
@@ -178,7 +216,8 @@ public struct MissionImportRequest: Codable, Sendable {
     /// Maximum steps.
     public var maxSteps: Int?
 
-    /// Auto-execute after import.
+    /// Auto-execute after import: the run starts and the reply reports
+    /// `running`.
     public var autoExecute: Bool
 
     public init(
@@ -212,7 +251,7 @@ public struct MissionImportRequest: Codable, Sendable {
 
 // MARK: - Mission Response Types
 
-/// Response from mission creation.
+/// Response from mission creation (202) or import (201).
 public struct MissionCreateResponse: Codable, Sendable {
     /// Mission identifier.
     public var missionId: String
@@ -258,6 +297,18 @@ public struct MissionCreateResponse: Codable, Sendable {
         self.requestId = requestId
     }
 
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        missionId = try container.decode(String.self, forKey: .missionId)
+        status = try container.decodeIfPresent(String.self, forKey: .status) ?? ""
+        sessionId = try container.decodeIfPresent(String.self, forKey: .sessionId)
+        conductorModel = try container.decodeIfPresent(String.self, forKey: .conductorModel)
+        strategy = try container.decodeIfPresent(String.self, forKey: .strategy)
+        workers = try container.decodeIfPresent([String: MissionWorkerDetail].self, forKey: .workers)
+        createdAt = try container.decodeIfPresent(String.self, forKey: .createdAt)
+        requestId = try container.decodeIfPresent(String.self, forKey: .requestId)
+    }
+
     enum CodingKeys: String, CodingKey {
         case status, strategy, workers
         case missionId = "mission_id"
@@ -268,7 +319,13 @@ public struct MissionCreateResponse: Codable, Sendable {
     }
 }
 
-/// Mission detail (from GET /missions/{id}).
+/// Mission detail (from GET /missions/{id}); list rows are the same
+/// Firestore map without `tasks`.
+///
+/// Only the keys a given mission has been through are present: `approved`
+/// appears once the mission is approved, `tasks` only on the single-mission
+/// read, and the token counts on a task only after a retry. Absent keys
+/// decode to their zero values.
 public struct MissionDetail: Codable, Sendable {
     /// Mission identifier.
     public var id: String?
@@ -312,10 +369,10 @@ public struct MissionDetail: Codable, Sendable {
     /// Final result text.
     public var result: String?
 
-    /// Tasks within the mission.
+    /// Tasks within the mission. Empty on list rows.
     public var tasks: [MissionTask]
 
-    /// Whether the mission was approved.
+    /// Whether the mission was approved. False until the key is written.
     public var approved: Bool
 
     /// Commit SHA (if approved).
@@ -359,6 +416,27 @@ public struct MissionDetail: Codable, Sendable {
         self.commitSHA = commitSHA
     }
 
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decodeIfPresent(String.self, forKey: .id)
+        userId = try container.decodeIfPresent(String.self, forKey: .userId)
+        goal = try container.decodeIfPresent(String.self, forKey: .goal)
+        strategy = try container.decodeIfPresent(String.self, forKey: .strategy)
+        conductorModel = try container.decodeIfPresent(String.self, forKey: .conductorModel)
+        status = try container.decodeIfPresent(String.self, forKey: .status)
+        createdAt = try container.decodeIfPresent(String.self, forKey: .createdAt)
+        startedAt = try container.decodeIfPresent(String.self, forKey: .startedAt)
+        completedAt = try container.decodeIfPresent(String.self, forKey: .completedAt)
+        error = try container.decodeIfPresent(String.self, forKey: .error)
+        costTicks = try container.decodeIfPresent(Int64.self, forKey: .costTicks) ?? 0
+        totalSteps = try container.decodeIfPresent(Int.self, forKey: .totalSteps) ?? 0
+        sessionId = try container.decodeIfPresent(String.self, forKey: .sessionId)
+        result = try container.decodeIfPresent(String.self, forKey: .result)
+        tasks = try container.decode(NullToEmpty<MissionTask>.self, forKey: .tasks).wrappedValue
+        approved = try container.decodeIfPresent(Bool.self, forKey: .approved) ?? false
+        commitSHA = try container.decodeIfPresent(String.self, forKey: .commitSHA)
+    }
+
     enum CodingKeys: String, CodingKey {
         case id, goal, strategy, status, error, result, tasks, approved
         case userId = "user_id"
@@ -373,7 +451,9 @@ public struct MissionDetail: Codable, Sendable {
     }
 }
 
-/// A task within a mission.
+/// A task within a mission. The executor writes `name`, `status`, `step`,
+/// `created_at` and optionally `result`, `worker`, `model`; the retry path
+/// adds `tokens_in` / `tokens_out`. Absent counts decode to zero.
 public struct MissionTask: Codable, Sendable {
     /// Task identifier.
     public var id: String?
@@ -434,6 +514,21 @@ public struct MissionTask: Codable, Sendable {
         self.tokensOut = tokensOut
     }
 
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decodeIfPresent(String.self, forKey: .id)
+        name = try container.decodeIfPresent(String.self, forKey: .name)
+        description = try container.decodeIfPresent(String.self, forKey: .description)
+        worker = try container.decodeIfPresent(String.self, forKey: .worker)
+        model = try container.decodeIfPresent(String.self, forKey: .model)
+        status = try container.decodeIfPresent(String.self, forKey: .status)
+        result = try container.decodeIfPresent(String.self, forKey: .result)
+        error = try container.decodeIfPresent(String.self, forKey: .error)
+        step = try container.decodeIfPresent(Int.self, forKey: .step) ?? 0
+        tokensIn = try container.decodeIfPresent(Int.self, forKey: .tokensIn) ?? 0
+        tokensOut = try container.decodeIfPresent(Int.self, forKey: .tokensOut) ?? 0
+    }
+
     enum CodingKeys: String, CodingKey {
         case id, name, description, worker, model, status, result, error, step
         case tokensIn = "tokens_in"
@@ -444,7 +539,7 @@ public struct MissionTask: Codable, Sendable {
 /// Response from listing missions.
 public struct MissionListResponse: Codable, Sendable {
     /// List of missions.
-    public var missions: [MissionDetail]
+    @NullToEmpty public var missions: [MissionDetail]
 
     public init(missions: [MissionDetail] = []) {
         self.missions = missions
@@ -482,6 +577,15 @@ public struct MissionChatResponse: Codable, Sendable {
         self.usage = usage
     }
 
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        missionId = try container.decodeIfPresent(String.self, forKey: .missionId)
+        content = try container.decodeIfPresent(String.self, forKey: .content)
+        model = try container.decodeIfPresent(String.self, forKey: .model)
+        costTicks = try container.decodeIfPresent(Int64.self, forKey: .costTicks) ?? 0
+        usage = try container.decodeIfPresent(MissionChatUsage.self, forKey: .usage)
+    }
+
     enum CodingKeys: String, CodingKey {
         case content, model, usage
         case missionId = "mission_id"
@@ -497,6 +601,12 @@ public struct MissionChatUsage: Codable, Sendable {
     public init(inputTokens: Int = 0, outputTokens: Int = 0) {
         self.inputTokens = inputTokens
         self.outputTokens = outputTokens
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        inputTokens = try container.decodeIfPresent(Int.self, forKey: .inputTokens) ?? 0
+        outputTokens = try container.decodeIfPresent(Int.self, forKey: .outputTokens) ?? 0
     }
 
     enum CodingKeys: String, CodingKey {
@@ -541,7 +651,7 @@ public struct MissionCheckpoint: Codable, Sendable {
 /// Response from listing checkpoints.
 public struct MissionCheckpointsResponse: Codable, Sendable {
     public var missionId: String?
-    public var checkpoints: [MissionCheckpoint]
+    @NullToEmpty public var checkpoints: [MissionCheckpoint]
 
     public init(missionId: String? = nil, checkpoints: [MissionCheckpoint] = []) {
         self.missionId = missionId
@@ -564,6 +674,10 @@ public struct MissionStatusResponse: Codable, Sendable {
     public var updated: Bool?
     public var commitSHA: String?
 
+    /// USD charged by ``QuantumClient/missionCancel(missionId:)`` for the
+    /// work already done; zero for a pending mission.
+    public var cancellationCost: Double?
+
     public init(
         missionId: String? = nil,
         status: String? = nil,
@@ -571,7 +685,8 @@ public struct MissionStatusResponse: Codable, Sendable {
         approved: Bool? = nil,
         deleted: Bool? = nil,
         updated: Bool? = nil,
-        commitSHA: String? = nil
+        commitSHA: String? = nil,
+        cancellationCost: Double? = nil
     ) {
         self.missionId = missionId
         self.status = status
@@ -580,134 +695,232 @@ public struct MissionStatusResponse: Codable, Sendable {
         self.deleted = deleted
         self.updated = updated
         self.commitSHA = commitSHA
+        self.cancellationCost = cancellationCost
     }
 
     enum CodingKeys: String, CodingKey {
         case status, confirmed, approved, deleted, updated
         case missionId = "mission_id"
         case commitSHA = "commit_sha"
+        case cancellationCost = "cancellation_cost"
+    }
+}
+
+/// Response from `POST /qai/v1/missions/{id}/retry/{task_id}`.
+public struct MissionRetryResponse: Codable, Sendable {
+    /// The mission.
+    public var missionId: String
+
+    /// The task that was retried.
+    public var taskId: String
+
+    /// `"task_completed"`.
+    public var status: String
+
+    /// The retried task's output.
+    public var result: String
+
+    /// Model the retry ran on.
+    public var model: String
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        missionId = try container.decodeIfPresent(String.self, forKey: .missionId) ?? ""
+        taskId = try container.decodeIfPresent(String.self, forKey: .taskId) ?? ""
+        status = try container.decodeIfPresent(String.self, forKey: .status) ?? ""
+        result = try container.decodeIfPresent(String.self, forKey: .result) ?? ""
+        model = try container.decodeIfPresent(String.self, forKey: .model) ?? ""
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case status, result, model
+        case missionId = "mission_id"
+        case taskId = "task_id"
     }
 }
 
 // MARK: - Client Extension
 
 extension QuantumClient {
-    /// Create and execute a mission asynchronously.
-    public func missionCreate(_ request: MissionCreateRequest) async throws -> MissionCreateResponse {
-        let (data, _): (MissionCreateResponse, _) = try await http.doJSON(
-            method: "POST", path: "/qai/v1/missions/create", body: request
+    /// Creates and executes a mission asynchronously (202). The injection
+    /// gate fails closed; `goal` is required (400).
+    ///
+    /// `POST /qai/v1/missions/create`
+    public func missionCreate(_ request: MissionCreateRequest, idempotencyKey: String? = nil) async throws -> MissionCreateResponse {
+        let (data, _): (MissionCreateResponse, _) = try await doReq(
+            method: "POST", path: "/qai/v1/missions/create", body: request,
+            idempotencyKey: idempotencyKey ?? UUID().uuidString
         )
         return data
     }
 
-    /// List missions for the authenticated user.
+    /// Lists missions for the authenticated user, optionally filtered by
+    /// status. Rows carry no `tasks`.
+    ///
+    /// `GET /qai/v1/missions/list`
     public func missionList(status: String? = nil) async throws -> MissionListResponse {
         var path = "/qai/v1/missions/list"
-        if let status { path += "?status=\(status)" }
-        let (data, _): (MissionListResponse, _) = try await http.doJSON(method: "GET", path: path)
+        if let status { path += "?status=\(status.strictQueryEncoded)" }
+        let (data, _): (MissionListResponse, _) = try await doReq(method: "GET", path: path)
         return data
     }
 
-    /// Get mission details including tasks.
+    /// Gets mission details including tasks. 404 unless the mission is the
+    /// caller's (admins bypass).
+    ///
+    /// `GET /qai/v1/missions/{id}`
     public func missionGet(missionId: String) async throws -> MissionDetail {
-        let (data, _): (MissionDetail, _) = try await http.doJSON(
-            method: "GET", path: "/qai/v1/missions/\(missionId)"
+        let (data, _): (MissionDetail, _) = try await doReq(
+            method: "GET", path: "/qai/v1/missions/\(missionId.strictQueryEncoded)"
         )
         return data
     }
 
-    /// Delete a mission.
+    /// Deletes a mission (409 while it is running).
+    ///
+    /// `DELETE /qai/v1/missions/{id}`
     public func missionDelete(missionId: String) async throws -> MissionStatusResponse {
-        let (data, _): (MissionStatusResponse, _) = try await http.doJSON(
-            method: "DELETE", path: "/qai/v1/missions/\(missionId)"
+        let (data, _): (MissionStatusResponse, _) = try await doReq(
+            method: "DELETE", path: "/qai/v1/missions/\(missionId.strictQueryEncoded)"
         )
         return data
     }
 
-    /// Cancel a running mission.
+    /// Cancels a pending or running mission (409 `invalid_state` otherwise).
+    ///
+    /// Cancelling a running mission charges for the work already done,
+    /// estimated at $0.02 per elapsed minute since it started with a
+    /// half-minute minimum; the amount comes back as
+    /// ``MissionStatusResponse/cancellationCost``. A pending mission is
+    /// cancelled free.
+    ///
+    /// `POST /qai/v1/missions/{id}/cancel`
     public func missionCancel(missionId: String) async throws -> MissionStatusResponse {
-        let (data, _): (MissionStatusResponse, _) = try await http.doJSON(
-            method: "POST", path: "/qai/v1/missions/\(missionId)/cancel"
+        let (data, _): (MissionStatusResponse, _) = try await doReq(
+            method: "POST", path: "/qai/v1/missions/\(missionId.strictQueryEncoded)/cancel"
         )
         return data
     }
 
-    /// Pause a running mission.
+    /// Pauses a running mission. The status flips immediately; the executor
+    /// checks it only every fifth event and then cancels its context, so the
+    /// mission keeps running and billing until then.
+    ///
+    /// `POST /qai/v1/missions/{id}/pause`
     public func missionPause(missionId: String) async throws -> MissionStatusResponse {
-        let (data, _): (MissionStatusResponse, _) = try await http.doJSON(
-            method: "POST", path: "/qai/v1/missions/\(missionId)/pause"
+        let (data, _): (MissionStatusResponse, _) = try await doReq(
+            method: "POST", path: "/qai/v1/missions/\(missionId.strictQueryEncoded)/pause"
         )
         return data
     }
 
-    /// Resume a paused mission.
+    /// Restarts a paused mission from the beginning as a fresh async run.
+    ///
+    /// Only `goal`, `strategy`, `conductor_model` and `session_id` are
+    /// restored; `max_steps` resets to the default, and the system prompt,
+    /// context, conductor tier and context config are lost. Everything
+    /// already done is re-executed and re-billed; nothing reads a
+    /// checkpoint.
+    ///
+    /// `POST /qai/v1/missions/{id}/resume`
     public func missionResume(missionId: String) async throws -> MissionStatusResponse {
-        let (data, _): (MissionStatusResponse, _) = try await http.doJSON(
-            method: "POST", path: "/qai/v1/missions/\(missionId)/resume"
+        let (data, _): (MissionStatusResponse, _) = try await doReq(
+            method: "POST", path: "/qai/v1/missions/\(missionId.strictQueryEncoded)/resume"
         )
         return data
     }
 
-    /// Chat with the mission's architect.
-    public func missionChat(missionId: String, request: MissionChatRequest) async throws -> MissionChatResponse {
-        let (data, _): (MissionChatResponse, _) = try await http.doJSON(
-            method: "POST", path: "/qai/v1/missions/\(missionId)/chat", body: request
+    /// Chats with the mission's architect (billed; `stream` has no effect).
+    ///
+    /// `POST /qai/v1/missions/{id}/chat`
+    public func missionChat(missionId: String, request: MissionChatRequest, idempotencyKey: String? = nil) async throws -> MissionChatResponse {
+        let (data, _): (MissionChatResponse, _) = try await doReq(
+            method: "POST", path: "/qai/v1/missions/\(missionId.strictQueryEncoded)/chat", body: request,
+            idempotencyKey: idempotencyKey ?? UUID().uuidString
         )
         return data
     }
 
-    /// Retry a failed task.
-    public func missionRetryTask(missionId: String, taskId: String) async throws -> MissionStatusResponse {
-        let (data, _): (MissionStatusResponse, _) = try await http.doJSON(
-            method: "POST", path: "/qai/v1/missions/\(missionId)/retry/\(taskId)"
+    /// Retries a failed task.
+    ///
+    /// The retry runs as one bare generation on the task's model, billed at
+    /// that model's rate, writes `task_completed` on the task, and the
+    /// reply carries the new output and the model used.
+    ///
+    /// `POST /qai/v1/missions/{id}/retry/{task_id}`
+    public func missionRetryTask(missionId: String, taskId: String, idempotencyKey: String? = nil) async throws -> MissionRetryResponse {
+        let (data, _): (MissionRetryResponse, _) = try await doReq(
+            method: "POST",
+            path: "/qai/v1/missions/\(missionId.strictQueryEncoded)/retry/\(taskId.strictQueryEncoded)",
+            idempotencyKey: idempotencyKey ?? UUID().uuidString
         )
         return data
     }
 
-    /// Approve a completed mission.
+    /// Approves a completed mission (409 unless `completed`).
+    ///
+    /// `POST /qai/v1/missions/{id}/approve`
     public func missionApprove(missionId: String, request: MissionApproveRequest) async throws -> MissionStatusResponse {
-        let (data, _): (MissionStatusResponse, _) = try await http.doJSON(
-            method: "POST", path: "/qai/v1/missions/\(missionId)/approve", body: request
+        let (data, _): (MissionStatusResponse, _) = try await doReq(
+            method: "POST", path: "/qai/v1/missions/\(missionId.strictQueryEncoded)/approve", body: request
         )
         return data
     }
 
-    /// Update the mission plan.
+    /// Updates the mission plan (pending, paused or running missions only).
+    ///
+    /// `PUT /qai/v1/missions/{id}/plan`
     public func missionUpdatePlan(missionId: String, request: MissionPlanUpdate) async throws -> MissionStatusResponse {
-        let (data, _): (MissionStatusResponse, _) = try await http.doJSON(
-            method: "PUT", path: "/qai/v1/missions/\(missionId)/plan", body: request
+        let (data, _): (MissionStatusResponse, _) = try await doReq(
+            method: "PUT", path: "/qai/v1/missions/\(missionId.strictQueryEncoded)/plan", body: request
         )
         return data
     }
 
-    /// Confirm or reject the proposed execution structure.
+    /// Confirms or rejects the proposed execution structure.
+    ///
+    /// `POST /qai/v1/missions/{id}/confirm-structure`
     public func missionConfirmStructure(missionId: String, request: MissionConfirmStructure) async throws -> MissionStatusResponse {
-        let (data, _): (MissionStatusResponse, _) = try await http.doJSON(
-            method: "POST", path: "/qai/v1/missions/\(missionId)/confirm-structure", body: request
+        let (data, _): (MissionStatusResponse, _) = try await doReq(
+            method: "POST", path: "/qai/v1/missions/\(missionId.strictQueryEncoded)/confirm-structure", body: request
         )
         return data
     }
 
-    /// List git checkpoints for a mission.
+    /// Lists git checkpoints for a mission.
+    ///
+    /// `GET /qai/v1/missions/{id}/checkpoints`
     public func missionCheckpoints(missionId: String) async throws -> MissionCheckpointsResponse {
-        let (data, _): (MissionCheckpointsResponse, _) = try await http.doJSON(
-            method: "GET", path: "/qai/v1/missions/\(missionId)/checkpoints"
+        let (data, _): (MissionCheckpointsResponse, _) = try await doReq(
+            method: "GET", path: "/qai/v1/missions/\(missionId.strictQueryEncoded)/checkpoints"
         )
         return data
     }
 
-    /// Import an existing plan as a new mission.
-    public func missionImport(_ request: MissionImportRequest) async throws -> MissionCreateResponse {
-        let (data, _): (MissionCreateResponse, _) = try await http.doJSON(
-            method: "POST", path: "/qai/v1/missions/import", body: request
+    /// Imports an existing plan as a new mission (201).
+    ///
+    /// `POST /qai/v1/missions/import`
+    public func missionImport(_ request: MissionImportRequest, idempotencyKey: String? = nil) async throws -> MissionCreateResponse {
+        let (data, _): (MissionCreateResponse, _) = try await doReq(
+            method: "POST", path: "/qai/v1/missions/import", body: request,
+            idempotencyKey: idempotencyKey ?? UUID().uuidString
         )
         return data
     }
 
     // MARK: - Mission Streaming
 
-    /// Stream a mission execution via SSE. Returns events as the mission progresses through
-    /// planning, task execution, and completion phases.
+    /// Streams a mission execution via SSE, as typed ``MissionStreamEvent``
+    /// values. The wire is the same as ``missionRun(_:)``; this view decodes
+    /// the known event shapes and keeps every key in
+    /// ``MissionStreamEvent/raw`` for the rest.
+    ///
+    /// The stream runs until the gateway's `[DONE]` sentinel (surfaced as a
+    /// `done` event with `done == true`), so the `usage` event the default
+    /// strategies send after `mission_completed` is delivered. A transport
+    /// failure, or a body that ends before `[DONE]`, ends the stream with
+    /// an `error` event whose `transport` flag is set; only a non-2xx
+    /// status before the stream opens throws.
     ///
     /// ```swift
     /// for try await event in client.missionStream(request) {
@@ -723,79 +936,73 @@ extension QuantumClient {
     /// ```
     public func missionStream(_ request: MissionCreateRequest) -> AsyncThrowingStream<MissionStreamEvent, any Error> {
         AsyncThrowingStream { continuation in
-            Task {
+            let task = Task {
                 do {
                     let (bytes, _) = try await self.http.doStreamRequest(
                         path: "/qai/v1/missions", body: request
                     )
-                    let parser = SSEParser(bytes: bytes)
-
-                    for try await sseEvent in parser {
-                        switch sseEvent {
-                        case .done:
-                            continuation.yield(MissionStreamEvent(type: "done", done: true))
-                            continuation.finish()
-                            return
-                        case let .data(data):
-                            let event = try parseMissionStreamEvent(data)
-                            continuation.yield(event)
-                            if event.done {
-                                continuation.finish()
-                                return
+                    var sawDone = false
+                    do {
+                        for try await sseEvent in SSEParser(bytes: bytes) {
+                            switch sseEvent {
+                            case .done:
+                                sawDone = true
+                                continuation.yield(MissionStreamEvent(type: "done", done: true))
+                            case let .data(data):
+                                continuation.yield(Self.parseMissionStreamEvent(data))
+                            case let .error(message):
+                                continuation.yield(MissionStreamEvent(type: "error", error: "parse SSE: \(message)"))
                             }
-                        case let .error(message):
-                            continuation.yield(MissionStreamEvent(type: "error", done: true, error: message))
-                            continuation.finish()
-                            return
                         }
+                    } catch is CancellationError {
+                        continuation.finish()
+                        return
+                    } catch let error as URLError where error.code == .cancelled {
+                        continuation.finish()
+                        return
+                    } catch {
+                        continuation.yield(MissionStreamEvent(
+                            type: "error", done: true, transport: true,
+                            error: "transport: \(error.localizedDescription)"
+                        ))
+                        continuation.finish()
+                        return
+                    }
+                    if !sawDone {
+                        continuation.yield(MissionStreamEvent(
+                            type: "error", done: true, transport: true,
+                            error: "transport: stream ended before [DONE]"
+                        ))
                     }
                     continuation.finish()
                 } catch {
                     continuation.finish(throwing: error)
                 }
             }
+            continuation.onTermination = { _ in task.cancel() }
         }
     }
 
-    // MARK: - Workspace
+    // MARK: - Mission Stream Parsing
 
-    /// Upload a tar.gz workspace archive for a coding session.
-    ///
-    /// - Parameters:
-    ///   - sessionId: The session ID to associate the workspace with.
-    ///   - tarGzData: Raw tar.gz archive bytes.
-    /// - Returns: Upload confirmation with extracted file count and workspace path.
-    public func workspaceUpload(sessionId: String, tarGzData: Data) async throws -> WorkspaceUploadResponse {
-        let (data, _): (WorkspaceUploadResponse, _) = try await http.doRawUpload(
-            path: "/qai/v1/workspace/\(sessionId)/upload",
-            data: tarGzData,
-            contentType: "application/gzip"
-        )
-        return data
-    }
+    /// Parses a raw SSE JSON payload into a ``MissionStreamEvent``. A
+    /// payload that is not a JSON object becomes an `error` event carrying
+    /// the parse failure.
+    static func parseMissionStreamEvent(_ data: Data) -> MissionStreamEvent {
+        let rawObject: [String: AnyCodable]
+        let raw: RawMissionStreamEvent
+        do {
+            rawObject = try JSONDecoder().decode([String: AnyCodable].self, from: data)
+            raw = try JSONDecoder().decode(RawMissionStreamEvent.self, from: data)
+        } catch {
+            return MissionStreamEvent(type: "error", error: "parse SSE: \(error.localizedDescription)")
+        }
 
-    /// Download the workspace tar.gz after mission completion.
-    ///
-    /// - Parameter sessionId: The session ID of the workspace to download.
-    /// - Returns: Raw tar.gz archive bytes.
-    public func workspaceDownload(sessionId: String) async throws -> Data {
-        let (data, _) = try await http.doRawDownload(
-            path: "/qai/v1/workspace/\(sessionId)/download"
-        )
-        return data
-    }
-
-    // MARK: - Private Mission Stream Parsing
-
-    /// Parse a raw SSE JSON payload into a ``MissionStreamEvent``.
-    private func parseMissionStreamEvent(_ data: Data) throws -> MissionStreamEvent {
-        let decoder = JSONDecoder()
-        let raw = try decoder.decode(RawMissionStreamEvent.self, from: data)
-
-        var event = MissionStreamEvent(
-            type: raw.type ?? "unknown",
-            done: raw.type == "mission_completed" || raw.type == "mission_failed"
-        )
+        var event = MissionStreamEvent(type: raw.type ?? "unknown")
+        event.raw = rawObject
+        event.missionId = raw.missionId
+        event.taskId = raw.taskId
+        event.message = raw.message
 
         switch raw.type {
         case "mission_started":
@@ -804,12 +1011,14 @@ extension QuantumClient {
             event.strategy = raw.strategy
             event.workers = raw.workers
             event.maxSteps = raw.maxSteps
+            event.maxStepsRequested = raw.maxStepsRequested
+            event.maxStepsClampedToCeiling = raw.maxStepsClampedToCeiling
 
         case "step_detail":
             event.step = raw.step
             event.role = raw.role
             event.tier = raw.tier
-            event.durationMs = raw.durationMs
+            event.durationMs = raw.duration ?? raw.durationMs
             event.delegated = raw.delegated
             event.content = raw.content
 
@@ -817,21 +1026,21 @@ extension QuantumClient {
             event.content = raw.content
             event.cost = raw.cost
             event.totalSteps = raw.totalSteps
+            event.durationMs = raw.durationMs
+            event.strategy = raw.strategy
             event.workspacePath = raw.workspacePath
             event.filesGenerated = raw.filesGenerated
+            event.filesFailed = raw.filesFailed
+            event.fixIterations = raw.fixIterations
             event.buildPassed = raw.buildPassed
 
-        case "mission_failed":
+        case "mission_failed", "task_failed", "error", "agent_error":
+            event.content = raw.content
             event.error = raw.error ?? raw.message
 
-        case "task_started", "task_completed", "task_failed":
-            event.missionId = raw.missionId
-            event.taskId = raw.taskId
-            event.message = raw.message
-            event.content = raw.content
-            if raw.type == "task_failed" {
-                event.error = raw.error ?? raw.message
-            }
+        case "mission_budget_exhausted", "mission_budget_check_unavailable":
+            event.stepsCompleted = raw.stepsCompleted
+            event.maxStepsTarget = raw.maxStepsTarget
 
         case "tick_completed":
             event.step = raw.step
@@ -842,11 +1051,9 @@ extension QuantumClient {
             event.outputTokens = raw.outputTokens
             event.costTicks = raw.costTicks
 
-        case "error":
-            event.error = raw.error ?? raw.message
-
         default:
-            break
+            event.content = raw.content
+            event.step = raw.step
         }
 
         return event
@@ -856,55 +1063,91 @@ extension QuantumClient {
 // MARK: - Mission Stream Types
 
 /// A streamed event from a mission execution.
+///
+/// Wire types: `mission_started`, `step_detail`, `mission_completed`,
+/// `mission_failed`, `mission_budget_exhausted`,
+/// `mission_budget_check_unavailable`, `usage`, and the executor's
+/// `task_queued` / `task_started` / `task_completed` / `task_failed` /
+/// `task_skipped`, `wave_*`, `graph_mutated`, `tick_completed`,
+/// `mission_paused` / `mission_resumed` / `mission_cancelled`. Client-side
+/// synthesised: `done` (the `[DONE]` sentinel) and `error`. Whatever the
+/// type, every key of the payload is in ``raw``.
 public struct MissionStreamEvent: Sendable {
-    /// Event type: mission_started, step_detail, mission_completed, mission_failed,
-    /// usage, task_started, task_completed, task_failed, tick_completed, done, error.
+    /// Event type.
     public var type: String
-    /// Whether this event signals the end of the stream.
+    /// Whether this event ends the stream: true for `done` and for a
+    /// transport `error`.
     public var done: Bool
+    /// True when an `error` event was caused by the connection, not the
+    /// mission.
+    public var transport: Bool
+
+    /// Every key of the wire payload, `type` included.
+    public var raw: [String: AnyCodable]
 
     // mission_started fields
     public var sessionId: String?
     public var conductor: String?
+    /// Strategy: on `mission_started`, and on the codegen `mission_completed`.
     public var strategy: String?
     public var workers: [String: MissionWorkerDetail]?
     public var maxSteps: Int?
+    /// Present only when the requested `max_steps` was clamped to the ceiling.
+    public var maxStepsRequested: Int?
+    public var maxStepsClampedToCeiling: Int?
 
     // step_detail fields
     public var step: Int?
     public var role: String?
     public var tier: String?
+    /// Milliseconds: the `duration` key on `step_detail`, `duration_ms` on
+    /// `mission_completed`.
     public var durationMs: Int?
     public var delegated: Bool?
 
     // mission_completed fields
+    /// The final answer for the default strategies; absent on codegen.
     public var content: String?
     public var cost: MissionCost?
     public var totalSteps: Int?
+    // codegen mission_completed fields
     public var workspacePath: String?
     public var filesGenerated: Int?
+    public var filesFailed: Int?
+    public var fixIterations: Int?
     public var buildPassed: Bool?
 
-    // task event fields
+    // budget halt fields
+    public var stepsCompleted: Int?
+    public var maxStepsTarget: Int?
+
+    // executor event fields
     public var missionId: String?
     public var taskId: String?
     public var message: String?
 
-    // usage fields
+    // usage fields (sent after mission_completed by the default strategies,
+    // before it by codegen)
     public var inputTokens: Int?
     public var outputTokens: Int?
     public var costTicks: Int64?
 
+    /// The failure reason on `mission_failed` (its `message` key),
+    /// `task_failed`, `error` and the client-side error events.
     public var error: String?
 
     public init(
         type: String,
         done: Bool = false,
+        transport: Bool = false,
+        raw: [String: AnyCodable] = [:],
         sessionId: String? = nil,
         conductor: String? = nil,
         strategy: String? = nil,
         workers: [String: MissionWorkerDetail]? = nil,
         maxSteps: Int? = nil,
+        maxStepsRequested: Int? = nil,
+        maxStepsClampedToCeiling: Int? = nil,
         step: Int? = nil,
         role: String? = nil,
         tier: String? = nil,
@@ -915,7 +1158,11 @@ public struct MissionStreamEvent: Sendable {
         totalSteps: Int? = nil,
         workspacePath: String? = nil,
         filesGenerated: Int? = nil,
+        filesFailed: Int? = nil,
+        fixIterations: Int? = nil,
         buildPassed: Bool? = nil,
+        stepsCompleted: Int? = nil,
+        maxStepsTarget: Int? = nil,
         missionId: String? = nil,
         taskId: String? = nil,
         message: String? = nil,
@@ -926,11 +1173,15 @@ public struct MissionStreamEvent: Sendable {
     ) {
         self.type = type
         self.done = done
+        self.transport = transport
+        self.raw = raw
         self.sessionId = sessionId
         self.conductor = conductor
         self.strategy = strategy
         self.workers = workers
         self.maxSteps = maxSteps
+        self.maxStepsRequested = maxStepsRequested
+        self.maxStepsClampedToCeiling = maxStepsClampedToCeiling
         self.step = step
         self.role = role
         self.tier = tier
@@ -941,7 +1192,11 @@ public struct MissionStreamEvent: Sendable {
         self.totalSteps = totalSteps
         self.workspacePath = workspacePath
         self.filesGenerated = filesGenerated
+        self.filesFailed = filesFailed
+        self.fixIterations = fixIterations
         self.buildPassed = buildPassed
+        self.stepsCompleted = stepsCompleted
+        self.maxStepsTarget = maxStepsTarget
         self.missionId = missionId
         self.taskId = taskId
         self.message = message
@@ -952,38 +1207,47 @@ public struct MissionStreamEvent: Sendable {
     }
 }
 
-/// Cost breakdown by model tier.
-public struct MissionCost: Codable, Sendable {
-    public var cheap: Int?
-    public var mid: Int?
-    public var expensive: Int?
+/// Prompt and completion token counts for one cost tier. The gateway
+/// serialises the Go struct without tags, so the wire keys are `Prompt`
+/// and `Completion`.
+public struct MissionTokenCount: Codable, Sendable {
+    public var prompt: Int
+    public var completion: Int
 
-    public init(cheap: Int? = nil, mid: Int? = nil, expensive: Int? = nil) {
+    public init(prompt: Int = 0, completion: Int = 0) {
+        self.prompt = prompt
+        self.completion = completion
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        prompt = try container.decodeIfPresent(Int.self, forKey: .prompt) ?? 0
+        completion = try container.decodeIfPresent(Int.self, forKey: .completion) ?? 0
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case prompt = "Prompt"
+        case completion = "Completion"
+    }
+}
+
+/// Token counts by model tier on `mission_completed`.
+public struct MissionCost: Codable, Sendable {
+    public var cheap: MissionTokenCount?
+    public var mid: MissionTokenCount?
+    public var expensive: MissionTokenCount?
+
+    public init(cheap: MissionTokenCount? = nil, mid: MissionTokenCount? = nil, expensive: MissionTokenCount? = nil) {
         self.cheap = cheap
         self.mid = mid
         self.expensive = expensive
     }
 }
 
-/// Response from uploading a workspace archive.
-public struct WorkspaceUploadResponse: Codable, Sendable {
-    /// Session ID the workspace was uploaded to.
-    public let sessionId: String
-    /// Number of files extracted from the archive.
-    public let filesExtracted: Int
-    /// Server-side workspace path.
-    public let workspace: String
-
-    enum CodingKeys: String, CodingKey {
-        case sessionId = "session_id"
-        case filesExtracted = "files_extracted"
-        case workspace
-    }
-}
-
 // MARK: - Raw Mission Stream Event (Internal)
 
-/// Internal decoder for mission SSE payloads. Maps all possible fields from the wire format.
+/// Internal decoder for mission SSE payloads. Maps every typed field from
+/// the wire format; unknown keys are kept on ``MissionStreamEvent/raw``.
 private struct RawMissionStreamEvent: Decodable {
     var type: String?
 
@@ -993,11 +1257,14 @@ private struct RawMissionStreamEvent: Decodable {
     var strategy: String?
     var workers: [String: MissionWorkerDetail]?
     var maxSteps: Int?
+    var maxStepsRequested: Int?
+    var maxStepsClampedToCeiling: Int?
 
     // step_detail
     var step: Int?
     var role: String?
     var tier: String?
+    var duration: Int?
     var durationMs: Int?
     var delegated: Bool?
 
@@ -1007,9 +1274,15 @@ private struct RawMissionStreamEvent: Decodable {
     var totalSteps: Int?
     var workspacePath: String?
     var filesGenerated: Int?
+    var filesFailed: Int?
+    var fixIterations: Int?
     var buildPassed: Bool?
 
-    // task events
+    // budget halts
+    var stepsCompleted: Int?
+    var maxStepsTarget: Int?
+
+    // executor events
     var missionId: String?
     var taskId: String?
     var message: String?
@@ -1022,15 +1295,21 @@ private struct RawMissionStreamEvent: Decodable {
     var error: String?
 
     enum CodingKeys: String, CodingKey {
-        case type, conductor, strategy, workers, step, role, tier, delegated
+        case type, conductor, strategy, workers, step, role, tier, delegated, duration
         case content, cost, message, error
         case sessionId = "session_id"
         case maxSteps = "max_steps"
+        case maxStepsRequested = "max_steps_requested"
+        case maxStepsClampedToCeiling = "max_steps_clamped_to_ceiling"
         case durationMs = "duration_ms"
         case totalSteps = "total_steps"
         case workspacePath = "workspace_path"
         case filesGenerated = "files_generated"
+        case filesFailed = "files_failed"
+        case fixIterations = "fix_iterations"
         case buildPassed = "build_passed"
+        case stepsCompleted = "steps_completed"
+        case maxStepsTarget = "max_steps_target"
         case missionId = "mission_id"
         case taskId = "task_id"
         case inputTokens = "input_tokens"

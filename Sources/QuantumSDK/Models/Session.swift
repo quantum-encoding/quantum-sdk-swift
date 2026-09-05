@@ -48,7 +48,10 @@ public struct SessionChatRequest: Codable, Sendable {
     /// Tool results from previous calls.
     public var toolResults: [ToolResult]?
 
-    /// Enable streaming.
+    /// Streaming flag on the wire. The method sets it: `chatSession` sends
+    /// `false` and `chatSessionStream` sends `true`, overwriting whatever
+    /// is here, so the buffered call never receives an SSE body it cannot
+    /// decode.
     public var stream: Bool?
 
     /// System prompt.
@@ -58,8 +61,8 @@ public struct SessionChatRequest: Codable, Sendable {
     public var contextConfig: ContextConfig?
 
     /// How much chain-of-thought a reasoning model runs before answering.
-    /// One of `"none"`, `"low"`, `"medium"`, `"high"`, `"xhigh"`; `nil` =
-    /// provider default. Mirrors ``ChatRequest/reasoningEffort``.
+    /// One of `"none"`, `"low"`, `"medium"`, `"high"`, `"xhigh"`, `"max"`;
+    /// `nil` = provider default. Mirrors ``ChatRequest/reasoningEffort``.
     public var reasoningEffort: String?
 
     /// Provider-specific settings.
@@ -102,22 +105,47 @@ public struct SessionChatRequest: Codable, Sendable {
 
 // MARK: - Context Config
 
-/// Configuration for session context management.
+/// Configuration for session context management. These are the fields the
+/// gateway reads; an omitted field keeps the server default (compaction at
+/// 100 000 tokens, the default summary).
 public struct ContextConfig: Codable, Sendable {
-    /// Maximum token budget for context.
-    public var maxTokens: Int64?
+    /// Token threshold that triggers automatic compaction.
+    public var compactAtTokens: Int64?
 
-    /// Whether to automatically compact context when it exceeds the budget.
-    public var autoCompact: Bool?
+    /// Number of recent tool call/result pairs to keep uncompacted.
+    public var keepRecentToolResults: Int?
 
-    public init(maxTokens: Int64? = nil, autoCompact: Bool? = nil) {
-        self.maxTokens = maxTokens
-        self.autoCompact = autoCompact
+    /// Strip thinking blocks from older assistant turns.
+    public var clearThinking: Bool?
+
+    /// Summarization strategy. `"plan_and_tools"` is the only strategy the
+    /// gateway distinguishes (it keeps the plan and tool history in the
+    /// summary); any other value, unset included, gets the default summary.
+    public var summarizeStrategy: String?
+
+    /// Model to use for summarization (default: gemini-2.5-flash).
+    public var summarizeModel: String?
+
+    public init(
+        compactAtTokens: Int64? = nil,
+        keepRecentToolResults: Int? = nil,
+        clearThinking: Bool? = nil,
+        summarizeStrategy: String? = nil,
+        summarizeModel: String? = nil
+    ) {
+        self.compactAtTokens = compactAtTokens
+        self.keepRecentToolResults = keepRecentToolResults
+        self.clearThinking = clearThinking
+        self.summarizeStrategy = summarizeStrategy
+        self.summarizeModel = summarizeModel
     }
 
     enum CodingKeys: String, CodingKey {
-        case maxTokens = "max_tokens"
-        case autoCompact = "auto_compact"
+        case compactAtTokens = "compact_at_tokens"
+        case keepRecentToolResults = "keep_recent_tool_results"
+        case clearThinking = "clear_thinking"
+        case summarizeStrategy = "summarize_strategy"
+        case summarizeModel = "summarize_model"
     }
 }
 
@@ -131,17 +159,40 @@ public struct SessionContext: Codable, Sendable {
     /// Estimated total tokens in the session context.
     public var estimatedTokens: Int64
 
-    /// Whether context was compacted during this turn.
+    /// Whether context was compacted during this turn. The key is absent
+    /// on the wire on every turn that was not compacted.
     public var compacted: Bool
 
     /// Note about the compaction, if any.
     public var compactionNote: String?
+
+    /// Number of stale tool results that were cleared, when the gateway
+    /// reports it.
+    public var toolsCleared: Int?
 
     enum CodingKeys: String, CodingKey {
         case compacted
         case turnCount = "turn_count"
         case estimatedTokens = "estimated_tokens"
         case compactionNote = "compaction_note"
+        case toolsCleared = "tools_cleared"
+    }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        turnCount = try c.decodeIfPresent(Int64.self, forKey: .turnCount) ?? 0
+        estimatedTokens = try c.decodeIfPresent(Int64.self, forKey: .estimatedTokens) ?? 0
+        compacted = try c.decodeIfPresent(Bool.self, forKey: .compacted) ?? false
+        compactionNote = try c.decodeIfPresent(String.self, forKey: .compactionNote)
+        toolsCleared = try c.decodeIfPresent(Int.self, forKey: .toolsCleared)
+    }
+
+    public init(turnCount: Int64, estimatedTokens: Int64, compacted: Bool = false, compactionNote: String? = nil, toolsCleared: Int? = nil) {
+        self.turnCount = turnCount
+        self.estimatedTokens = estimatedTokens
+        self.compacted = compacted
+        self.compactionNote = compactionNote
+        self.toolsCleared = toolsCleared
     }
 }
 
@@ -164,5 +215,26 @@ public struct SessionChatResponse: Codable, Sendable {
     enum CodingKeys: String, CodingKey {
         case response, context
         case sessionId = "session_id"
+    }
+}
+
+// MARK: - Session Chat Stream
+
+/// A streaming session turn: the session it belongs to, and the events.
+///
+/// The gateway sends the session id in the `X-QAI-Session-Id` header and
+/// again as the first event (`type: "session"`, see
+/// ``StreamEvent/session``); then `content_delta` / `thinking_delta`, a
+/// `usage` event and `done`. Tool calls are not streamed on this route.
+public struct SessionChatStream: Sendable {
+    /// The session identifier (newly created when the request had none).
+    public var sessionId: String
+
+    /// The events, in the same shape as `chatStream`.
+    public var events: AsyncThrowingStream<StreamEvent, any Error>
+
+    public init(sessionId: String, events: AsyncThrowingStream<StreamEvent, any Error>) {
+        self.sessionId = sessionId
+        self.events = events
     }
 }

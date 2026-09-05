@@ -3,6 +3,26 @@ import Foundation
 // Image, audio, video, voice, documents, search, jobs, batch and realtime
 // token routes.
 extension QuantumClient {
+    // MARK: - Shared helpers
+
+    /// Multipart chokepoint that records response meta into
+    /// ``lastResponseMeta`` like ``doReq`` does for JSON calls.
+    func doMultipartReq<T: Decodable>(
+        path: String,
+        fieldName: String,
+        filename: String,
+        data: Data,
+        contentType: String,
+        fields: [String: String] = [:]
+    ) async throws -> (data: T, meta: HTTPClient.ResponseMeta) {
+        let pair: (data: T, meta: HTTPClient.ResponseMeta) = try await http.doMultipart(
+            path: path, fieldName: fieldName, filename: filename,
+            data: data, contentType: contentType, fields: fields
+        )
+        _ = recordMeta(pair.meta)
+        return pair
+    }
+
     // MARK: - Image
 
     /// Generate images from a text prompt.
@@ -20,10 +40,11 @@ extension QuantumClient {
     ///   - background: Background mode — "transparent", "opaque", or "auto".
     ///     GPT-Image (gpt-image-1) honours this; other providers ignore it.
     ///     Sent only when non-nil.
-    ///   - seed: Deterministic seed (provider support varies). Sent only when non-nil.
-    ///   - cfgScale: Classifier-free guidance scale (provider support varies).
-    ///     Sent only when non-nil.
-    /// - Returns: The image response with URLs or base64 data.
+    ///   - seed: Sent as `seed`; the gateway does not read it today (see
+    ///     ``ImageRequest/seed``).
+    ///   - cfgScale: Sent as `cfg_scale`; the gateway does not read it today
+    ///     (see ``ImageRequest/cfgScale``).
+    /// - Returns: The image response with base64 image data.
     public func generateImage(
         model: String,
         prompt: String,
@@ -62,20 +83,28 @@ extension QuantumClient {
     /// built from a model's parameter schema (`GET /qai/v1/models`) — or provider
     /// params the convenience overload doesn't surface (Meshy image-to-3D fields).
     public func generateImage(_ request: ImageRequest, idempotencyKey: String? = nil) async throws -> ImageResponse {
-        let (data, _): (ImageResponse, _) = try await doReq(
+        let (data, meta): (ImageResponse, HTTPClient.ResponseMeta) = try await doReq(
             method: "POST", path: "/qai/v1/images/generate", body: request,
             idempotencyKey: idempotencyKey ?? UUID().uuidString
         )
-        return data
+        return Self.backfill(data, meta)
     }
 
     /// Edit images using an AI model.
     public func editImage(_ request: ImageEditRequest, idempotencyKey: String? = nil) async throws -> ImageEditResponse {
-        let (data, _): (ImageEditResponse, _) = try await doReq(
+        let (data, meta): (ImageEditResponse, HTTPClient.ResponseMeta) = try await doReq(
             method: "POST", path: "/qai/v1/images/edit", body: request,
             idempotencyKey: idempotencyKey ?? UUID().uuidString
         )
-        return data
+        return Self.backfill(data, meta)
+    }
+
+    private static func backfill(_ response: ImageResponse, _ meta: HTTPClient.ResponseMeta) -> ImageResponse {
+        var r = response
+        if r.costTicks == 0 { r.costTicks = Int64(meta.costTicks) }
+        if r.balanceAfter == nil { r.balanceAfter = meta.balanceAfter }
+        if r.requestId.isEmpty { r.requestId = meta.requestId }
+        return r
     }
 
     // MARK: - Audio: TTS
@@ -90,7 +119,7 @@ extension QuantumClient {
     ///   - speed: Speaking speed.
     ///   - instructions: Voice-steering (tone/emotion/accent). gpt-4o-mini-tts
     ///     only; the backend drops it for tts-1/tts-1-hd.
-    /// - Returns: The TTS response with audio URL.
+    /// - Returns: The TTS response with base64 audio.
     public func speak(
         text: String,
         model: String,
@@ -134,6 +163,22 @@ extension QuantumClient {
         return data
     }
 
+    /// Mint a token for a realtime speech-to-text WebSocket (ElevenLabs
+    /// Scribe). The client then connects straight to
+    /// ``RealtimeSttTokenResponse/wsEndpoint`` with `?token=<token>`.
+    /// Billed flat at mint; see ``RealtimeSttTokenResponse``.
+    ///
+    /// `POST /qai/v1/audio/stt/realtime-token`
+    public func audioSTTRealtimeToken() async throws -> RealtimeSttTokenResponse {
+        let (data, meta): (RealtimeSttTokenResponse, HTTPClient.ResponseMeta) = try await doReq(
+            method: "POST", path: "/qai/v1/audio/stt/realtime-token"
+        )
+        var r = data
+        if r.costTicks == 0 { r.costTicks = Int64(meta.costTicks) }
+        if r.requestId.isEmpty { r.requestId = meta.requestId }
+        return r
+    }
+
     // MARK: - Audio: Sound Effects
 
     /// Generate sound effects from a text prompt (ElevenLabs).
@@ -156,27 +201,29 @@ extension QuantumClient {
         return data
     }
 
-    /// Generate music via the advanced endpoint (ElevenLabs, finetunes).
-    public func generateMusicAdvanced(_ request: MusicAdvancedRequest) async throws -> MusicAdvancedResponse {
-        let (data, _): (MusicAdvancedResponse, _) = try await doReq(
+    /// Generate music via the advanced endpoint (ElevenLabs Eleven Music:
+    /// sections, vocals toggle, global styles, finetunes). Editing an earlier
+    /// generation is not supported on this route.
+    public func generateMusicAdvanced(_ request: ElevenMusicRequest) async throws -> ElevenMusicResponse {
+        let (data, meta): (ElevenMusicResponse, HTTPClient.ResponseMeta) = try await doReq(
             method: "POST", path: "/qai/v1/audio/music/advanced", body: request
         )
-        return data
+        var r = data
+        if r.costTicks == 0 { r.costTicks = Int64(meta.costTicks) }
+        if r.requestId.isEmpty { r.requestId = meta.requestId }
+        return r
     }
 
-    /// Generate music via the advanced endpoint with the full Eleven Music
-    /// surface — sections (composition plan), vocals toggle, global styles,
-    /// and finetunes.
+    /// Same route as ``generateMusicAdvanced(_:)``, kept under its original
+    /// name.
     public func generateElevenMusic(_ request: ElevenMusicRequest) async throws -> ElevenMusicResponse {
-        let (data, _): (ElevenMusicResponse, _) = try await doReq(
-            method: "POST", path: "/qai/v1/audio/music/advanced", body: request
-        )
-        return data
+        try await generateMusicAdvanced(request)
     }
 
     // MARK: - Audio: Dialogue
 
-    /// Generate multi-speaker dialogue audio (ElevenLabs).
+    /// Generate multi-speaker dialogue audio (ElevenLabs). Billed per
+    /// character of the script.
     public func dialogue(_ request: DialogueRequest) async throws -> DialogueResponse {
         let (data, _): (DialogueResponse, _) = try await doReq(
             method: "POST", path: "/qai/v1/audio/dialogue", body: request
@@ -197,17 +244,22 @@ extension QuantumClient {
     // MARK: - Audio: Voice Isolation
 
     /// Remove background noise and isolate speech (ElevenLabs).
-    public func isolateVoice(audioBase64: String) async throws -> IsolateVoiceResponse {
-        let request = IsolateVoiceRequest(audioBase64: audioBase64)
+    public func isolateVoice(_ request: IsolateVoiceRequest) async throws -> IsolateVoiceResponse {
         let (data, _): (IsolateVoiceResponse, _) = try await doReq(
             method: "POST", path: "/qai/v1/audio/isolate", body: request
         )
         return data
     }
 
+    /// Remove background noise and isolate speech (ElevenLabs).
+    public func isolateVoice(audioBase64: String, filename: String? = nil) async throws -> IsolateVoiceResponse {
+        try await isolateVoice(IsolateVoiceRequest(audioBase64: audioBase64, filename: filename))
+    }
+
     // MARK: - Audio: Voice Remix
 
-    /// Transform a voice by modifying attributes (ElevenLabs).
+    /// Remix a voice recording towards the requested attributes (ElevenLabs).
+    /// Flat per-request charge whether or not any attribute is set.
     public func remixVoice(_ request: RemixVoiceRequest) async throws -> RemixVoiceResponse {
         let (data, _): (RemixVoiceResponse, _) = try await doReq(
             method: "POST", path: "/qai/v1/audio/remix", body: request
@@ -278,31 +330,38 @@ extension QuantumClient {
     // MARK: - Audio: Finetunes
 
     /// Poll one music finetune's training status. When status == "complete",
-    /// modelId carries the usable model identifier for generation.
-    public func getFinetune(id: String) async throws -> MusicFinetuneStatus {
-        let (data, _): (MusicFinetuneStatus, _) = try await doReq(
+    /// `modelId` carries the usable model identifier for generation.
+    ///
+    /// The gateway registers only `DELETE` on this path today, so the call
+    /// answers 405 until `GET /qai/v1/audio/finetunes/{id}` is wired;
+    /// ``listFinetunes()`` carries the same per-finetune shape meanwhile.
+    public func getFinetune(id: String) async throws -> FinetuneInfo {
+        let (data, _): (FinetuneInfo, _) = try await doReq(
             method: "GET", path: "/qai/v1/audio/finetunes/\(id)"
         )
         return data
     }
 
-    /// List all music finetunes.
-    public func listFinetunes() async throws -> MusicFinetuneListResponse {
-        let (data, _): (MusicFinetuneListResponse, _) = try await doReq(
+    /// List the music finetunes on the account.
+    public func listFinetunes() async throws -> ListFinetunesResponse {
+        let (data, _): (ListFinetunesResponse, _) = try await doReq(
             method: "GET", path: "/qai/v1/audio/finetunes"
         )
         return data
     }
 
-    /// Create a new music finetune from audio samples.
-    public func createFinetune(_ request: MusicFinetuneCreateRequest) async throws -> MusicFinetuneInfo {
-        let (data, _): (MusicFinetuneInfo, _) = try await doReq(
+    /// Create a music finetune from base64 audio samples. Answers 201 with
+    /// the finetune's `id` and initial `status`; training is asynchronous, so
+    /// `modelId` is empty until ``listFinetunes()`` reports it.
+    public func createFinetune(_ request: MusicFinetuneCreateRequest) async throws -> FinetuneInfo {
+        let (data, _): (FinetuneInfo, _) = try await doReq(
             method: "POST", path: "/qai/v1/audio/finetunes", body: request
         )
         return data
     }
 
-    /// Delete a music finetune by ID.
+    /// Delete a music finetune by ID (`{"status":"deleted"}`; 404 when
+    /// unknown, 403 when owned by another account).
     public func deleteFinetune(id: String) async throws -> StatusResponse {
         let (data, _): (StatusResponse, _) = try await doReq(
             method: "DELETE", path: "/qai/v1/audio/finetunes/\(id)"
@@ -324,14 +383,19 @@ extension QuantumClient {
         idempotencyKey: String? = nil
     ) async throws -> VideoResponse {
         let request = VideoRequest(model: model, prompt: prompt, durationSeconds: durationSeconds, aspectRatio: aspectRatio)
-        let (data, _): (VideoResponse, _) = try await doReq(
+        let (data, meta): (VideoResponse, HTTPClient.ResponseMeta) = try await doReq(
             method: "POST", path: "/qai/v1/video/generate", body: request,
             idempotencyKey: idempotencyKey ?? UUID().uuidString
         )
-        return data
+        var r = data
+        if r.costTicks == 0 { r.costTicks = Int64(meta.costTicks) }
+        if r.balanceAfter == nil { r.balanceAfter = meta.balanceAfter }
+        if r.requestId.isEmpty { r.requestId = meta.requestId }
+        return r
     }
 
-    /// Create a talking-head video via HeyGen Studio. Returns an async job.
+    /// Create a HeyGen studio talking-head video (async job type
+    /// "video/studio"). Poll the returned job id for the result.
     public func videoStudio(_ request: VideoStudioRequest) async throws -> JobAcceptedResponse {
         let (data, _): (JobAcceptedResponse, _) = try await doReq(
             method: "POST", path: "/qai/v1/video/studio", body: request
@@ -339,7 +403,9 @@ extension QuantumClient {
         return data
     }
 
-    /// Submit a video translation job via HeyGen. Returns an async job.
+    /// Translate a video into another language (HeyGen; async job type
+    /// "video/translate"). A flat hold is taken at submit and trued up when
+    /// the job settles.
     public func videoTranslate(_ request: VideoTranslateRequest) async throws -> JobAcceptedResponse {
         let (data, _): (JobAcceptedResponse, _) = try await doReq(
             method: "POST", path: "/qai/v1/video/translate", body: request
@@ -361,29 +427,14 @@ extension QuantumClient {
         return data
     }
 
-    /// Render a video of a trained twin avatar. Returns an async job.
-    ///
-    /// Forwards to ``twinVideo(_:)`` (`/qai/v1/video/twin-video`). Twin
-    /// creation is ``createDigitalTwin(name:footage:filename:contentType:avatarGroupId:)``;
-    /// `/qai/v1/video/digital-twin` trains a twin and does not render one.
-    @available(*, deprecated, renamed: "twinVideo(_:)")
-    public func videoDigitalTwin(avatarId: String, script: String) async throws -> JobAcceptedResponse {
-        try await videoDigitalTwin(DigitalTwinRequest(avatarId: avatarId, script: script))
+    /// Create a digital twin from training footage at a URL (HeyGen).
+    /// Synchronous; the subject must complete `consentUrl` before the twin
+    /// renders. Render with ``twinVideo(_:)``. Flat charge.
+    public func videoDigitalTwin(_ request: DigitalTwinCreateRequest) async throws -> DigitalTwinCreateResponse {
+        try await createDigitalTwin(request)
     }
 
-    /// Render a video of a trained twin avatar from a full request (carries
-    /// the optional `voiceId` / `aspectRatio`). Returns an async job.
-    @available(*, deprecated, renamed: "twinVideo(_:)")
-    public func videoDigitalTwin(_ request: DigitalTwinRequest) async throws -> JobAcceptedResponse {
-        try await twinVideo(TwinVideoRequest(
-            avatarId: request.avatarId,
-            script: request.script,
-            voiceId: request.voiceId,
-            aspectRatio: request.aspectRatio
-        ))
-    }
-
-    /// List available HeyGen avatars.
+    /// List available HeyGen avatar looks (public and private).
     public func videoAvatars() async throws -> AvatarsResponse {
         let (data, _): (AvatarsResponse, _) = try await doReq(
             method: "GET", path: "/qai/v1/video/avatars"
@@ -391,9 +442,9 @@ extension QuantumClient {
         return data
     }
 
-    /// List available HeyGen templates.
-    public func videoTemplates() async throws -> HeyGenTemplatesResponse {
-        let (data, _): (HeyGenTemplatesResponse, _) = try await doReq(
+    /// List available HeyGen video templates (API-ready templates only).
+    public func videoTemplates() async throws -> VideoTemplatesResponse {
+        let (data, _): (VideoTemplatesResponse, _) = try await doReq(
             method: "GET", path: "/qai/v1/video/templates"
         )
         return data
@@ -409,58 +460,94 @@ extension QuantumClient {
 
     // MARK: - Embeddings
 
-    /// Generate text embeddings for the given input.
-    ///
-    /// - Parameters:
-    ///   - input: Text to embed.
-    ///   - model: Embedding model.
-    /// - Returns: The embedding response with vectors.
-    public func embed(input: String, model: String? = nil) async throws -> EmbedResponse {
-        let request = EmbedRequest(input: input, model: model)
-        let (data, _): (EmbedResponse, _) = try await doReq(
+    /// Generate text embeddings for the given inputs.
+    public func embed(_ request: EmbedRequest) async throws -> EmbedResponse {
+        let (data, meta): (EmbedResponse, HTTPClient.ResponseMeta) = try await doReq(
             method: "POST", path: "/qai/v1/embeddings", body: request
         )
-        return data
+        var r = data
+        if r.costTicks == 0 { r.costTicks = meta.costTicks }
+        if r.requestId.isEmpty { r.requestId = meta.requestId }
+        return r
+    }
+
+    /// Generate a text embedding for one input.
+    ///
+    /// - Parameters:
+    ///   - input: Text to embed (sent as a one-element list; the route only
+    ///     accepts lists).
+    ///   - model: Embedding model (required by the route).
+    public func embed(input: String, model: String) async throws -> EmbedResponse {
+        try await embed(EmbedRequest(model: model, input: [input]))
     }
 
     /// Generate text embeddings for multiple inputs.
-    public func embed(inputs: [String], model: String? = nil) async throws -> EmbedResponse {
-        let request = EmbedRequest(inputs: inputs, model: model)
-        let (data, _): (EmbedResponse, _) = try await doReq(
-            method: "POST", path: "/qai/v1/embeddings", body: request
-        )
-        return data
+    public func embed(inputs: [String], model: String) async throws -> EmbedResponse {
+        try await embed(EmbedRequest(model: model, input: inputs))
     }
 
     // MARK: - Documents
 
-    /// Extract text content from a document (PDF, image, etc.).
+    /// Extract a PDF or DOCX to Markdown.
+    ///
+    /// `POST /qai/v1/documents/extract` (multipart, field `file`)
     public func extractDocument(_ request: DocumentRequest) async throws -> DocumentResponse {
-        let (data, _): (DocumentResponse, _) = try await doReq(
-            method: "POST", path: "/qai/v1/documents/extract", body: request
+        let (data, meta): (DocumentResponse, HTTPClient.ResponseMeta) = try await doMultipartReq(
+            path: "/qai/v1/documents/extract",
+            fieldName: "file",
+            filename: request.filename,
+            data: request.content,
+            contentType: request.mimeType ?? "application/octet-stream",
+            fields: documentFormFields(extractImages: request.extractImages, chunkSize: nil, overlap: nil)
         )
-        return data
+        var r = data
+        if r.costTicks == 0 { r.costTicks = Int64(meta.costTicks) }
+        if r.requestId.isEmpty { r.requestId = meta.requestId }
+        return r
     }
 
-    /// Chunk a document into smaller pieces for embedding or processing.
+    /// Extract a document and split the Markdown into overlapping chunks
+    /// sized in characters, for embeddings or RAG.
+    ///
+    /// `POST /qai/v1/documents/chunk` (multipart, field `file`)
     public func chunkDocument(_ request: ChunkDocumentRequest) async throws -> ChunkDocumentResponse {
-        let (data, _): (ChunkDocumentResponse, _) = try await doReq(
-            method: "POST", path: "/qai/v1/documents/chunk", body: request
+        let (data, meta): (ChunkDocumentResponse, HTTPClient.ResponseMeta) = try await doMultipartReq(
+            path: "/qai/v1/documents/chunk",
+            fieldName: "file",
+            filename: request.filename,
+            data: request.content,
+            contentType: request.mimeType ?? "application/octet-stream",
+            fields: documentFormFields(extractImages: false, chunkSize: request.chunkSize, overlap: request.overlap)
         )
-        return data
+        var r = data
+        if r.costTicks == 0 { r.costTicks = Int64(meta.costTicks) }
+        if r.requestId.isEmpty { r.requestId = meta.requestId }
+        return r
     }
 
-    /// Process a document with extraction + optional instructions.
+    /// Run the whole pipeline: extraction, chunking, and images when asked.
+    /// No model is involved; the price is the same mechanical rate.
+    ///
+    /// `POST /qai/v1/documents/process` (multipart, field `file`)
     public func processDocument(_ request: ProcessDocumentRequest) async throws -> ProcessDocumentResponse {
-        let (data, _): (ProcessDocumentResponse, _) = try await doReq(
-            method: "POST", path: "/qai/v1/documents/process", body: request
+        let (data, meta): (ProcessDocumentResponse, HTTPClient.ResponseMeta) = try await doMultipartReq(
+            path: "/qai/v1/documents/process",
+            fieldName: "file",
+            filename: request.filename,
+            data: request.content,
+            contentType: request.mimeType ?? "application/octet-stream",
+            fields: documentFormFields(extractImages: request.extractImages, chunkSize: request.chunkSize, overlap: request.overlap)
         )
-        return data
+        var r = data
+        if r.costTicks == 0 { r.costTicks = Int64(meta.costTicks) }
+        if r.requestId.isEmpty { r.requestId = meta.requestId }
+        return r
     }
 
-    // MARK: - Search (Brave)
+    // MARK: - Search
 
-    /// Perform a web search. Returns web results, news, videos, infobox, discussions.
+    /// Perform a Brave web search. Returns web results, news, videos,
+    /// infobox, discussions.
     public func webSearch(_ request: WebSearchRequest) async throws -> WebSearchResponse {
         let (data, _): (WebSearchResponse, _) = try await doReq(
             method: "POST", path: "/qai/v1/search/web", body: request
@@ -476,7 +563,7 @@ extension QuantumClient {
         return data
     }
 
-    /// Get a grounded AI answer with citations.
+    /// Get a grounded AI answer with citations (Brave).
     public func searchAnswer(_ request: SearchAnswerRequest) async throws -> SearchAnswerResponse {
         let (data, _): (SearchAnswerResponse, _) = try await doReq(
             method: "POST", path: "/qai/v1/search/answer", body: request
@@ -484,19 +571,35 @@ extension QuantumClient {
         return data
     }
 
+    /// Google grounded search via Gemini Flash + the `google_search` built-in
+    /// tool: a grounded answer plus citations, the ToS-required
+    /// search-entry-point widget, and the queries Gemini actually executed.
+    ///
+    /// Billed per executed query ($0.035 each); ``searchAnswer(_:)`` is the
+    /// Brave-backed alternative for cheap high-volume search.
+    ///
+    /// `POST /qai/v1/search/google`
+    public func googleSearch(_ request: GoogleSearchRequest) async throws -> GoogleSearchResponse {
+        let (data, _): (GoogleSearchResponse, _) = try await doReq(
+            method: "POST", path: "/qai/v1/search/google", body: request
+        )
+        return data
+    }
+
     // MARK: - Jobs
 
-    /// Create an async job. Returns the job ID for polling.
-    public func createJob(type: String, params: [String: AnyCodable], idempotencyKey: String? = nil) async throws -> JobCreateResponse {
+    /// Create an async job (202). Returns the job envelope for polling.
+    public func createJob(type: String, params: [String: AnyCodable], idempotencyKey: String? = nil) async throws -> JobAcceptedResponse {
         let request = JobCreateRequest(jobType: type, params: AnyCodable(params))
-        let (data, _): (JobCreateResponse, _) = try await doReq(
+        let (data, _): (JobAcceptedResponse, _) = try await doReq(
             method: "POST", path: "/qai/v1/jobs", body: request,
             idempotencyKey: idempotencyKey ?? UUID().uuidString
         )
         return data
     }
 
-    /// Check the status of an async job.
+    /// Check the status of an async job. Batch jobs live in a different
+    /// store: read those with ``batchJob(id:)``.
     public func getJob(jobId: String) async throws -> JobStatusResponse {
         let (data, _): (JobStatusResponse, _) = try await doReq(
             method: "GET", path: "/qai/v1/jobs/\(jobId)"
@@ -504,13 +607,19 @@ extension QuantumClient {
         return data
     }
 
-    /// Poll a job until completion or timeout.
+    /// Poll a job until it reports "completed" or "failed".
+    ///
+    /// Each attempt sleeps for `interval` before checking, so the first
+    /// status read happens one interval after the call. A "failed" job is
+    /// returned normally with `status == "failed"`. When `maxAttempts` runs
+    /// out this throws ``QuantumError/api(statusCode:code:message:requestId:)``
+    /// with `code == "poll_timeout"` and `statusCode == 0` (raised locally,
+    /// no HTTP status); the job keeps running and can be polled again.
     ///
     /// - Parameters:
     ///   - jobId: Job ID to poll.
     ///   - interval: Polling interval (default 2 seconds).
-    ///   - maxAttempts: Maximum poll attempts before timeout (default 150).
-    /// - Returns: The final job status.
+    ///   - maxAttempts: Maximum poll attempts before giving up (default 150).
     public func pollJob(
         jobId: String,
         interval: TimeInterval = 2.0,
@@ -524,16 +633,16 @@ extension QuantumClient {
             }
         }
 
-        return JobStatusResponse(
-            jobId: jobId,
-            status: "timeout",
-            result: nil,
-            error: "Job polling timed out after \(maxAttempts) attempts",
-            costTicks: 0
+        throw QuantumError.api(
+            statusCode: 0,
+            code: "poll_timeout",
+            message: "job \(jobId) still running after \(maxAttempts) polls of \(interval)s",
+            requestId: nil
         )
     }
 
-    /// List all jobs for the authenticated user.
+    /// List the caller's newest 50 jobs. Older jobs are not reachable
+    /// through this route; keep the ids from submission if you need them.
     public func listJobs() async throws -> JobListResponse {
         let (data, _): (JobListResponse, _) = try await doReq(
             method: "GET", path: "/qai/v1/jobs"
@@ -542,7 +651,7 @@ extension QuantumClient {
     }
 
     /// Submit a 3D generation job.
-    public func generate3D(model: String, prompt: String? = nil, imageUrl: String? = nil) async throws -> JobCreateResponse {
+    public func generate3D(model: String, prompt: String? = nil, imageUrl: String? = nil) async throws -> JobAcceptedResponse {
         var params: [String: AnyCodable] = ["model": AnyCodable(model)]
         if let prompt { params["prompt"] = AnyCodable(prompt) }
         if let imageUrl { params["image_url"] = AnyCodable(imageUrl) }
@@ -551,7 +660,8 @@ extension QuantumClient {
 
     // MARK: - Voice Management
 
-    /// List all available voices (ElevenLabs).
+    /// List all available voices (built-in catalogs, then the live
+    /// ElevenLabs library).
     public func listVoices() async throws -> VoicesResponse {
         let (data, _): (VoicesResponse, _) = try await doReq(
             method: "GET", path: "/qai/v1/voices"
@@ -559,15 +669,19 @@ extension QuantumClient {
         return data
     }
 
-    /// Create an instant voice clone from audio samples (ElevenLabs).
+    /// Create an instant voice clone from base64 audio samples (ElevenLabs;
+    /// flat charge per clone, 402 preflight when under-funded).
     public func cloneVoice(_ request: CloneVoiceRequest) async throws -> CloneVoiceResponse {
-        let (data, _): (CloneVoiceResponse, _) = try await doReq(
+        let (data, meta): (CloneVoiceResponse, HTTPClient.ResponseMeta) = try await doReq(
             method: "POST", path: "/qai/v1/voices/clone", body: request
         )
-        return data
+        var r = data
+        if r.requestId.isEmpty { r.requestId = meta.requestId }
+        return r
     }
 
-    /// Delete a cloned voice (ElevenLabs).
+    /// Delete a cloned voice (403 unless the caller owns it, 404 when
+    /// unknown upstream).
     public func deleteVoice(id: String) async throws -> StatusResponse {
         let (data, _): (StatusResponse, _) = try await doReq(
             method: "DELETE", path: "/qai/v1/voices/\(id)"
@@ -575,19 +689,13 @@ extension QuantumClient {
         return data
     }
 
-    /// Browse the shared voice library with optional filters.
+    /// Browse the shared voice library with optional filters. Page through
+    /// with `cursor = lastSortId` while `hasMore` is true.
     public func voiceLibrary(query: VoiceLibraryQuery? = nil) async throws -> SharedVoicesResponse {
-        var params: [String] = []
-        if let q = query?.query { params.append("query=\(q.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? q)") }
-        if let ps = query?.pageSize { params.append("page_size=\(ps)") }
-        if let c = query?.cursor { params.append("cursor=\(c)") }
-        if let g = query?.gender { params.append("gender=\(g)") }
-        if let l = query?.language { params.append("language=\(l)") }
-        if let u = query?.useCase { params.append("use_case=\(u)") }
-
         var path = "/qai/v1/voices/library"
-        if !params.isEmpty { path += "?" + params.joined(separator: "&") }
-
+        if let params = query?.queryItems, !params.isEmpty {
+            path += "?" + params.joined(separator: "&")
+        }
         let (data, _): (SharedVoicesResponse, _) = try await doReq(method: "GET", path: path)
         return data
     }
@@ -600,12 +708,15 @@ extension QuantumClient {
         return data
     }
 
-    // MARK: - Realtime Voice
+    // MARK: - Realtime Voice (token minting)
 
-    /// Request an ephemeral token for direct voice connection.
+    /// Request an ephemeral token for a direct voice connection.
     ///
-    /// - Parameter provider: Optional provider ("xai" default, "elevenlabs").
-    /// - Returns: Session info with token and WebSocket URL.
+    /// - Parameter provider: The gateway recognises `"elevenlabs"`; any other
+    ///   value, or nil, mints an xAI token. An ElevenLabs session is charged
+    ///   one pre-authorised minute at mint and returns `signedUrl` +
+    ///   `provider` only; an xAI session returns `ephemeralToken` + `url`.
+    /// - Returns: Session info; connect to ``RealtimeSession/wsUrl``.
     public func realtimeSession(provider: String? = nil) async throws -> RealtimeSession {
         var body: [String: AnyCodable] = [:]
         if let provider { body["provider"] = AnyCodable(provider) }
@@ -623,11 +734,13 @@ extension QuantumClient {
         return data
     }
 
-    /// End a realtime session and finalize billing.
-    public func realtimeEnd(sessionId: String, durationSeconds: Double) async throws {
+    /// End a realtime session and settle its bill. The gateway charges the
+    /// longer of its own clock and `durationSeconds`, less the minute it
+    /// pre-authorised at session start. 404 for an unknown session.
+    public func realtimeEnd(sessionId: String, durationSeconds: Int) async throws {
         struct Body: Encodable {
             let session_id: String
-            let duration_seconds: Double
+            let duration_seconds: Int
         }
         let _: (StatusResponse, _) = try await doReq(
             method: "POST", path: "/qai/v1/realtime/end",
@@ -635,7 +748,9 @@ extension QuantumClient {
         )
     }
 
-    /// Refresh an ephemeral token for long sessions (>4 min).
+    /// Refresh an ephemeral token for long sessions (default TTL 300 s;
+    /// refresh before it lapses). Needs an owned session and at least one
+    /// funded minute.
     public func realtimeRefresh(sessionId: String) async throws -> String {
         struct Body: Encodable { let session_id: String }
         struct Response: Decodable { let ephemeral_token: String }
@@ -649,7 +764,13 @@ extension QuantumClient {
 
     // MARK: - Batch Processing
 
-    /// Submit a batch of jobs for processing.
+    /// Submit a batch of jobs for processing (1–100 per call).
+    ///
+    /// The gateway requires a small per-job minimum balance (402 otherwise)
+    /// and rejects the whole batch when any job names an unpriced model
+    /// (400). Each accepted job runs independently; read results with
+    /// ``batchJob(id:)``, not the Jobs API. See ``BatchSubmitResponse`` for
+    /// why `jobIds` may be shorter than the input.
     public func batchSubmit(_ request: BatchSubmitRequest) async throws -> BatchSubmitResponse {
         let (data, _): (BatchSubmitResponse, _) = try await doReq(
             method: "POST", path: "/qai/v1/batch", body: request
@@ -657,16 +778,27 @@ extension QuantumClient {
         return data
     }
 
-    /// Submit a batch of jobs using JSONL format.
+    /// Submit a batch of jobs as raw JSONL: the body is the text itself,
+    /// one JSON object per line in the ``BatchJob`` shape (up to 1 MiB).
+    /// Blank lines and lines starting with `#` are ignored; lines that fail
+    /// to parse or lack `model`/`prompt` are dropped, and a body with no
+    /// valid line is rejected with 400.
     public func batchSubmitJsonl(_ jsonl: String) async throws -> BatchJsonlResponse {
-        struct Body: Encodable { let jsonl: String }
-        let (data, _): (BatchJsonlResponse, _) = try await doReq(
-            method: "POST", path: "/qai/v1/batch/jsonl", body: Body(jsonl: jsonl)
+        let (data, meta): (BatchJsonlResponse, HTTPClient.ResponseMeta) = try await http.doRawUpload(
+            method: "POST",
+            path: "/qai/v1/batch/jsonl",
+            data: Data(jsonl.utf8),
+            contentType: "application/x-ndjson"
         )
+        _ = recordMeta(meta)
         return data
     }
 
-    /// List all batch jobs for the account.
+    /// List the caller's batch jobs.
+    ///
+    /// The gateway reads the newest 100 batch jobs across all users and
+    /// filters to the caller, so a caller's older jobs drop out of this
+    /// list once other users' jobs push them past that window.
     public func batchJobs() async throws -> BatchJobsResponse {
         let (data, _): (BatchJobsResponse, _) = try await doReq(
             method: "GET", path: "/qai/v1/batch/jobs"
@@ -674,7 +806,11 @@ extension QuantumClient {
         return data
     }
 
-    /// Get the status and result of a single batch job.
+    /// Get the status and output of a single batch job.
+    ///
+    /// The lookup scans the newest 200 batch jobs across all users; a
+    /// caller's job older than that window answers 404 even though it
+    /// exists. Read the output promptly once `status == "complete"`.
     public func batchJob(id: String) async throws -> BatchJobInfo {
         let (data, _): (BatchJobInfo, _) = try await doReq(
             method: "GET", path: "/qai/v1/batch/jobs/\(id)"
@@ -684,24 +820,24 @@ extension QuantumClient {
 
     // MARK: - Job SSE Streaming
 
-    /// Stream job events via SSE. Yields events as the job progresses.
+    /// Stream job events via SSE (`GET /qai/v1/jobs/{id}/stream`).
+    ///
+    /// Yields a "progress" event on each status change, then one "complete"
+    /// or "error", after which the stream closes. The stream also closes
+    /// after 10 minutes with an `error` event whose `jobId` is absent (see
+    /// ``JobStreamEvent/isStreamTimeout``); the job itself continues.
     ///
     /// ```swift
     /// let job = try await client.createJob(type: "3d/generate", params: ["model": "meshy-6", "prompt": "a sword"])
     /// for try await event in client.streamJob(jobId: job.jobId) {
-    ///     print(event.type, event.status)
+    ///     print(event.eventType, event.status ?? "")
     /// }
     /// ```
     public func streamJob(jobId: String) -> AsyncThrowingStream<JobStreamEvent, any Error> {
-        struct Body: Encodable { let job_id: String }
-
-        return AsyncThrowingStream { continuation in
+        AsyncThrowingStream { continuation in
             Task {
                 do {
-                    let (bytes, _) = try await http.doStreamRequest(
-                        path: "/qai/v1/jobs/\(jobId)/stream",
-                        body: Body(job_id: jobId)
-                    )
+                    let (bytes, _) = try await self.http.doStreamGet(path: "/qai/v1/jobs/\(jobId)/stream")
                     let parser = SSEParser(bytes: bytes)
 
                     for try await sseEvent in parser {

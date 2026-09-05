@@ -4,7 +4,8 @@ import Foundation
 
 /// Request body for the `/qai/v1/chat` endpoint.
 public struct ChatRequest: Codable, Sendable {
-    /// Model ID that determines provider routing (e.g. "claude-sonnet-4-6").
+    /// Model ID that determines provider routing (e.g. "claude-sonnet-4-6",
+    /// "grok-4-1-fast-non-reasoning", "qwen3.8-max"). See `listModels()`.
     public var model: String
 
     /// Conversation history.
@@ -13,7 +14,7 @@ public struct ChatRequest: Codable, Sendable {
     /// Functions the model can call.
     public var tools: [ChatTool]?
 
-    /// Enable server-sent event streaming.
+    /// Enable server-sent event streaming. `chat` and `chatStream` set it.
     public var stream: Bool?
 
     /// Controls randomness (0.0-2.0).
@@ -45,18 +46,12 @@ public struct ChatRequest: Codable, Sendable {
     /// back into this property.
     public var region: Region?
 
-    /// Capability allowlist. Filters which client-declared tools are forwarded
-    /// to the model by matching their names against the server's capability
-    /// registry (e.g. `"file_read"`, `"code_execution"`).
-    /// - `nil`: pass all tools through (backwards compatible).
-    /// - `[]`: Safe Mode — drop all tools (pure chat).
-    /// - non-empty: only tools whose names map to the allowed capabilities.
-    public var capabilities: [String]?
-
     /// How much chain-of-thought a reasoning model runs before answering.
-    /// One of `"none"`, `"low"`, `"medium"`, `"high"`, `"xhigh"`; `nil` =
-    /// provider default (medium on GPT-5.5+). An unknown value is rejected
-    /// with 400 by the gateway.
+    /// One of `"none"`, `"low"`, `"medium"`, `"high"`, `"xhigh"`, `"max"`;
+    /// `nil` = provider default (medium on GPT-5.5+). `max` is Anthropic
+    /// Opus 4.7+ only (OpenAI will 400 on it). On hybrid-thinking Qwen
+    /// models any value but `"none"` enables thinking and `"none"` disables
+    /// it. An unknown value is rejected with 400 by the gateway.
     public var reasoningEffort: String?
 
     /// Vertex resource name of a previously created context cache (e.g.
@@ -76,7 +71,6 @@ public struct ChatRequest: Codable, Sendable {
         outputSchema: [String: AnyCodable]? = nil,
         providerOptions: [String: [String: AnyCodable]]? = nil,
         region: Region? = nil,
-        capabilities: [String]? = nil,
         reasoningEffort: String? = nil,
         cachedContent: String? = nil
     ) {
@@ -90,13 +84,12 @@ public struct ChatRequest: Codable, Sendable {
         self.outputSchema = outputSchema
         self.providerOptions = providerOptions
         self.region = region
-        self.capabilities = capabilities
         self.reasoningEffort = reasoningEffort
         self.cachedContent = cachedContent
     }
 
     enum CodingKeys: String, CodingKey {
-        case model, messages, tools, stream, temperature, capabilities
+        case model, messages, tools, stream, temperature
         case maxTokens = "max_tokens"
         case toolChoice = "tool_choice"
         case outputSchema = "output_schema"
@@ -128,7 +121,6 @@ public struct ChatRequest: Codable, Sendable {
             merged = opts
         }
         try container.encodeIfPresent(merged, forKey: .providerOptions)
-        try container.encodeIfPresent(capabilities, forKey: .capabilities)
         try container.encodeIfPresent(reasoningEffort, forKey: .reasoningEffort)
         try container.encodeIfPresent(cachedContent, forKey: .cachedContent)
     }
@@ -156,7 +148,6 @@ public struct ChatRequest: Codable, Sendable {
             }
             providerOptions = rest.isEmpty ? nil : rest
         }
-        capabilities = try container.decodeIfPresent([String].self, forKey: .capabilities)
         reasoningEffort = try container.decodeIfPresent(String.self, forKey: .reasoningEffort)
         cachedContent = try container.decodeIfPresent(String.self, forKey: .cachedContent)
     }
@@ -172,7 +163,9 @@ public struct ChatMessage: Codable, Sendable {
     /// Plain text content of the message.
     public var content: String?
 
-    /// Structured content blocks.
+    /// Structured content blocks. When present, takes precedence over
+    /// `content`. A `null` on the wire decodes as `nil`; a malformed block
+    /// array is a decode error, not `nil`.
     public var contentBlocks: [ContentBlock]?
 
     /// Tool call ID for tool result messages.
@@ -241,7 +234,8 @@ public struct ChatMessage: Codable, Sendable {
 
 /// A structured content block in a chat message or response.
 public struct ContentBlock: Codable, Sendable {
-    /// Block type (e.g. "text", "thinking", "tool_use").
+    /// Block type (e.g. "text", "thinking", "tool_use", "image", "file",
+    /// "file_uri").
     public var blockType: String
 
     /// Text content for text/thinking blocks.
@@ -262,14 +256,16 @@ public struct ContentBlock: Codable, Sendable {
     /// Base64-encoded content for `"image"` and `"file"` blocks.
     public var data: String?
 
-    /// MIME type for `"image"`/`"file"` blocks (e.g. `"image/png"`, `"application/pdf"`).
+    /// MIME type for `"image"`/`"file"`/`"file_uri"` blocks (e.g. `"image/png"`, `"application/pdf"`).
     public var mimeType: String?
 
     /// Original filename for `"file"` blocks.
     public var fileName: String?
 
-    /// Remote resource URL for `"file_uri"` blocks (YouTube, `gs://`, etc.) —
-    /// the model fetches it directly instead of receiving inline data.
+    /// Remote resource URL for `"file_uri"` blocks. Gemini accepts YouTube
+    /// URLs verbatim here (with `mimeType: "video/mp4"`); other providers
+    /// may require a pre-uploaded resource URI, and an unsupported URI is
+    /// skipped server-side rather than erroring the request.
     public var fileURI: String?
 
     public init(
@@ -335,7 +331,8 @@ public struct ContentBlock: Codable, Sendable {
 /// Wire shape is FLAT, matching the gateway contract:
 /// `{"name","description","parameters","strict"}`. The gateway does not
 /// understand the OpenAI/Anthropic nested `{"type":"function","function":{...}}`
-/// shape; tools sent that way are dropped silently.
+/// shape: it forwards such a tool with an empty name, and the provider
+/// rejects or ignores it.
 public struct ChatTool: Codable, Sendable {
     /// Tool name.
     public var name: String
@@ -384,28 +381,51 @@ public struct Citation: Codable, Sendable {
         self.text = text
         self.index = index
     }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        title = try c.decodeIfPresent(String.self, forKey: .title) ?? ""
+        url = try c.decodeIfPresent(String.self, forKey: .url) ?? ""
+        text = try c.decodeIfPresent(String.self, forKey: .text) ?? ""
+        index = try c.decodeIfPresent(Int.self, forKey: .index) ?? 0
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case title, url, text, index
+    }
 }
 
 // MARK: - Chat Usage
 
 /// Token usage and cost information for a chat request.
+///
+/// The two paths count output differently. On the non-streaming envelope
+/// ``outputTokens`` is completion plus reasoning. On the streaming `usage`
+/// event ``outputTokens`` is the visible completion only and reasoning is
+/// reported beside it; ``costTicks`` covers both either way, so the billed
+/// output on a stream is `outputTokens + (reasoningTokens ?? 0)`.
 public struct ChatUsage: Codable, Sendable {
     /// Number of input tokens processed.
     public var inputTokens: Int
 
-    /// Portion of `inputTokens` served from a prompt cache (billed at the
-    /// cheaper cached-read rate). Present on providers that report cache hits.
-    public var cachedTokens: Int
-
-    /// Number of output tokens generated.
+    /// Output tokens billed at the output rate. Includes reasoning on the
+    /// non-streaming envelope; excludes it on the streaming usage event.
     public var outputTokens: Int
 
-    /// Chain-of-thought tokens billed on top of `outputTokens` for reasoning
-    /// models (Gemini/Vertex report these separately). Zero when folded in.
-    public var reasoningTokens: Int
-
-    /// Cost in ticks (10 billion ticks = $1 USD). Optional — Zig backend may not send this.
+    /// What the call cost, covering input, output and reasoning. Zero on a
+    /// semantic-cache hit.
     public var costTicks: Int
+
+    /// Input tokens served from the provider's prompt cache, billed at the
+    /// lower cached rate. `nil` on responses with no cache hit and on the
+    /// streaming usage event.
+    public var cachedTokens: Int?
+
+    /// Reasoning / thinking tokens, billed at the output rate. `nil` on
+    /// responses from non-reasoning models. Already inside ``outputTokens``
+    /// on the non-streaming envelope; on top of it on the streaming usage
+    /// event.
+    public var reasoningTokens: Int?
 
     enum CodingKeys: String, CodingKey {
         case inputTokens = "input_tokens"
@@ -417,19 +437,52 @@ public struct ChatUsage: Codable, Sendable {
 
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        inputTokens = try container.decode(Int.self, forKey: .inputTokens)
-        cachedTokens = try container.decodeIfPresent(Int.self, forKey: .cachedTokens) ?? 0
-        outputTokens = try container.decode(Int.self, forKey: .outputTokens)
-        reasoningTokens = try container.decodeIfPresent(Int.self, forKey: .reasoningTokens) ?? 0
+        inputTokens = try container.decodeIfPresent(Int.self, forKey: .inputTokens) ?? 0
+        outputTokens = try container.decodeIfPresent(Int.self, forKey: .outputTokens) ?? 0
         costTicks = try container.decodeIfPresent(Int.self, forKey: .costTicks) ?? 0
+        cachedTokens = try container.decodeIfPresent(Int.self, forKey: .cachedTokens)
+        reasoningTokens = try container.decodeIfPresent(Int.self, forKey: .reasoningTokens)
     }
 
-    public init(inputTokens: Int, outputTokens: Int, costTicks: Int = 0, cachedTokens: Int = 0, reasoningTokens: Int = 0) {
+    public init(inputTokens: Int, outputTokens: Int, costTicks: Int = 0, cachedTokens: Int? = nil, reasoningTokens: Int? = nil) {
         self.inputTokens = inputTokens
-        self.cachedTokens = cachedTokens
         self.outputTokens = outputTokens
-        self.reasoningTokens = reasoningTokens
         self.costTicks = costTicks
+        self.cachedTokens = cachedTokens
+        self.reasoningTokens = reasoningTokens
+    }
+}
+
+// MARK: - Estimate
+
+/// Response shape from `POST /qai/v1/chat/estimate`. Returned by
+/// `QuantumClient.estimateChat(_:)`.
+///
+/// ``estimatedCostTicks`` is the upfront reservation a `chat` call with the
+/// same request would book: a worst-case ceiling the caller must have
+/// available, not a prediction of the final settle. Text-only payloads
+/// settle close to it; video and other multimodal inputs can over-estimate,
+/// and the post-call settle refunds the difference.
+public struct EstimateResponse: Codable, Sendable {
+    public var estimatedCostTicks: Int64
+
+    /// The same value converted to USD at the gateway's tick rate.
+    public var estimatedCostUsd: Double
+
+    /// Model the estimate was computed against.
+    public var model: String
+
+    enum CodingKeys: String, CodingKey {
+        case model
+        case estimatedCostTicks = "estimated_cost_ticks"
+        case estimatedCostUsd = "estimated_cost_usd"
+    }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        estimatedCostTicks = try c.decode(Int64.self, forKey: .estimatedCostTicks)
+        estimatedCostUsd = try c.decode(Double.self, forKey: .estimatedCostUsd)
+        model = try c.decodeIfPresent(String.self, forKey: .model) ?? ""
     }
 }
 
@@ -461,19 +514,20 @@ public enum StopReason {
 
 /// Response from the `/qai/v1/chat` endpoint (non-streaming).
 public struct ChatResponse: Codable, Sendable {
-    /// Unique response ID.
+    /// Unique response ID (the request id).
     public var id: String
 
     /// Model used for generation.
     public var model: String
 
-    /// Content blocks in the response.
+    /// Content blocks in the response. A `null` on the wire decodes as
+    /// empty.
     public var content: [ContentBlock]
 
     /// Token usage and cost information.
     public var usage: ChatUsage
 
-    /// Reason the model stopped generating.
+    /// Reason the model stopped generating. See ``StopReason``.
     public var stopReason: String
 
     /// Citations from web search (when search is enabled via provider_options).
@@ -488,7 +542,7 @@ public struct ChatResponse: Codable, Sendable {
     /// Unique request ID. The body does not carry `request_id` at the top
     /// level (the `X-QAI-Request-Id` header and the body `id` field hold it).
     /// Decoded as optional and populated from ``ResponseMeta`` after decode
-    /// via ``apply(_:)-4gior``.
+    /// via ``apply(_:)``.
     public var requestId: String?
 
     /// Cost in ticks. The body does not carry `cost_ticks` at the top level
@@ -496,13 +550,17 @@ public struct ChatResponse: Codable, Sendable {
     /// Decoded as optional and populated from ``ResponseMeta`` after decode.
     public var costTicks: Int?
 
-    /// Post-charge wallet balance in ticks (from `X-QAI-Balance-After`).
-    /// Signed: the claw-back path can make it negative. Populated from
-    /// ``ResponseMeta`` after decode.
+    /// Post-charge wallet balance in ticks from `X-QAI-Balance-After`.
+    /// Only the media routes send that header, so on a chat response this
+    /// is always `nil`; use `creditBalance()` / `accountBalance()` for the
+    /// balance after a chat.
     public var balanceAfter: Int64?
 
-    /// True when this response was served from the semantic cache.
-    /// `nil` on fresh responses.
+    /// `true` when this response was served from the semantic cache (the
+    /// same signal the `X-QAI-Cache: hit-tier-N` header carries). A hit is
+    /// served before any credit reservation: nothing is charged or
+    /// metered, `usage.costTicks` is 0 and no `X-QAI-Cost-Ticks` header is
+    /// sent. `nil` or `false` on a fresh provider response.
     public var cached: Bool?
 
     enum CodingKeys: String, CodingKey {
@@ -515,8 +573,15 @@ public struct ChatResponse: Codable, Sendable {
 
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
-        id = try c.decodeIfPresent(String.self, forKey: .id) ?? ""
-        model = try c.decodeIfPresent(String.self, forKey: .model) ?? ""
+        // `id` and `model` are required keys, as in the Rust reference: a
+        // gateway error envelope written with a 2xx status carries neither,
+        // and defaulting them here would decode a moderation block into an
+        // empty success. Failing to decode is what routes the body to the
+        // error envelope check in `HTTPClient.decodeSuccess`. An empty
+        // `model` is still allowed — `apply(_:)` backfills it from the
+        // `X-QAI-Model` header.
+        id = try c.decode(String.self, forKey: .id)
+        model = try c.decode(String.self, forKey: .model)
         content = try c.decodeIfPresent([ContentBlock].self, forKey: .content) ?? []
         stopReason = try c.decodeIfPresent(String.self, forKey: .stopReason) ?? ""
         usage = try c.decodeIfPresent(ChatUsage.self, forKey: .usage)
@@ -535,7 +600,7 @@ public struct ChatResponse: Codable, Sendable {
     /// Populate header-derived fields (requestId, costTicks, model,
     /// balanceAfter) from ``ResponseMeta`` when the body didn't carry them.
     /// Called by ``QuantumClient`` after decode so callers see per-request
-    /// cost and balance without reading headers themselves.
+    /// cost without reading headers themselves.
     public mutating func apply(_ meta: ResponseMeta) {
         if requestId == nil { requestId = meta.requestId.isEmpty ? nil : meta.requestId }
         if costTicks == nil { costTicks = Int(truncatingIfNeeded: meta.costTicks) }
@@ -544,8 +609,11 @@ public struct ChatResponse: Codable, Sendable {
     }
 
     /// True when the model is requesting tool execution
-    /// (`stopReason == StopReason.toolUse`). The gateway guarantees this
-    /// whenever tool_use blocks are present, across every provider.
+    /// (`stopReason == StopReason.toolUse`). Every provider is normalised
+    /// the same way: a natural stop with tool_use blocks present becomes
+    /// `tool_use`. A provider that reports `max_tokens`, `content_filter`
+    /// or `error` alongside tool calls keeps that reason, so check
+    /// ``toolCalls`` too if you must act on a partial tool request.
     public var isToolUse: Bool { stopReason == StopReason.toolUse }
 
     /// True when a safety classifier declined the request
@@ -587,9 +655,13 @@ public struct ChatResponse: Codable, Sendable {
 public struct StreamDelta: Codable, Sendable {
     /// Incremental text content.
     public var text: String?
+
+    public init(text: String? = nil) {
+        self.text = text
+    }
 }
 
-/// A tool use event in a streaming response.
+/// A tool call from an atomic `tool_use` streaming event.
 public struct StreamToolUse: Codable, Sendable {
     /// Tool call ID.
     public var id: String
@@ -599,31 +671,116 @@ public struct StreamToolUse: Codable, Sendable {
 
     /// Tool input arguments.
     public var input: [String: AnyCodable]
+
+    public init(id: String, name: String, input: [String: AnyCodable]) {
+        self.id = id
+        self.name = name
+        self.input = input
+    }
+}
+
+/// Tool-call start event — fires once before any input deltas.
+public struct StreamToolUseStart: Sendable {
+    public var id: String
+    public var name: String
+
+    public init(id: String, name: String) {
+        self.id = id
+        self.name = name
+    }
+}
+
+/// Tool-call input delta — fires zero or more times with raw JSON fragments.
+public struct StreamToolUseInputDelta: Sendable {
+    public var id: String
+    /// Raw JSON fragment. May not parse on its own; accumulate until the
+    /// corresponding `tool_use_complete` event arrives with the
+    /// authoritative `input`.
+    public var partialJSON: String
+
+    public init(id: String, partialJSON: String) {
+        self.id = id
+        self.partialJSON = partialJSON
+    }
+}
+
+/// Tool-call completion event — fires exactly once per call with the
+/// server-accumulated, fully-parsed arguments.
+public struct StreamToolUseComplete: Sendable {
+    public var id: String
+    public var name: String
+    public var input: [String: AnyCodable]
+
+    public init(id: String, name: String, input: [String: AnyCodable]) {
+        self.id = id
+        self.name = name
+        self.input = input
+    }
+}
+
+/// The `session` event a session stream opens with.
+public struct StreamSession: Sendable {
+    /// The session identifier (newly created when the request had none).
+    public var sessionId: String
+    /// Whether the history was compacted before this turn.
+    public var compacted: Bool
+
+    public init(sessionId: String, compacted: Bool) {
+        self.sessionId = sessionId
+        self.compacted = compacted
+    }
 }
 
 /// A single event from a streaming chat response.
+///
+/// A tool call streams as a triplet: one `tool_use_start`, zero or more
+/// `tool_use_input_delta`, then one `tool_use_complete` carrying the full
+/// arguments. Some backends emit a single atomic `tool_use` event instead,
+/// so a consumer handles both forms.
+///
+/// A stream that fails after the HTTP 200 is locked in reports the failure
+/// as an event whose type is `error`, `invalid_request` (the request was
+/// rejected: do not retry as-is) or `rate_limit` (the provider throttled:
+/// retry later); all three carry the message in ``error``, and `done`
+/// follows.
 public struct StreamEvent: Sendable {
-    /// Event type (e.g. "content_delta", "thinking_delta", "tool_use", "usage", "done", "error").
+    /// Event type: "content_delta", "thinking_delta", "tool_use_start",
+    /// "tool_use_input_delta", "tool_use_complete", "tool_use" (atomic),
+    /// "citations", "session", "usage", "heartbeat", "error",
+    /// "invalid_request", "rate_limit", "done".
     public var eventType: String
 
     /// Text delta for content_delta/thinking_delta events.
     public var delta: StreamDelta?
 
-    /// Tool use information for `tool_use` / `tool_use_start` /
-    /// `tool_use_complete` events. For `tool_use_start` the `input` is empty
-    /// (args haven't streamed yet); for `tool_use_complete` it carries the
-    /// server-accumulated, fully-parsed arguments.
+    /// Populated for atomic `tool_use` events.
     public var toolUse: StreamToolUse?
 
-    /// Raw argument-JSON fragment for `tool_use_input_delta` events. A partial
-    /// fragment that may not parse on its own; concatenate across deltas for
-    /// the full args, or ignore and wait for `tool_use_complete`.
-    public var partialJSON: String?
+    /// Populated for `tool_use_start` events.
+    public var toolUseStart: StreamToolUseStart?
 
-    /// Usage information for usage events.
+    /// Populated for `tool_use_input_delta` events.
+    public var toolUseInputDelta: StreamToolUseInputDelta?
+
+    /// Populated for `tool_use_complete` events.
+    public var toolUseComplete: StreamToolUseComplete?
+
+    /// Usage information for `usage` events. Carries ``ChatUsage/reasoningTokens``
+    /// beside ``ChatUsage/outputTokens``; never ``ChatUsage/cachedTokens``.
     public var usage: ChatUsage?
 
-    /// Error message for error events.
+    /// Web-search grounding sources, on a `citations` event. The gateway
+    /// sends it once, before the first content delta, on streams where
+    /// search results were injected; empty on every other event.
+    public var citations: [Citation]
+
+    /// Populated for the `session` event that opens a
+    /// `chatSessionStream`.
+    public var session: StreamSession?
+
+    /// The failure message, on `error`, `invalid_request` and `rate_limit`
+    /// events, and on an `error` the SDK raises for a payload it could not
+    /// parse.
     public var error: String?
 
     /// Whether this is the final event in the stream.
@@ -633,38 +790,31 @@ public struct StreamEvent: Sendable {
         eventType: String,
         delta: StreamDelta? = nil,
         toolUse: StreamToolUse? = nil,
-        partialJSON: String? = nil,
+        toolUseStart: StreamToolUseStart? = nil,
+        toolUseInputDelta: StreamToolUseInputDelta? = nil,
+        toolUseComplete: StreamToolUseComplete? = nil,
         usage: ChatUsage? = nil,
+        citations: [Citation] = [],
+        session: StreamSession? = nil,
         error: String? = nil,
         done: Bool = false
     ) {
         self.eventType = eventType
         self.delta = delta
         self.toolUse = toolUse
-        self.partialJSON = partialJSON
+        self.toolUseStart = toolUseStart
+        self.toolUseInputDelta = toolUseInputDelta
+        self.toolUseComplete = toolUseComplete
         self.usage = usage
+        self.citations = citations
+        self.session = session
         self.error = error
         self.done = done
     }
 
-    /// Backward-compatible init using `type` parameter name.
-    public init(
-        type: String,
-        delta: StreamDelta? = nil,
-        toolUse: StreamToolUse? = nil,
-        partialJSON: String? = nil,
-        usage: ChatUsage? = nil,
-        error: String? = nil,
-        done: Bool = false
-    ) {
-        self.eventType = type
-        self.delta = delta
-        self.toolUse = toolUse
-        self.partialJSON = partialJSON
-        self.usage = usage
-        self.error = error
-        self.done = done
-    }
+    /// True when this event reports a failure, whichever of the three
+    /// failure types the gateway used.
+    public var isError: Bool { error != nil }
 
     /// Legacy accessor for eventType.
     public var type: String {
@@ -688,7 +838,12 @@ struct RawStreamEvent: Decodable {
     var costTicks: Int?
     /// `partial_json` fragment from `tool_use_input_delta` events.
     var partialJSON: String?
-    // Zig backend format: full response in one SSE event
+    /// Carried by the `citations` event.
+    var citations: [Citation]?
+    /// Carried by the `session` event that opens a session stream.
+    var sessionId: String?
+    var compacted: Bool?
+    // Single-envelope backend format: the whole response in one event.
     var content: [ContentBlock]?
     var usage: ChatUsage?
     var model: String?
@@ -696,12 +851,13 @@ struct RawStreamEvent: Decodable {
     var error: String?
 
     enum CodingKeys: String, CodingKey {
-        case type, delta, id, name, input, message, content, usage, model, error
+        case type, delta, id, name, input, message, content, usage, model, error, citations, compacted
         case inputTokens = "input_tokens"
         case outputTokens = "output_tokens"
         case reasoningTokens = "reasoning_tokens"
         case costTicks = "cost_ticks"
         case partialJSON = "partial_json"
+        case sessionId = "session_id"
         case stopReason = "stop_reason"
     }
 }

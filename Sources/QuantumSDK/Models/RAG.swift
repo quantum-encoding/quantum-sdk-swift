@@ -1,5 +1,39 @@
 import Foundation
 
+// MARK: - Null-tolerant map decoding
+
+// The list form, ``NullToEmpty``, lives in Models/WireDecoding.swift.
+
+/// Decodes a JSON object keyed by string that the gateway may send as `null`
+/// (a nil Go map) or omit entirely, yielding an empty dictionary in both
+/// cases.
+@propertyWrapper
+public struct NullToEmptyMap<Value: Codable & Sendable>: Codable, Sendable {
+    public var wrappedValue: [String: Value]
+
+    public init(wrappedValue: [String: Value] = [:]) {
+        self.wrappedValue = wrappedValue
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        wrappedValue = container.decodeNil() ? [:] : try container.decode([String: Value].self)
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        try wrappedValue.encode(to: encoder)
+    }
+}
+
+extension NullToEmptyMap: Equatable where Value: Equatable {}
+
+extension KeyedDecodingContainer {
+    /// A missing key decodes to an empty dictionary, the same as an explicit `null`.
+    public func decode<V>(_ type: NullToEmptyMap<V>.Type, forKey key: Key) throws -> NullToEmptyMap<V> {
+        try decodeIfPresent(type, forKey: key) ?? NullToEmptyMap()
+    }
+}
+
 // MARK: - RAG Search
 
 /// Request body for Vertex AI RAG search.
@@ -55,10 +89,11 @@ public struct RagResult: Codable, Sendable {
 /// Legacy alias.
 public typealias RAGResult = RagResult
 
-/// Response from RAG search.
+/// Response from RAG search. Each query bills $0.002.
 public struct RagSearchResponse: Codable, Sendable {
-    /// Matching document chunks.
-    public var results: [RagResult]
+    /// Matching document chunks, best score first. Empty (sent as `null`)
+    /// when no corpus returned a chunk.
+    @NullToEmpty public var results: [RagResult]
 
     /// Original search query.
     public var query: String
@@ -107,10 +142,19 @@ public struct RagCorpus: Codable, Sendable {
 /// Legacy alias.
 public typealias RAGCorpus = RagCorpus
 
-/// Response from listing RAG corpora.
+/// Response from listing RAG corpora. Listing is free; the list is sent as
+/// `null` when no corpus exists.
 public struct RagCorporaResponse: Codable, Sendable {
     /// Available corpora.
-    public var corpora: [RagCorpus]
+    @NullToEmpty public var corpora: [RagCorpus]
+
+    /// Unique request identifier.
+    public var requestId: String?
+
+    enum CodingKeys: String, CodingKey {
+        case corpora
+        case requestId = "request_id"
+    }
 }
 
 // MARK: - SurrealDB RAG
@@ -141,10 +185,12 @@ public struct SurrealRagResult: Codable, Sendable {
     /// Documentation provider.
     public var provider: String
 
-    /// Document title.
-    public var title: String
+    /// Document title. The gateway's query does not select it, so it is
+    /// absent in practice.
+    public var title: String?
 
-    /// Section heading.
+    /// Section heading. The gateway's query does not select it, so it is
+    /// absent in practice.
     public var heading: String?
 
     /// Original source file path.
@@ -165,10 +211,11 @@ public struct SurrealRagResult: Codable, Sendable {
 /// Legacy alias.
 public typealias SurrealRAGResult = SurrealRagResult
 
-/// Response from SurrealDB RAG search.
+/// Response from SurrealDB RAG search. Each query bills $0.001.
 public struct SurrealRagSearchResponse: Codable, Sendable {
-    /// Matching documentation chunks.
-    public var results: [SurrealRagResult]
+    /// Matching documentation chunks, best score first. Empty (sent as
+    /// `null`) when nothing matched.
+    @NullToEmpty public var results: [SurrealRagResult]
 
     /// Original search query.
     public var query: String
@@ -198,12 +245,7 @@ public struct SurrealRagProvider: Codable, Sendable {
     public var provider: String
 
     /// Number of document chunks for this provider.
-    public var chunkCount: Int64?
-
-    enum CodingKeys: String, CodingKey {
-        case provider
-        case chunkCount = "chunk_count"
-    }
+    public var chunks: Int64
 }
 
 /// Legacy alias.
@@ -214,7 +256,17 @@ public typealias SurrealRagProviderInfo = SurrealRagProvider
 
 /// Response from listing SurrealDB RAG providers.
 public struct SurrealRagProvidersResponse: Codable, Sendable {
-    public var providers: [SurrealRagProvider]
+    /// Providers with at least one chunk, most chunks first. Empty (sent as
+    /// `null`) when the table is empty.
+    @NullToEmpty public var providers: [SurrealRagProvider]
+
+    /// Unique request identifier.
+    public var requestId: String?
+
+    enum CodingKeys: String, CodingKey {
+        case providers
+        case requestId = "request_id"
+    }
 }
 
 /// Legacy alias.
@@ -222,36 +274,76 @@ public typealias SurrealRAGProvidersResponse = SurrealRagProvidersResponse
 
 // MARK: - Collection Wrapper Types
 
-/// Request body for creating a collection.
+/// Request body for `POST /qai/v1/rag/collections`.
 public struct CreateCollectionRequest: Codable, Sendable {
-    /// Collection name.
+    /// Human-readable name. Required.
     public var name: String
 
-    public init(name: String) {
+    /// What the collection is for.
+    public var description: String?
+
+    /// Label stored on the collection record. It does not choose a backend:
+    /// every collection is created on xAI regardless of the value.
+    public var provider: String?
+
+    public init(name: String, description: String? = nil, provider: String? = nil) {
         self.name = name
+        self.description = description
+        self.provider = provider
     }
 }
 
-/// Response from listing collections.
+/// Response from `GET /qai/v1/rag/collections`.
 public struct CollectionsListResponse: Codable, Sendable {
-    /// Available collections.
-    public var collections: [Collection]
+    /// The caller's collections plus the shared ones. Sent as `null` when
+    /// the caller has neither.
+    @NullToEmpty public var collections: [Collection]
+
+    /// Gateway request identifier.
+    public var requestId: String?
+
+    enum CodingKeys: String, CodingKey {
+        case collections
+        case requestId = "request_id"
+    }
 }
 
-/// Response from listing documents in a collection.
-public struct CollectionDocumentsResponse: Codable, Sendable {
-    /// Documents in the collection.
-    public var documents: [CollectionDocument]
+/// One collection with its documents, the shape
+/// `GET /qai/v1/rag/collections/{id}` returns.
+public struct CollectionDetail: Codable, Sendable {
+    /// The collection itself.
+    public var collection: Collection
+
+    /// Its documents. Sent as `null` when the collection is empty.
+    @NullToEmpty public var documents: [CollectionDocument]
 }
 
-/// Response from collection search.
+/// Full response from `POST /qai/v1/rag/collections/search`.
 public struct CollectionSearchResponse: Codable, Sendable {
-    /// Search results.
-    public var results: [CollectionSearchResult]
+    /// Matched chunks, highest score first.
+    @NullToEmpty public var results: [CollectionSearchResult]
+
+    /// The query that was run.
+    public var query: String?
+
+    /// How many collections were searched.
+    public var collectionsSearched: Int64?
+
+    /// Gateway request identifier.
+    public var requestId: String?
+
+    enum CodingKeys: String, CodingKey {
+        case results, query
+        case collectionsSearched = "collections_searched"
+        case requestId = "request_id"
+    }
 }
 
-/// Response from deleting a collection.
+/// Response from `DELETE /qai/v1/rag/collections/{id}`.
 public struct DeleteCollectionResponse: Codable, Sendable {
-    /// Status message.
-    public var message: String
+    /// True once the collection is gone.
+    public var deleted: Bool
+
+    /// The collection that was deleted.
+    public var id: String?
 }

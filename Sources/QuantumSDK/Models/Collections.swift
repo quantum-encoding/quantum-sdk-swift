@@ -2,138 +2,148 @@ import Foundation
 
 // MARK: - Collection Types
 
-/// A user-scoped collection (proxied through quantum-ai).
+/// A user-scoped document collection, proxied through the gateway onto the
+/// upstream provider.
 public struct Collection: Codable, Sendable {
-    /// Collection ID.
+    /// Collection identifier, gateway-issued.
     public var id: String
 
     /// Human-readable name.
     public var name: String
 
-    /// Optional description.
+    /// What the collection is for.
     public var description: String?
 
-    /// Number of documents in the collection.
-    public var documentCount: Int?
-
-    /// Owner: user ID or "shared".
+    /// Owner: a user id, or `"shared"` for collections everyone can read.
     public var owner: String?
 
-    /// Backend provider (e.g. "xai").
+    /// Backend the collection lives on (e.g. `"xai"`).
     public var provider: String?
 
-    /// ISO timestamp.
+    /// The provider's own id for the collection.
+    public var providerCollectionId: String?
+
+    /// Number of documents indexed.
+    public var documentCount: Int64?
+
+    /// RFC3339 creation timestamp.
     public var createdAt: String?
 
     enum CodingKeys: String, CodingKey {
         case id, name, description, owner, provider
+        case providerCollectionId = "provider_collection_id"
         case documentCount = "document_count"
         case createdAt = "created_at"
     }
 }
 
-/// A document within a collection.
+/// A document within a collection, as the gateway's store records it.
 public struct CollectionDocument: Codable, Sendable {
-    /// File identifier.
-    public var fileId: String
+    /// Document identifier, gateway-issued.
+    public var id: String
 
-    /// Document name.
-    public var name: String
-
-    /// File size in bytes.
-    public var sizeBytes: Int?
-
-    /// MIME content type.
-    public var contentType: String?
-
-    /// Processing status (e.g. "completed").
-    public var processingStatus: String?
-
-    /// Document status.
-    public var documentStatus: String?
-
-    /// Whether the document has been indexed.
-    public var indexed: Bool?
-
-    /// ISO timestamp.
-    public var createdAt: String?
-
-    enum CodingKeys: String, CodingKey {
-        case name, indexed
-        case fileId = "file_id"
-        case sizeBytes = "size_bytes"
-        case contentType = "content_type"
-        case processingStatus = "processing_status"
-        case documentStatus = "document_status"
-        case createdAt = "created_at"
-    }
-}
-
-/// A search result from collection search.
-public struct CollectionSearchResult: Codable, Sendable {
-    /// Matching text content.
-    public var content: String
-
-    /// Relevance score.
-    public var score: Double?
-
-    /// Source file identifier.
-    public var fileId: String?
-
-    /// Source collection identifier.
+    /// The collection the document belongs to.
     public var collectionId: String?
 
-    /// Arbitrary metadata.
-    public var metadata: [String: String]?
+    /// The provider's own file id.
+    public var fileId: String?
+
+    /// Uploaded filename.
+    public var filename: String?
+
+    /// Indexing status. The upload route records `indexed` as soon as the
+    /// provider accepts the file; no other value is written today.
+    public var status: String?
+
+    /// Number of chunks the document was split into. The upload route never
+    /// sets it, so it is zero in practice.
+    public var chunks: Int64?
+
+    /// RFC3339 upload timestamp.
+    public var uploadedAt: String?
 
     enum CodingKeys: String, CodingKey {
-        case content, score, metadata
-        case fileId = "file_id"
+        case id, filename, status, chunks
         case collectionId = "collection_id"
+        case fileId = "file_id"
+        case uploadedAt = "uploaded_at"
     }
 }
 
-/// Request body for collection search.
+/// One chunk matched by a collection search.
+public struct CollectionSearchResult: Codable, Sendable {
+    /// The matched chunk text.
+    public var content: String
+
+    /// Relevance score; results come back highest first.
+    public var score: Double?
+
+    /// Name of the collection the chunk came from.
+    public var collection: String?
+
+    /// Id of the collection the chunk came from.
+    public var collectionId: String?
+
+    /// Provider document id, when the provider reported one.
+    public var documentId: String?
+
+    /// Source filename, when the provider reported one.
+    public var filename: String?
+
+    /// Whether the chunk came from a shared collection rather than the
+    /// caller's own.
+    public var isShared: Bool?
+
+    enum CodingKeys: String, CodingKey {
+        case content, score, collection, filename
+        case collectionId = "collection_id"
+        case documentId = "document_id"
+        case isShared = "is_shared"
+    }
+}
+
+/// Request body for `POST /qai/v1/rag/collections/search`. There is no
+/// search mode: the gateway runs one provider search across the chosen
+/// collections.
 public struct CollectionSearchRequest: Codable, Sendable {
-    /// Search query.
+    /// The search query. Required.
     public var query: String
 
-    /// Collection IDs to search.
+    /// Collections to search. Empty searches every collection the caller can
+    /// read, their own and shared; an empty list is omitted from the body.
     public var collectionIds: [String]
 
-    /// Search mode (e.g. "hybrid", "semantic", "keyword").
-    public var mode: String?
+    /// Maximum chunks to return across all collections. Defaults to 10.
+    public var maxChunks: Int64?
 
-    /// Maximum number of results.
-    public var maxResults: Int?
-
-    public init(query: String, collectionIds: [String], mode: String? = nil, maxResults: Int? = nil) {
+    public init(query: String, collectionIds: [String] = [], maxChunks: Int64? = nil) {
         self.query = query
         self.collectionIds = collectionIds
-        self.mode = mode
-        self.maxResults = maxResults
+        self.maxChunks = maxChunks
     }
 
     enum CodingKeys: String, CodingKey {
-        case query, mode
+        case query
         case collectionIds = "collection_ids"
-        case maxResults = "max_results"
+        case maxChunks = "max_chunks"
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        query = try container.decode(String.self, forKey: .query)
+        collectionIds = try container.decodeIfPresent([String].self, forKey: .collectionIds) ?? []
+        maxChunks = try container.decodeIfPresent(Int64.self, forKey: .maxChunks)
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(query, forKey: .query)
+        if !collectionIds.isEmpty {
+            try container.encode(collectionIds, forKey: .collectionIds)
+        }
+        try container.encodeIfPresent(maxChunks, forKey: .maxChunks)
     }
 }
 
-/// Upload result for a document added to a collection.
-public struct CollectionUploadResult: Codable, Sendable {
-    /// File identifier assigned by the backend.
-    public var fileId: String
-
-    /// Original filename.
-    public var filename: String
-
-    /// Size in bytes.
-    public var bytes: Int?
-
-    enum CodingKeys: String, CodingKey {
-        case filename, bytes
-        case fileId = "file_id"
-    }
-}
+/// The document record an upload produces.
+public typealias CollectionUploadResult = CollectionDocument

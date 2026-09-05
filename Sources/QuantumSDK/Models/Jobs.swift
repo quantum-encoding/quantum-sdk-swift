@@ -21,145 +21,82 @@ public struct JobCreateRequest: Codable, Sendable {
     }
 }
 
-/// Response from creating a job.
-public struct JobCreateResponse: Codable, Sendable {
-    /// Job ID for polling.
-    public var jobId: String
-
-    /// Current job status.
-    public var status: String
-
-    enum CodingKeys: String, CodingKey {
-        case status
-        case jobId = "job_id"
-    }
-}
-
-// MARK: - Job Status
-
-/// Response from checking job status.
-public struct JobStatusResponse: Codable, Sendable {
-    /// Job ID.
-    public var jobId: String
-
-    /// Current status ("pending", "processing", "completed", "failed", "timeout").
-    public var status: String
-
-    /// Job result (when completed).
-    public var result: AnyCodable?
-
-    /// Error message (when failed).
-    public var error: String?
-
-    /// Cost in ticks.
-    public var costTicks: Int64
-
-    public init(
-        jobId: String,
-        status: String,
-        result: AnyCodable? = nil,
-        error: String? = nil,
-        costTicks: Int64 = 0
-    ) {
-        self.jobId = jobId
-        self.status = status
-        self.result = result
-        self.error = error
-        self.costTicks = costTicks
-    }
-
-    enum CodingKeys: String, CodingKey {
-        case status, result, error
-        case jobId = "job_id"
-        case costTicks = "cost_ticks"
-    }
-}
-
-// MARK: - Job Summary
-
-/// Summary of a job in the list response.
-public struct JobSummary: Codable, Sendable {
-    /// Job ID.
-    public var jobId: String
-
-    /// Current status.
-    public var status: String
-
-    /// Job type.
-    public var jobType: String?
-
-    /// Creation timestamp.
-    public var createdAt: String?
-
-    /// Completion timestamp.
-    public var completedAt: String?
-
-    /// Cost in ticks.
-    public var costTicks: Int64
-
-    enum CodingKeys: String, CodingKey {
-        case status
-        case jobId = "job_id"
-        case jobType = "type"
-        case createdAt = "created_at"
-        case completedAt = "completed_at"
-        case costTicks = "cost_ticks"
-    }
-}
-
-/// Response from listing jobs.
-public struct ListJobsResponse: Codable, Sendable {
-    /// Jobs.
-    public var jobs: [JobSummary]
-}
-
 // MARK: - Job Accepted
 
-/// Response from async job submission (HeyGen, 3D, etc.).
+/// The 202 envelope every async submission answers with: the Jobs API,
+/// the HeyGen video routes (studio, translate, photo-avatar, twin-video,
+/// template render) and the 3D pipeline. Poll with `getJob` / `pollJob`
+/// or subscribe with `streamJob`.
+///
+/// No cost appears here; `costTicks` is reported by `getJob` once the job
+/// has settled.
 public struct JobAcceptedResponse: Codable, Sendable {
     /// Unique job identifier for polling.
     public var jobId: String
 
-    /// Initial job status (e.g. "pending").
-    public var status: String?
+    /// Initial job status (always "pending").
+    public var status: String
 
-    /// Job type.
+    /// Job type (e.g. "video/studio", "3d/generate").
     public var jobType: String?
 
     /// Unique request identifier.
     public var requestId: String?
+
+    /// Creation timestamp (RFC 3339). Sent by `POST /qai/v1/jobs`; the
+    /// dedicated media routes omit it.
+    public var createdAt: String?
 
     enum CodingKeys: String, CodingKey {
         case status
         case jobId = "job_id"
         case jobType = "type"
         case requestId = "request_id"
+        case createdAt = "created_at"
+    }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        jobId = try c.decode(String.self, forKey: .jobId)
+        status = try c.decodeIfPresent(String.self, forKey: .status) ?? ""
+        jobType = try c.decodeIfPresent(String.self, forKey: .jobType)
+        requestId = try c.decodeIfPresent(String.self, forKey: .requestId)
+        createdAt = try c.decodeIfPresent(String.self, forKey: .createdAt)
     }
 }
 
-// MARK: - Job List Entry
+/// Alias of ``JobAcceptedResponse``: `POST /qai/v1/jobs` answers with the
+/// same envelope as every other async route.
+public typealias JobCreateResponse = JobAcceptedResponse
 
-/// A single job entry in the detailed job list response.
-public struct JobListEntry: Codable, Sendable {
+// MARK: - Job Status
+
+/// A job as reported by `GET /qai/v1/jobs/{id}` and, per entry, by
+/// `GET /qai/v1/jobs`.
+public struct JobStatusResponse: Codable, Sendable {
     /// Unique job identifier.
     public var jobId: String
+
+    /// "pending" | "running" | "completed" | "failed". Only the last two
+    /// are terminal.
+    public var status: String
 
     /// Job type (e.g. "video/generate", "audio/tts").
     public var jobType: String?
 
-    /// Job status ("pending", "processing", "completed", "failed").
-    public var status: String
-
-    /// Job output when completed.
+    /// Job output when completed. Results stored in GCS are inlined here.
     public var result: AnyCodable?
 
     /// Error message if the job failed.
     public var error: String?
 
-    /// Total cost in ticks.
-    public var costTicks: Int64?
+    /// Total cost in ticks (0 until the job has settled).
+    public var costTicks: Int64
 
-    /// Job creation timestamp.
+    /// Originating request identifier.
+    public var requestId: String?
+
+    /// Job creation timestamp (RFC 3339).
     public var createdAt: String?
 
     /// When processing began.
@@ -168,25 +105,64 @@ public struct JobListEntry: Codable, Sendable {
     /// When the job finished.
     public var completedAt: String?
 
-    /// Originating request identifier.
-    public var requestId: String?
+    public init(
+        jobId: String,
+        status: String,
+        jobType: String? = nil,
+        result: AnyCodable? = nil,
+        error: String? = nil,
+        costTicks: Int64 = 0,
+        requestId: String? = nil,
+        createdAt: String? = nil,
+        startedAt: String? = nil,
+        completedAt: String? = nil
+    ) {
+        self.jobId = jobId
+        self.status = status
+        self.jobType = jobType
+        self.result = result
+        self.error = error
+        self.costTicks = costTicks
+        self.requestId = requestId
+        self.createdAt = createdAt
+        self.startedAt = startedAt
+        self.completedAt = completedAt
+    }
 
     enum CodingKeys: String, CodingKey {
         case status, result, error
         case jobId = "job_id"
         case jobType = "type"
         case costTicks = "cost_ticks"
+        case requestId = "request_id"
         case createdAt = "created_at"
         case startedAt = "started_at"
         case completedAt = "completed_at"
-        case requestId = "request_id"
+    }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        jobId = try c.decode(String.self, forKey: .jobId)
+        status = try c.decode(String.self, forKey: .status)
+        jobType = try c.decodeIfPresent(String.self, forKey: .jobType)
+        result = try c.decodeIfPresent(AnyCodable.self, forKey: .result)
+        error = try c.decodeIfPresent(String.self, forKey: .error)
+        costTicks = try c.decodeIfPresent(Int64.self, forKey: .costTicks) ?? 0
+        requestId = try c.decodeIfPresent(String.self, forKey: .requestId)
+        createdAt = try c.decodeIfPresent(String.self, forKey: .createdAt)
+        startedAt = try c.decodeIfPresent(String.self, forKey: .startedAt)
+        completedAt = try c.decodeIfPresent(String.self, forKey: .completedAt)
     }
 }
 
-/// Response from listing jobs (detailed variant).
+/// Alias of ``JobStatusResponse``: list entries carry the same fields as a
+/// single status read.
+public typealias JobListEntry = JobStatusResponse
+
+/// Response from listing jobs.
 public struct JobListResponse: Codable, Sendable {
-    /// The list of jobs.
-    public var jobs: [JobListEntry]
+    /// The caller's newest jobs (at most 50).
+    @NullToEmpty public var jobs: [JobStatusResponse]
 
     /// Unique request identifier.
     public var requestId: String?
@@ -197,14 +173,23 @@ public struct JobListResponse: Codable, Sendable {
     }
 }
 
+/// Alias of ``JobListResponse``.
+public typealias ListJobsResponse = JobListResponse
+
 // MARK: - Job Stream Event
 
 /// A single SSE event from a job stream.
+///
+/// `error` events come in two flavours: a job failure carries `jobId`,
+/// `status: "failed"` and the job's `error`; the stream's own 10-minute
+/// deadline emits `{"type":"error","error":"stream timeout (10 minutes)"}`
+/// with no `jobId` or `status`, and the job keeps running — reopen the
+/// stream or fall back to `pollJob`.
 public struct JobStreamEvent: Codable, Sendable {
-    /// Event type (e.g. "progress", "complete", "error").
-    public var eventType: String?
+    /// Event type: "progress", "complete", "error".
+    public var eventType: String
 
-    /// Job identifier.
+    /// Job identifier (absent on a stream-timeout error).
     public var jobId: String?
 
     /// Job status.
@@ -213,14 +198,20 @@ public struct JobStreamEvent: Codable, Sendable {
     /// Job result (on completion).
     public var result: AnyCodable?
 
-    /// Error message (on failure).
+    /// Error message (on failure or stream timeout).
     public var error: String?
 
     /// Total cost in ticks.
-    public var costTicks: Int64?
+    public var costTicks: Int64
 
     /// Completion timestamp.
     public var completedAt: String?
+
+    /// True when this `error` event is the stream's own deadline rather
+    /// than a job failure; the job is still running.
+    public var isStreamTimeout: Bool {
+        eventType == "error" && jobId == nil && status == nil
+    }
 
     enum CodingKeys: String, CodingKey {
         case status, result, error
@@ -229,29 +220,15 @@ public struct JobStreamEvent: Codable, Sendable {
         case costTicks = "cost_ticks"
         case completedAt = "completed_at"
     }
-}
 
-// MARK: - 3D Generation
-
-/// Request for 3D model generation via the jobs system.
-public struct Generate3DRequest: Codable, Sendable {
-    /// Model for 3D generation.
-    public var model: String
-
-    /// Text prompt.
-    public var prompt: String?
-
-    /// Image URL as input.
-    public var imageUrl: String?
-
-    public init(model: String, prompt: String? = nil, imageUrl: String? = nil) {
-        self.model = model
-        self.prompt = prompt
-        self.imageUrl = imageUrl
-    }
-
-    enum CodingKeys: String, CodingKey {
-        case model, prompt
-        case imageUrl = "image_url"
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        eventType = try c.decodeIfPresent(String.self, forKey: .eventType) ?? ""
+        jobId = try c.decodeIfPresent(String.self, forKey: .jobId)
+        status = try c.decodeIfPresent(String.self, forKey: .status)
+        result = try c.decodeIfPresent(AnyCodable.self, forKey: .result)
+        error = try c.decodeIfPresent(String.self, forKey: .error)
+        costTicks = try c.decodeIfPresent(Int64.self, forKey: .costTicks) ?? 0
+        completedAt = try c.decodeIfPresent(String.self, forKey: .completedAt)
     }
 }

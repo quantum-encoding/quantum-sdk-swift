@@ -19,7 +19,13 @@ let package = Package(
     targets: [
         .target(
             name: "QuantumSDK",
-            path: "Sources/QuantumSDK"
+            path: "Sources/QuantumSDK",
+            swiftSettings: [
+                // Complete concurrency checking: the library is consumed
+                // from Swift 6 language-mode apps, so a data race here is a
+                // compile error there.
+                .enableExperimentalFeature("StrictConcurrency"),
+            ]
         ),
         .testTarget(
             name: "QuantumSDKTests",

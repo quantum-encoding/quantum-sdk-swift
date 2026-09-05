@@ -35,12 +35,13 @@ public struct ImageRequest: Codable, Sendable {
     /// Background mode (e.g. "auto", "transparent", "opaque"). GPT-Image specific.
     public var background: String?
 
-    /// Deterministic seed. Same seed + prompt + params reproduces an image
-    /// (provider support varies; ignored where unsupported).
+    /// Deterministic seed. Sent as `seed`; the gateway's image request has no
+    /// such field today, so it is dropped for every provider.
     public var seed: Int?
 
-    /// Classifier-free guidance scale — how strongly the model adheres to the
-    /// prompt (provider support varies; ignored where unsupported).
+    /// Classifier-free guidance scale. Sent as `cfg_scale`; the gateway's
+    /// image request has no such field today, so it is dropped for every
+    /// provider.
     public var cfgScale: Double?
 
     /// Image URL or data URI for image-to-3D conversion (Meshy).
@@ -117,22 +118,22 @@ public struct ImageRequest: Codable, Sendable {
 
 // MARK: - Generated Image
 
-/// A single generated image.
+/// A single generated image. Always inline bytes; no route emits a URL.
 public struct GeneratedImage: Codable, Sendable {
     /// Base64-encoded image data.
-    public var base64: String?
+    public var base64: String
 
     /// Image format (e.g. "png", "jpeg").
-    public var format: String?
+    public var format: String
 
     /// Image index within the batch.
-    public var index: Int?
+    public var index: Int
 
-    /// URL of the generated image (legacy).
-    public var url: String?
-
-    enum CodingKeys: String, CodingKey {
-        case base64, format, index, url
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        base64 = try c.decode(String.self, forKey: .base64)
+        format = try c.decodeIfPresent(String.self, forKey: .format) ?? ""
+        index = try c.decodeIfPresent(Int.self, forKey: .index) ?? 0
     }
 }
 
@@ -141,7 +142,7 @@ public struct GeneratedImage: Codable, Sendable {
 /// Response from image generation.
 public struct ImageResponse: Codable, Sendable {
     /// Generated images.
-    public var images: [GeneratedImage]
+    @NullToEmpty public var images: [GeneratedImage]
 
     /// Model used.
     public var model: String
@@ -149,19 +150,33 @@ public struct ImageResponse: Codable, Sendable {
     /// Total cost in ticks.
     public var costTicks: Int64
 
+    /// Post-charge credit balance in ticks, when the body carries it.
+    public var balanceAfter: Int64?
+
     /// Unique request identifier.
     public var requestId: String
 
     enum CodingKeys: String, CodingKey {
         case images, model
         case costTicks = "cost_ticks"
+        case balanceAfter = "balance_after"
         case requestId = "request_id"
+    }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        _images = try c.decode(NullToEmpty<GeneratedImage>.self, forKey: .images)
+        model = try c.decodeIfPresent(String.self, forKey: .model) ?? ""
+        costTicks = try c.decodeIfPresent(Int64.self, forKey: .costTicks) ?? 0
+        balanceAfter = try c.decodeIfPresent(Int64.self, forKey: .balanceAfter)
+        requestId = try c.decodeIfPresent(String.self, forKey: .requestId) ?? ""
     }
 }
 
 // MARK: - Image Edit Request
 
-/// Request body for image editing.
+/// Request body for image editing. `inputImages` is required by the route
+/// (`model, prompt, and input_images are required`).
 public struct ImageEditRequest: Codable, Sendable {
     /// Editing model (e.g. "gpt-image-1", "grok-imagine-image").
     public var model: String
@@ -169,8 +184,8 @@ public struct ImageEditRequest: Codable, Sendable {
     /// Describes the desired edit.
     public var prompt: String
 
-    /// Base64-encoded input images.
-    public var inputImages: [String]?
+    /// Base64-encoded input images (at least one).
+    public var inputImages: [String]
 
     /// Number of edited images to generate (default 1).
     public var count: Int?
@@ -199,16 +214,10 @@ public struct ImageEditRequest: Codable, Sendable {
     /// Enable Google Search grounding (Gemini Pro only).
     public var grounding: Bool?
 
-    /// Base64-encoded source image (legacy).
-    public var image: String?
-
-    /// Optional mask image for inpainting (legacy).
-    public var mask: String?
-
     public init(
         model: String,
         prompt: String,
-        inputImages: [String]? = nil,
+        inputImages: [String],
         count: Int? = nil,
         size: String? = nil,
         aspectRatio: String? = nil,
@@ -217,9 +226,7 @@ public struct ImageEditRequest: Codable, Sendable {
         outputFormat: String? = nil,
         background: String? = nil,
         inputFidelity: String? = nil,
-        grounding: Bool? = nil,
-        image: String? = nil,
-        mask: String? = nil
+        grounding: Bool? = nil
     ) {
         self.model = model
         self.prompt = prompt
@@ -233,12 +240,10 @@ public struct ImageEditRequest: Codable, Sendable {
         self.background = background
         self.inputFidelity = inputFidelity
         self.grounding = grounding
-        self.image = image
-        self.mask = mask
     }
 
     enum CodingKeys: String, CodingKey {
-        case model, prompt, count, size, quality, background, grounding, image, mask
+        case model, prompt, count, size, quality, background, grounding
         case inputImages = "input_images"
         case aspectRatio = "aspect_ratio"
         case imageSize = "image_size"

@@ -96,11 +96,11 @@ final class MockGatewayProtocol: URLProtocol {
 final class HeyGenV3RoutesTests: XCTestCase {
     private var client: QuantumClient!
 
-    override func setUp() {
-        super.setUp()
+    override func setUpWithError() throws {
+        try super.setUpWithError()
         let config = URLSessionConfiguration.ephemeral
         config.protocolClasses = [MockGatewayProtocol.self]
-        client = QuantumClient(
+        client = try QuantumClient(
             apiKey: "qai_k_test",
             baseURL: "https://mock.gateway.invalid",
             session: URLSession(configuration: config)

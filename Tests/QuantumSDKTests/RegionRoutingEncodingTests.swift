@@ -66,7 +66,7 @@ final class RegionRoutingEncodingTests: XCTestCase {
         {"id": "k1", "name": "fleet-eu", "scope": {"region": "europe", "endpoints": ["chat"]}}
         """
         let details = try JSONDecoder().decode(KeyDetails.self, from: Data(json.utf8))
-        XCTAssertEqual(details.scopeRegion, "europe")
+        XCTAssertEqual(details.scopeRegion, .europe)
 
         let unscoped = """
         {"id": "k2", "name": "legacy", "scope": {"endpoints": ["chat"]}}
@@ -135,7 +135,7 @@ final class RegionRoutingEncodingTests: XCTestCase {
     // MARK: Client-level hook
 
     func testClientRegionAppliesToChatRequests() throws {
-        let client = QuantumClient(apiKey: "qai_k_test")
+        let client = try QuantumClient(apiKey: "qai_k_test")
         client.setRegion(.asia)
         let request = ChatRequest(model: "qwen3.8-27b", messages: [.user("hi")])
         let applied = client.applyRegion(request)
@@ -150,8 +150,8 @@ final class RegionRoutingEncodingTests: XCTestCase {
         XCTAssertEqual(options["region"] as? String, "asia")
     }
 
-    func testRequestLevelRegionWinsOverClientLevel() {
-        let client = QuantumClient(apiKey: "qai_k_test")
+    func testRequestLevelRegionWinsOverClientLevel() throws {
+        let client = try QuantumClient(apiKey: "qai_k_test")
         client.setRegion(.europe)
         let request = ChatRequest(
             model: "claude-sonnet-4-6",
@@ -161,15 +161,15 @@ final class RegionRoutingEncodingTests: XCTestCase {
         XCTAssertEqual(client.applyRegion(request).region, .americas)
     }
 
-    func testClientWithoutRegionLeavesRequestsAlone() {
-        let client = QuantumClient(apiKey: "qai_k_test")
+    func testClientWithoutRegionLeavesRequestsAlone() throws {
+        let client = try QuantumClient(apiKey: "qai_k_test")
         let request = ChatRequest(model: "gemini-flash-latest", messages: [.user("hi")])
         XCTAssertNil(client.applyRegion(request).region)
         XCTAssertNil(client.region)
     }
 
-    func testSetRegionNilClearsTheHook() {
-        let client = QuantumClient(apiKey: "qai_k_test")
+    func testSetRegionNilClearsTheHook() throws {
+        let client = try QuantumClient(apiKey: "qai_k_test")
         client.setRegion(.asia)
         XCTAssertEqual(client.region, .asia)
         client.setRegion(nil)

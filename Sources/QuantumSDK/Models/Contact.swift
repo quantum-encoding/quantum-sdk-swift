@@ -1,12 +1,28 @@
 import Foundation
 
-// ContactRequest is declared in Account.swift.
+// MARK: - Contact
 
-/// Response from the contact form endpoint.
-public struct ContactResponse: Codable, Sendable {
-    /// Status message (e.g. "ok", "sent").
-    public var status: String
+/// Request body for the `/qai/v1/contact` endpoint (public; no key needed).
+public struct ContactRequest: Codable, Sendable {
+    /// Sender name.
+    public var name: String
 
-    /// Optional detail message.
-    public var message: String?
+    /// Sender email address.
+    public var email: String
+
+    /// Message subject.
+    public var subject: String?
+
+    /// Message body.
+    public var message: String
+
+    public init(name: String, email: String, message: String, subject: String? = nil) {
+        self.name = name
+        self.email = email
+        self.message = message
+        self.subject = subject
+    }
 }
+
+/// Response from the contact form endpoint: `{"status": "sent"}`.
+public typealias ContactResponse = StatusResponse

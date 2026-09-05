@@ -5,22 +5,30 @@ import Foundation
 /// Response from the `/qai/v1/account/balance` endpoint.
 public struct BalanceResponse: Codable, Sendable {
     /// User ID.
-    public var userId: String
+    public var userId: String?
 
     /// Credit balance in ticks.
-    public var creditTicks: Int64
+    public var balanceTicks: Int64
 
     /// Credit balance in USD.
-    public var creditUsd: Double
+    public var balanceUsd: Double
 
     /// Conversion rate (ticks per USD).
     public var ticksPerUsd: Int64
 
     enum CodingKeys: String, CodingKey {
         case userId = "user_id"
-        case creditTicks = "credit_ticks"
-        case creditUsd = "credit_usd"
+        case balanceTicks = "balance_ticks"
+        case balanceUsd = "balance_usd"
         case ticksPerUsd = "ticks_per_usd"
+    }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        userId = try c.decodeIfPresent(String.self, forKey: .userId)
+        balanceTicks = try c.decode(Int64.self, forKey: .balanceTicks)
+        balanceUsd = try c.decode(Double.self, forKey: .balanceUsd)
+        ticksPerUsd = try c.decodeIfPresent(Int64.self, forKey: .ticksPerUsd) ?? Int64(ticksPerUSD)
     }
 }
 
@@ -77,7 +85,7 @@ public struct UsageResponse: Codable, Sendable {
     /// Whether more entries are available.
     public var hasMore: Bool
 
-    /// Cursor for the next page.
+    /// Cursor for the next page. Present only when ``hasMore`` is true.
     public var nextCursor: String?
 
     enum CodingKeys: String, CodingKey {
@@ -89,10 +97,11 @@ public struct UsageResponse: Codable, Sendable {
 
 /// Query parameters for usage history.
 public struct UsageQuery: Codable, Sendable {
-    /// Maximum number of entries.
+    /// Max entries per page, 1 to 100. A value outside that range is not
+    /// clamped: the gateway ignores it and serves the default page of 20.
     public var limit: Int?
 
-    /// Cursor for pagination.
+    /// Cursor for pagination (from the previous response's `nextCursor`).
     public var startAfter: String?
 
     public init(limit: Int? = nil, startAfter: String? = nil) {
@@ -128,8 +137,8 @@ public struct UsageSummaryMonth: Codable, Sendable {
     /// Total margin in USD.
     public var totalMarginUsd: Double
 
-    /// Breakdown by provider.
-    public var byProvider: [AnyCodable]?
+    /// Breakdown by provider. Empty when the gateway sends none.
+    public var byProvider: [AnyCodable]
 
     enum CodingKeys: String, CodingKey {
         case month
@@ -139,6 +148,17 @@ public struct UsageSummaryMonth: Codable, Sendable {
         case totalCostUsd = "total_cost_usd"
         case totalMarginUsd = "total_margin_usd"
         case byProvider = "by_provider"
+    }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        month = try c.decode(String.self, forKey: .month)
+        totalRequests = try c.decodeIfPresent(Int64.self, forKey: .totalRequests) ?? 0
+        totalInputTokens = try c.decodeIfPresent(Int64.self, forKey: .totalInputTokens) ?? 0
+        totalOutputTokens = try c.decodeIfPresent(Int64.self, forKey: .totalOutputTokens) ?? 0
+        totalCostUsd = try c.decodeIfPresent(Double.self, forKey: .totalCostUsd) ?? 0
+        totalMarginUsd = try c.decodeIfPresent(Double.self, forKey: .totalMarginUsd) ?? 0
+        byProvider = try c.decodeIfPresent([AnyCodable].self, forKey: .byProvider) ?? []
     }
 }
 
@@ -150,38 +170,72 @@ public struct UsageSummaryResponse: Codable, Sendable {
 
 // MARK: - Pricing
 
-/// A pricing entry for a model.
+/// One model's pricing, as `/qai/v1/pricing` sends it, with the gateway's
+/// margin already applied. The model id is the map key in
+/// ``PricingResponse/pricing``; the entry repeats it in ``model``.
 public struct PricingEntry: Codable, Sendable {
     /// Provider name.
-    public var provider: String?
+    public var provider: String
 
     /// Model ID.
-    public var model: String?
+    public var model: String
 
     /// Display name.
-    public var displayName: String?
+    public var displayName: String
+
+    /// Model category ("Text", "Image", ...).
+    public var category: String?
+
+    /// Human-readable context window (e.g. "200K").
+    public var contextWindow: String?
 
     /// Input cost per million tokens.
-    public var inputPerMillion: Double?
+    public var inputPerMillion: Double
 
     /// Output cost per million tokens.
-    public var outputPerMillion: Double?
+    public var outputPerMillion: Double
 
     /// Cached input cost per million tokens.
-    public var cachedPerMillion: Double?
+    public var cachedPerMillion: Double
+
+    /// Flat price for media models (per image, per second, ...).
+    public var perUnitPrice: Double?
+
+    /// Unit for ``perUnitPrice`` (e.g. "per image").
+    public var priceUnit: String?
 
     enum CodingKeys: String, CodingKey {
-        case provider, model
+        case provider, model, category
         case displayName = "display_name"
+        case contextWindow = "context_window"
         case inputPerMillion = "input_per_million"
         case outputPerMillion = "output_per_million"
         case cachedPerMillion = "cached_per_million"
+        case perUnitPrice = "per_unit_price"
+        case priceUnit = "price_unit"
+    }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        provider = try c.decodeIfPresent(String.self, forKey: .provider) ?? ""
+        model = try c.decodeIfPresent(String.self, forKey: .model) ?? ""
+        displayName = try c.decodeIfPresent(String.self, forKey: .displayName) ?? ""
+        category = try c.decodeIfPresent(String.self, forKey: .category)
+        contextWindow = try c.decodeIfPresent(String.self, forKey: .contextWindow)
+        inputPerMillion = try c.decodeIfPresent(Double.self, forKey: .inputPerMillion) ?? 0
+        outputPerMillion = try c.decodeIfPresent(Double.self, forKey: .outputPerMillion) ?? 0
+        cachedPerMillion = try c.decodeIfPresent(Double.self, forKey: .cachedPerMillion) ?? 0
+        perUnitPrice = try c.decodeIfPresent(Double.self, forKey: .perUnitPrice)
+        priceUnit = try c.decodeIfPresent(String.self, forKey: .priceUnit)
     }
 }
 
+/// Alias of ``PricingEntry``: the element type of `getPricing()`.
+public typealias PricingInfo = PricingEntry
+
 /// Pricing response (map of model_id to entry).
 public struct PricingResponse: Codable, Sendable {
-    /// Pricing map.
+    /// Pricing map keyed by model id.
     public var pricing: [String: PricingEntry]
 }
 
@@ -220,18 +274,34 @@ public struct ModelInfo: Codable, Sendable {
     /// Unit for ``perUnitPrice`` (e.g. "per image").
     public var priceUnit: String?
 
+    /// Routing hint ("direct", "vertex-maas", …).
+    public var route: String?
+
+    /// Reachable via GCP/Vertex credentials.
+    public var vertexAvailable: Bool?
+
+    /// Rolling aliases that resolve to this model (e.g. "claude-opus-latest").
+    /// Prefer sending the alias so backend model swaps don't break pinned picks.
+    public var aliases: [String]?
+
+    /// True when this model is the current target of a rolling alias: the
+    /// recommended "latest" default for its family/category.
+    public var isDefault: Bool?
+
     /// Per-model generation parameter schema — present on servers that
     /// implement the v1+ `/qai/v1/models` contract, absent on older servers.
     public var parameters: [ParameterSpec]?
 
     enum CodingKeys: String, CodingKey {
-        case id, provider, category, parameters
+        case id, provider, category, parameters, route, aliases
         case displayName = "display_name"
         case contextWindow = "context_window"
         case inputPerMillion = "input_per_million"
         case outputPerMillion = "output_per_million"
         case perUnitPrice = "per_unit_price"
         case priceUnit = "price_unit"
+        case vertexAvailable = "vertex_available"
+        case isDefault = "is_default"
     }
 
     public init(
@@ -244,6 +314,10 @@ public struct ModelInfo: Codable, Sendable {
         outputPerMillion: Double? = nil,
         perUnitPrice: Double? = nil,
         priceUnit: String? = nil,
+        route: String? = nil,
+        vertexAvailable: Bool? = nil,
+        aliases: [String]? = nil,
+        isDefault: Bool? = nil,
         parameters: [ParameterSpec]? = nil
     ) {
         self.id = id
@@ -255,6 +329,10 @@ public struct ModelInfo: Codable, Sendable {
         self.outputPerMillion = outputPerMillion
         self.perUnitPrice = perUnitPrice
         self.priceUnit = priceUnit
+        self.route = route
+        self.vertexAvailable = vertexAvailable
+        self.aliases = aliases
+        self.isDefault = isDefault
         self.parameters = parameters
     }
 }
@@ -277,29 +355,54 @@ public struct ModelsResponse: Codable, Sendable {
     }
 }
 
-/// Pricing information for a model.
-public struct PricingInfo: Codable, Sendable {
-    /// Model ID.
-    public var id: String
+// MARK: - Account deletion
 
-    /// Provider name.
-    public var provider: String
-
-    /// Display name.
-    public var displayName: String
-
-    /// Input cost per million tokens.
-    public var inputPerMillion: Double
-
-    /// Output cost per million tokens.
-    public var outputPerMillion: Double
+/// What deleting the account did.
+public struct AccountDeleteResponse: Codable, Sendable {
+    /// `"deleted"`.
+    public var status: String
+    public var deletedAt: String?
+    /// When the content becomes eligible for destruction.
+    public var contentPurgedAfter: String?
+    /// When the pseudonymised payment records may be dropped.
+    public var recordsKeptUntil: String?
+    /// Credit given up by deleting, in USD.
+    public var forfeitedCreditUsd: Double?
+    /// The sentence to show the person.
+    public var detail: String?
 
     enum CodingKeys: String, CodingKey {
-        case id, provider
-        case displayName = "display_name"
-        case inputPerMillion = "input_per_million"
-        case outputPerMillion = "output_per_million"
+        case status, detail
+        case deletedAt = "deleted_at"
+        case contentPurgedAfter = "content_purged_after"
+        case recordsKeptUntil = "records_kept_until"
+        case forfeitedCreditUsd = "forfeited_credit_usd"
     }
+}
+
+/// The account's deletion state: `"active"` with nothing else, or the
+/// deletion record.
+public struct DeletionStatus: Codable, Sendable {
+    public var status: String
+    public var app: String?
+    public var requestedAt: String?
+    public var purgeAfter: String?
+    public var retentionUntil: String?
+    public var purgedAt: String?
+
+    enum CodingKeys: String, CodingKey {
+        case status, app
+        case requestedAt = "requested_at"
+        case purgeAfter = "purge_after"
+        case retentionUntil = "retention_until"
+        case purgedAt = "purged_at"
+    }
+}
+
+/// The body `accountDelete()` sends: the confirmation phrase the gateway
+/// demands.
+struct AccountDeleteRequest: Encodable {
+    let confirm: String
 }
 
 // MARK: - Status Response
@@ -311,28 +414,4 @@ public struct StatusResponse: Codable, Sendable {
 
     /// Optional human-readable message.
     public var message: String?
-}
-
-// MARK: - Contact
-
-/// Request body for the `/qai/v1/contact` endpoint.
-public struct ContactRequest: Codable, Sendable {
-    /// Sender name.
-    public var name: String
-
-    /// Sender email address.
-    public var email: String
-
-    /// Message subject.
-    public var subject: String?
-
-    /// Message body.
-    public var message: String
-
-    public init(name: String, email: String, message: String, subject: String? = nil) {
-        self.name = name
-        self.email = email
-        self.message = message
-        self.subject = subject
-    }
 }

@@ -31,7 +31,9 @@ public struct CatalogCourse: Codable, Sendable, Identifiable {
 }
 
 public struct CourseListResponse: Codable, Sendable {
-    public let courses: [CatalogCourse]
+    /// Published courses; empty when the catalog object is missing or holds
+    /// a literal `null`.
+    @NullToEmpty public var courses: [CatalogCourse]
 }
 
 /// Signed download for a course bundle (GET /qai/v1/courses/{id}/download).

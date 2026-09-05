@@ -16,7 +16,8 @@ public struct RemeshRequest: Codable, Sendable {
     /// Mesh topology: "quad" or "triangle".
     public var topology: String?
 
-    /// Target polygon count (100-300,000). Default: 30000.
+    /// Target polygon count (100-300,000). Omitted when unset; Meshy applies
+    /// its own default.
     public var targetPolycount: Int?
 
     /// Resize height in meters (0 = no resize).
@@ -84,6 +85,9 @@ public struct ModelUrls: Codable, Sendable {
 // MARK: - Retexture
 
 /// Request for AI retexturing of an existing 3D model.
+///
+/// One of `textStylePrompt` and `imageStyleUrl` is required; the job fails
+/// otherwise.
 public struct RetextureRequest: Codable, Sendable {
     /// ID of a completed 3D task to retexture.
     public var inputTaskId: String?
@@ -92,28 +96,59 @@ public struct RetextureRequest: Codable, Sendable {
     public var modelUrl: String?
 
     /// Text prompt describing the desired texture.
-    public var prompt: String
+    public var textStylePrompt: String?
+
+    /// URL of a reference image whose style the texture follows.
+    public var imageStyleUrl: String?
+
+    /// Meshy AI model to use. Omitted when unset; Meshy applies its own
+    /// default.
+    public var aiModel: String?
+
+    /// Keep the model's existing UV layout.
+    public var enableOriginalUv: Bool?
 
     /// Enable PBR texture maps (metallic, roughness, normal).
     public var enablePbr: Bool?
 
-    /// Meshy AI model to use (default: "meshy-6").
-    public var aiModel: String?
+    /// Strip baked lighting from the generated texture.
+    public var removeLighting: Bool?
 
-    public init(prompt: String, inputTaskId: String? = nil, modelUrl: String? = nil, enablePbr: Bool? = nil, aiModel: String? = nil) {
-        self.prompt = prompt
+    /// Output formats: "glb", "fbx", "obj", "usdz", "stl", "blend".
+    public var targetFormats: [String]?
+
+    public init(
+        inputTaskId: String? = nil,
+        modelUrl: String? = nil,
+        textStylePrompt: String? = nil,
+        imageStyleUrl: String? = nil,
+        aiModel: String? = nil,
+        enableOriginalUv: Bool? = nil,
+        enablePbr: Bool? = nil,
+        removeLighting: Bool? = nil,
+        targetFormats: [String]? = nil
+    ) {
         self.inputTaskId = inputTaskId
         self.modelUrl = modelUrl
-        self.enablePbr = enablePbr
+        self.textStylePrompt = textStylePrompt
+        self.imageStyleUrl = imageStyleUrl
         self.aiModel = aiModel
+        self.enableOriginalUv = enableOriginalUv
+        self.enablePbr = enablePbr
+        self.removeLighting = removeLighting
+        self.targetFormats = targetFormats
     }
 
     enum CodingKeys: String, CodingKey {
-        case prompt
         case inputTaskId = "input_task_id"
         case modelUrl = "model_url"
-        case enablePbr = "enable_pbr"
+        case textStylePrompt = "text_style_prompt"
+        case imageStyleUrl = "image_style_url"
         case aiModel = "ai_model"
+        case enableOriginalUv = "enable_original_uv"
+        case enablePbr = "enable_pbr"
+        case removeLighting = "remove_lighting"
+        case targetFormats = "target_formats"
     }
 }
 
@@ -130,16 +165,21 @@ public struct RigRequest: Codable, Sendable {
     /// Height of the character in meters (for skeleton scaling).
     public var heightMeters: Double?
 
-    public init(inputTaskId: String? = nil, modelUrl: String? = nil, heightMeters: Double? = nil) {
+    /// URL of a texture image to apply to the rigged character.
+    public var textureImageUrl: String?
+
+    public init(inputTaskId: String? = nil, modelUrl: String? = nil, heightMeters: Double? = nil, textureImageUrl: String? = nil) {
         self.inputTaskId = inputTaskId
         self.modelUrl = modelUrl
         self.heightMeters = heightMeters
+        self.textureImageUrl = textureImageUrl
     }
 
     enum CodingKeys: String, CodingKey {
         case inputTaskId = "input_task_id"
         case modelUrl = "model_url"
         case heightMeters = "height_meters"
+        case textureImageUrl = "texture_image_url"
     }
 }
 
@@ -191,50 +231,67 @@ public struct AnimationPostProcess: Codable, Sendable {
 /// Backwards-compatible alias for ``AnimationPostProcess``.
 public typealias PostProcess = AnimationPostProcess
 
-// MARK: - Basic Animations
+// MARK: - Rig output
 
-/// URLs for basic pre-built animations from a rigging result.
+/// URLs for the walk and run cycles Meshy bakes into every rigging result.
+/// There are no idle animations; use ``QuantumClient/animate(_:)`` for
+/// anything else.
 public struct BasicAnimations: Codable, Sendable {
     /// Walking animation in GLB format.
-    public var walkingGlb: String?
+    public var walkingGlbUrl: String?
 
     /// Walking animation in FBX format.
-    public var walkingFbx: String?
+    public var walkingFbxUrl: String?
+
+    /// Walking animation as an armature-only GLB.
+    public var walkingArmatureGlbUrl: String?
 
     /// Running animation in GLB format.
-    public var runningGlb: String?
+    public var runningGlbUrl: String?
 
     /// Running animation in FBX format.
-    public var runningFbx: String?
+    public var runningFbxUrl: String?
 
-    /// Idle animation in GLB format.
-    public var idleGlb: String?
-
-    /// Idle animation in FBX format.
-    public var idleFbx: String?
-
-    public init(
-        walkingGlb: String? = nil,
-        walkingFbx: String? = nil,
-        runningGlb: String? = nil,
-        runningFbx: String? = nil,
-        idleGlb: String? = nil,
-        idleFbx: String? = nil
-    ) {
-        self.walkingGlb = walkingGlb
-        self.walkingFbx = walkingFbx
-        self.runningGlb = runningGlb
-        self.runningFbx = runningFbx
-        self.idleGlb = idleGlb
-        self.idleFbx = idleFbx
-    }
+    /// Running animation as an armature-only GLB.
+    public var runningArmatureGlbUrl: String?
 
     enum CodingKeys: String, CodingKey {
-        case walkingGlb = "walking_glb"
-        case walkingFbx = "walking_fbx"
-        case runningGlb = "running_glb"
-        case runningFbx = "running_fbx"
-        case idleGlb = "idle_glb"
-        case idleFbx = "idle_fbx"
+        case walkingGlbUrl = "walking_glb_url"
+        case walkingFbxUrl = "walking_fbx_url"
+        case walkingArmatureGlbUrl = "walking_armature_glb_url"
+        case runningGlbUrl = "running_glb_url"
+        case runningFbxUrl = "running_fbx_url"
+        case runningArmatureGlbUrl = "running_armature_glb_url"
+    }
+}
+
+/// The rigging output of a completed job. The job's `result` is an envelope
+/// (`result`, `task_id`, `cost_ticks`, `request_id`); this is its `result`
+/// member.
+public struct RigOutput: Codable, Sendable {
+    /// The rigged character in FBX format.
+    public var riggedCharacterFbxUrl: String?
+
+    /// The rigged character in GLB format.
+    public var riggedCharacterGlbUrl: String?
+
+    /// Walk and run cycles, when Meshy produced them.
+    public var basicAnimations: BasicAnimations?
+
+    enum CodingKeys: String, CodingKey {
+        case riggedCharacterFbxUrl = "rigged_character_fbx_url"
+        case riggedCharacterGlbUrl = "rigged_character_glb_url"
+        case basicAnimations = "basic_animations"
+    }
+
+    /// Decodes the rigging output from a finished job. `nil` when the job
+    /// carries no `result` (it failed or is still running).
+    public static func from(job: JobStatusResponse) throws -> RigOutput? {
+        guard let envelope = job.result?.value as? [String: Any],
+              let output = envelope["result"],
+              !(output is NSNull)
+        else { return nil }
+        let data = try JSONSerialization.data(withJSONObject: output)
+        return try JSONDecoder().decode(RigOutput.self, from: data)
     }
 }

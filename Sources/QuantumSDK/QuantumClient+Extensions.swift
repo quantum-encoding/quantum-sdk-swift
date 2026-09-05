@@ -1,6 +1,6 @@
 import Foundation
 
-// MARK: - Chat Jobs & Compute Billing
+// MARK: - Chat Jobs
 
 extension QuantumClient {
 
@@ -26,17 +26,6 @@ extension QuantumClient {
 
         return try await createJob(type: "chat", params: params)
     }
-
-    /// Query compute billing from BigQuery via the QAI backend.
-    ///
-    /// - Parameter request: Billing query filters (instance ID, date range).
-    /// - Returns: Billing entries and total cost.
-    public func computeBilling(_ request: BillingRequest) async throws -> BillingResponse {
-        let (data, _): (BillingResponse, _) = try await http.doJSON(
-            method: "POST", path: "/qai/v1/compute/billing", body: request
-        )
-        return data
-    }
 }
 
 // MARK: - 3D Mesh Operations
@@ -49,7 +38,9 @@ extension QuantumClient {
         return try await pollJob(jobId: job.jobId, interval: 5.0, maxAttempts: 120)
     }
 
-    /// Rig a humanoid 3D model. Returns rigged character + basic walk/run animations.
+    /// Rig a humanoid 3D model. The job's `result` is a ``RigOutput``:
+    /// rigged FBX/GLB URLs and the basic walk/run animations. Decode it with
+    /// ``RigOutput/from(job:)``.
     public func rig(_ request: RigRequest) async throws -> JobStatusResponse {
         let params = try JSONDecoder().decode([String: AnyCodable].self, from: JSONEncoder().encode(request))
         let job = try await createJob(type: "3d/rig", params: params)
@@ -67,7 +58,8 @@ extension QuantumClient {
 // MARK: - Retexture
 
 extension QuantumClient {
-    /// Retexture a 3D model with AI-generated textures from text or image.
+    /// Retexture a 3D model with AI-generated textures from a text style
+    /// prompt or a reference image (one of the two is required).
     public func retexture(_ request: RetextureRequest) async throws -> JobStatusResponse {
         let params = try JSONDecoder().decode([String: AnyCodable].self, from: JSONEncoder().encode(request))
         let job = try await createJob(type: "3d/retexture", params: params)
@@ -97,76 +89,81 @@ extension QuantumClient {
 
 extension QuantumClient {
 
-    /// Lists the user's collections plus shared collections.
+    /// Lists the caller's collections plus the shared ones. Empty when the
+    /// caller has neither.
+    ///
+    /// `GET /qai/v1/rag/collections`
     public func collectionsList() async throws -> [Collection] {
-        struct Response: Decodable { let collections: [Collection] }
-        let (data, _): (Response, _) = try await http.doJSON(
+        let (data, _): (CollectionsListResponse, _) = try await doReq(
             method: "GET", path: "/qai/v1/rag/collections"
         )
         return data.collections
     }
 
-    /// Creates a new user-owned collection.
+    /// Creates a collection owned by the caller. Bills $0.001 and always
+    /// creates on xAI whatever `provider` says.
     ///
-    /// - Parameter name: Human-readable name for the collection.
-    /// - Returns: The newly created collection.
+    /// `POST /qai/v1/rag/collections` (201)
+    public func collectionsCreate(_ request: CreateCollectionRequest, idempotencyKey: String? = nil) async throws -> Collection {
+        let (data, _): (Collection, _) = try await doReq(
+            method: "POST", path: "/qai/v1/rag/collections", body: request,
+            idempotencyKey: idempotencyKey ?? UUID().uuidString
+        )
+        return data
+    }
+
+    /// Creates a collection with just a name. See ``collectionsCreate(_:idempotencyKey:)``.
     public func collectionsCreate(_ name: String) async throws -> Collection {
-        struct Body: Encodable { let name: String }
-        let (data, _): (Collection, _) = try await http.doJSON(
-            method: "POST", path: "/qai/v1/rag/collections", body: Body(name: name)
+        try await collectionsCreate(CreateCollectionRequest(name: name))
+    }
+
+    /// Reads one collection with its documents. The collection must be owned
+    /// by the caller or shared.
+    ///
+    /// `GET /qai/v1/rag/collections/{id}`
+    public func collectionsGet(_ id: String) async throws -> CollectionDetail {
+        let (data, _): (CollectionDetail, _) = try await doReq(
+            method: "GET", path: "/qai/v1/rag/collections/\(id.strictQueryEncoded)"
         )
         return data
     }
 
-    /// Gets details for a single collection (must be owned or shared).
+    /// Deletes a collection. Owner only (or admin); a shared collection
+    /// cannot be deleted by a reader (403).
     ///
-    /// - Parameter id: Collection ID.
-    /// - Returns: The collection.
-    public func collectionsGet(_ id: String) async throws -> Collection {
-        let (data, _): (Collection, _) = try await http.doJSON(
-            method: "GET", path: "/qai/v1/rag/collections/\(id)"
+    /// `DELETE /qai/v1/rag/collections/{id}`
+    @discardableResult
+    public func collectionsDelete(_ id: String) async throws -> DeleteCollectionResponse {
+        let (data, _): (DeleteCollectionResponse, _) = try await doReq(
+            method: "DELETE", path: "/qai/v1/rag/collections/\(id.strictQueryEncoded)"
         )
         return data
     }
 
-    /// Deletes a collection (owner only).
+    /// Lists the documents in a collection.
     ///
-    /// - Parameter id: Collection ID.
-    public func collectionsDelete(_ id: String) async throws {
-        struct Response: Decodable { let message: String? }
-        let (_, _): (Response, _) = try await http.doJSON(
-            method: "DELETE", path: "/qai/v1/rag/collections/\(id)"
-        )
-    }
-
-    /// Lists documents in a collection.
+    /// The gateway serves documents alongside the collection itself, so this
+    /// reads the same route as ``collectionsGet(_:)`` and returns just the
+    /// documents.
     ///
-    /// - Parameter collectionId: Collection ID.
-    /// - Returns: Array of documents.
+    /// `GET /qai/v1/rag/collections/{id}`
     public func collectionsDocuments(_ collectionId: String) async throws -> [CollectionDocument] {
-        struct Response: Decodable { let documents: [CollectionDocument] }
-        let (data, _): (Response, _) = try await http.doJSON(
-            method: "GET", path: "/qai/v1/rag/collections/\(collectionId)/documents"
-        )
-        return data.documents
+        try await collectionsGet(collectionId).documents
     }
 
-    /// Uploads a file to a collection.
+    /// Uploads a file into a collection. The gateway performs the two-step
+    /// provider upload (file store, then index into the collection) with its
+    /// own credential. Bills $0.01, caps the file at 10 MB, and records the
+    /// document as `indexed` immediately with no chunk count.
     ///
-    /// The server handles the two-step upload (files API + management API) with the master key.
-    ///
-    /// - Parameters:
-    ///   - collectionId: Target collection ID.
-    ///   - filename: Name for the uploaded file.
-    ///   - content: Raw file data.
-    /// - Returns: Upload result with file ID and size.
+    /// `POST /qai/v1/rag/collections/{id}/upload` (multipart, field `file`)
     public func collectionsUpload(
         collectionId: String,
         filename: String,
         content: Data
     ) async throws -> CollectionUploadResult {
         let (data, _): (CollectionUploadResult, _) = try await http.doMultipart(
-            path: "/qai/v1/rag/collections/\(collectionId)/upload",
+            path: "/qai/v1/rag/collections/\(collectionId.strictQueryEncoded)/upload",
             fieldName: "file",
             filename: filename,
             data: content
@@ -174,15 +171,27 @@ extension QuantumClient {
         return data
     }
 
-    /// Searches across collections (user's + shared) with hybrid/semantic/keyword mode.
+    /// Searches across collections and returns the matched chunks, best score
+    /// first.
     ///
-    /// - Parameter request: Search parameters including query and collection IDs.
-    /// - Returns: Array of search results.
+    /// Leave ``CollectionSearchRequest/collectionIds`` empty to search
+    /// everything the caller can read: their own collections and the shared
+    /// ones. Use ``collectionsSearchFull(_:)`` when the surrounding metadata
+    /// matters.
+    ///
+    /// `POST /qai/v1/rag/collections/search`
     public func collectionsSearch(_ request: CollectionSearchRequest) async throws -> [CollectionSearchResult] {
-        struct Response: Decodable { let results: [CollectionSearchResult] }
-        let (data, _): (Response, _) = try await http.doJSON(
-            method: "POST", path: "/qai/v1/rag/search/collections", body: request
+        try await collectionsSearchFull(request).results
+    }
+
+    /// Searches across collections and returns the whole response, including
+    /// how many collections were reached.
+    ///
+    /// `POST /qai/v1/rag/collections/search`
+    public func collectionsSearchFull(_ request: CollectionSearchRequest) async throws -> CollectionSearchResponse {
+        let (data, _): (CollectionSearchResponse, _) = try await doReq(
+            method: "POST", path: "/qai/v1/rag/collections/search", body: request
         )
-        return data.results
+        return data
     }
 }

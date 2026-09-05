@@ -53,8 +53,9 @@ final class ChatToolShapeVerifyTests: XCTestCase {
         XCTAssertTrue(err.isInsufficientBalance)
         let err2 = QuantumError.api(statusCode: 402, code: "other", message: "x", requestId: nil)
         XCTAssertTrue(err2.isInsufficientBalance)
-        let api = ApiError(statusCode: 402, code: "INSUFFICIENT_BALANCE", message: "x")
-        XCTAssertTrue(api.isPaymentRequired)
+        let byCode = QuantumError.api(statusCode: 200, code: "INSUFFICIENT_BALANCE", message: "x", requestId: nil)
+        XCTAssertTrue(byCode.isInsufficientBalance, "a 2xx envelope signals only through its code")
+        XCTAssertEqual(byCode.typedCode, .insufficientBalance)
     }
 
     func testResponseMetaBalanceAfterRoundTrip() throws {

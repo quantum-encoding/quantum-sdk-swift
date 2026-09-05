@@ -6,7 +6,7 @@
 //
 // The consent step is not optional: HeyGen only finishes training after the
 // person in the footage records the consent statement at the returned
-// `consentUrl` (links expire after 24h — mint a fresh one with
+// `consentUrl` (HeyGen expires the link after 24h — mint a fresh one with
 // `digitalTwinConsentLink`).
 //
 // Copyright (c) 2025-2026 Quantum Encoding Ltd
@@ -17,25 +17,44 @@ import Foundation
 
 /// Response of digital-twin creation (`POST /qai/v1/video/digital-twin`).
 public struct DigitalTwinCreateResponse: Codable, Sendable {
-    /// Avatar group id — the twin's identity; poll status with it.
+    /// Echo of the twin's name.
+    public var name: String
+    /// Hosted consent-page URL for the avatar's subject (HeyGen expires it
+    /// after 24h).
+    public var consentUrl: String
+    /// Billing model label.
+    public var model: String
+    /// Avatar group id — the twin's identity; poll status with it (absent
+    /// if HeyGen returned none).
     public var groupId: String?
-    /// Look id usable on twin-video once training completes.
-    public var avatarId: String?
-    public var name: String?
     /// "processing" | "pending_consent" | "failed" | "completed"
     public var status: String?
     public var consentStatus: String?
-    /// Hosted consent-page URL (valid 24h) for the avatar's subject.
-    public var consentUrl: String?
-    public var requestId: String?
+    /// Look id usable on twin-video once training completes.
+    public var avatarId: String?
+    /// Unique request identifier (filled from the response headers when the
+    /// body omits it).
+    public var requestId: String
 
     enum CodingKeys: String, CodingKey {
+        case name, status, model
         case groupId = "group_id"
         case avatarId = "avatar_id"
-        case name, status
         case consentStatus = "consent_status"
         case consentUrl = "consent_url"
         case requestId = "request_id"
+    }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        name = try c.decodeIfPresent(String.self, forKey: .name) ?? ""
+        consentUrl = try c.decodeIfPresent(String.self, forKey: .consentUrl) ?? ""
+        model = try c.decodeIfPresent(String.self, forKey: .model) ?? ""
+        groupId = try c.decodeIfPresent(String.self, forKey: .groupId)
+        status = try c.decodeIfPresent(String.self, forKey: .status)
+        consentStatus = try c.decodeIfPresent(String.self, forKey: .consentStatus)
+        avatarId = try c.decodeIfPresent(String.self, forKey: .avatarId)
+        requestId = try c.decodeIfPresent(String.self, forKey: .requestId) ?? ""
     }
 }
 
@@ -117,7 +136,8 @@ public struct DigitalTwinConsentLinkResponse: Codable, Sendable {
 public struct TwinVideoRequest: Codable, Sendable {
     public var avatarId: String
     public var script: String?
-    /// HeyGen voice id — required with `script`.
+    /// HeyGen voice id — required with `script` (400 `voice_id is required
+    /// with script` otherwise).
     public var voiceId: String?
     /// Base64 narration audio (e.g. an ElevenLabs cloned-voice render).
     public var audioBase64: String?
@@ -166,18 +186,7 @@ public struct TwinVideoRequest: Codable, Sendable {
 }
 
 private struct DigitalTwinListEnvelope: Codable {
-    var groups: [DigitalTwinSummary]
-}
-
-private struct DigitalTwinURLCreateRequest: Codable {
-    var name: String
-    var videoUrl: String
-    var avatarGroupId: String?
-    enum CodingKeys: String, CodingKey {
-        case name
-        case videoUrl = "video_url"
-        case avatarGroupId = "avatar_group_id"
-    }
+    @NullToEmpty var groups: [DigitalTwinSummary]
 }
 
 private struct ConsentLinkRequest: Codable {
@@ -188,11 +197,13 @@ private struct ConsentLinkRequest: Codable {
 // MARK: - Client surface
 
 extension QuantumClient {
-    /// Create a digital twin by uploading training footage (15s–10min of the
-    /// person speaking to camera, one clearly visible face, ≥720p). Returns
-    /// the group id plus a hosted consent URL to send to the person in the
-    /// footage — training completes only after they record consent there.
-    /// Flat $5.00 charge.
+    /// Create a digital twin by uploading training footage. HeyGen asks for
+    /// 15s–10min of the person speaking to camera, one clearly visible face,
+    /// ≥720p; the gateway itself only enforces a 200 MiB multipart cap.
+    /// Returns the group id plus a hosted consent URL to send to the person
+    /// in the footage — training completes only after they record consent
+    /// there. Flat $5.00 charge, held before the upload is read and released
+    /// on every error path.
     public func createDigitalTwin(
         name: String,
         footage: Data,
@@ -202,7 +213,7 @@ extension QuantumClient {
     ) async throws -> DigitalTwinCreateResponse {
         var fields = ["name": name]
         if let avatarGroupId { fields["avatar_group_id"] = avatarGroupId }
-        let (data, _): (DigitalTwinCreateResponse, HTTPClient.ResponseMeta) = try await http.doMultipart(
+        let (data, meta): (DigitalTwinCreateResponse, HTTPClient.ResponseMeta) = try await doMultipartReq(
             path: "/qai/v1/video/digital-twin",
             fieldName: "training",
             filename: filename,
@@ -210,7 +221,9 @@ extension QuantumClient {
             contentType: contentType,
             fields: fields
         )
-        return data
+        var r = data
+        if r.requestId.isEmpty { r.requestId = meta.requestId }
+        return r
     }
 
     /// Create a digital twin from a publicly fetchable footage URL.
@@ -219,46 +232,55 @@ extension QuantumClient {
         videoURL: String,
         avatarGroupId: String? = nil
     ) async throws -> DigitalTwinCreateResponse {
-        let (data, _): (DigitalTwinCreateResponse, HTTPClient.ResponseMeta) = try await http.doJSON(
-            method: "POST", path: "/qai/v1/video/digital-twin", body: DigitalTwinURLCreateRequest(name: name, videoUrl: videoURL, avatarGroupId: avatarGroupId), idempotencyKey: nil
+        try await createDigitalTwin(DigitalTwinCreateRequest(name: name, videoUrl: videoURL, avatarGroupId: avatarGroupId))
+    }
+
+    /// Create a digital twin from a ``DigitalTwinCreateRequest`` (JSON
+    /// variant of the route). Flat $5.00 charge.
+    public func createDigitalTwin(_ request: DigitalTwinCreateRequest) async throws -> DigitalTwinCreateResponse {
+        let (data, meta): (DigitalTwinCreateResponse, HTTPClient.ResponseMeta) = try await doReq(
+            method: "POST", path: "/qai/v1/video/digital-twin", body: request
         )
-        return data
+        var r = data
+        if r.requestId.isEmpty { r.requestId = meta.requestId }
+        return r
     }
 
     /// List the account's own twins ("My Twins").
     public func digitalTwins() async throws -> [DigitalTwinSummary] {
-        let (data, _): (DigitalTwinListEnvelope, HTTPClient.ResponseMeta) = try await http.doJSON(
-            method: "GET", path: "/qai/v1/video/digital-twins", body: nil as String?, idempotencyKey: nil
+        let (data, _): (DigitalTwinListEnvelope, HTTPClient.ResponseMeta) = try await doReq(
+            method: "GET", path: "/qai/v1/video/digital-twins"
         )
         return data.groups
     }
 
     /// Training + consent status of one twin, including its renderable looks.
     public func digitalTwinStatus(groupId: String) async throws -> DigitalTwinStatusResponse {
-        let (data, _): (DigitalTwinStatusResponse, HTTPClient.ResponseMeta) = try await http.doJSON(
+        let (data, _): (DigitalTwinStatusResponse, HTTPClient.ResponseMeta) = try await doReq(
             method: "GET",
-            path: "/qai/v1/video/digital-twin/\(groupId.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? groupId)",
-            body: nil as String?, idempotencyKey: nil
+            path: "/qai/v1/video/digital-twin/\(Self.pathSegment(groupId))"
         )
         return data
     }
 
-    /// Mint a fresh hosted consent-page URL for a twin group (links expire
-    /// after 24h). Send it to the person the avatar depicts.
+    /// Mint a fresh hosted consent-page URL for a twin group (HeyGen expires
+    /// links after 24h). Send it to the person the avatar depicts.
     public func digitalTwinConsentLink(groupId: String, rerouteUrl: String? = nil) async throws -> DigitalTwinConsentLinkResponse {
-        let (data, _): (DigitalTwinConsentLinkResponse, HTTPClient.ResponseMeta) = try await http.doJSON(
+        let (data, _): (DigitalTwinConsentLinkResponse, HTTPClient.ResponseMeta) = try await doReq(
             method: "POST",
-            path: "/qai/v1/video/digital-twin/\(groupId.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? groupId)/consent-link",
-            body: ConsentLinkRequest(rerouteUrl: rerouteUrl), idempotencyKey: nil
+            path: "/qai/v1/video/digital-twin/\(Self.pathSegment(groupId))/consent-link",
+            body: ConsentLinkRequest(rerouteUrl: rerouteUrl)
         )
         return data
     }
 
     /// Render a video of a trained twin delivering a script or narration
-    /// audio. Async job — poll with the returned job id; billed per
-    /// generated second. See ``TwinVideoRequest``.
+    /// audio. Async job (type "video/twin") — poll with the returned job id.
+    /// A $1.00 balance preflight gates submit; the job settles per generated
+    /// second at the studio rate, or a $1.00 flat charge when HeyGen reports
+    /// no duration. See ``TwinVideoRequest``.
     public func twinVideo(_ request: TwinVideoRequest) async throws -> JobAcceptedResponse {
-        let (data, _): (JobAcceptedResponse, HTTPClient.ResponseMeta) = try await http.doJSON(
+        let (data, _): (JobAcceptedResponse, HTTPClient.ResponseMeta) = try await doReq(
             method: "POST", path: "/qai/v1/video/twin-video", body: request,
             idempotencyKey: UUID().uuidString
         )

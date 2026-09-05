@@ -2,51 +2,18 @@ import Foundation
 
 // MARK: - Embed Request
 
-/// Request body for the `/qai/v1/embeddings` endpoint.
+/// Request body for the `/qai/v1/embeddings` endpoint. The gateway requires
+/// `model` and decodes `input` as a list of strings; a bare string is a 400.
 public struct EmbedRequest: Codable, Sendable {
-    /// Model for embedding generation.
-    public var model: String?
+    /// Embedding model (e.g. "text-embedding-3-small", "text-embedding-3-large").
+    public var model: String
 
-    /// Input text(s) to embed.
-    public var input: EmbedInput
+    /// Texts to embed.
+    public var input: [String]
 
-    public init(input: String, model: String? = nil) {
+    public init(model: String, input: [String]) {
         self.model = model
-        self.input = .single(input)
-    }
-
-    public init(inputs: [String], model: String? = nil) {
-        self.model = model
-        self.input = .multiple(inputs)
-    }
-
-    enum CodingKeys: String, CodingKey {
-        case model, input
-    }
-}
-
-/// Input can be a single string or array of strings.
-public enum EmbedInput: Codable, Sendable {
-    case single(String)
-    case multiple([String])
-
-    public init(from decoder: Decoder) throws {
-        let container = try decoder.singleValueContainer()
-        if let str = try? container.decode(String.self) {
-            self = .single(str)
-        } else {
-            self = .multiple(try container.decode([String].self))
-        }
-    }
-
-    public func encode(to encoder: Encoder) throws {
-        var container = encoder.singleValueContainer()
-        switch self {
-        case let .single(str):
-            try container.encode(str)
-        case let .multiple(arr):
-            try container.encode(arr)
-        }
+        self.input = input
     }
 }
 
@@ -54,7 +21,7 @@ public enum EmbedInput: Codable, Sendable {
 
 /// Response from the `/qai/v1/embeddings` endpoint.
 public struct EmbedResponse: Codable, Sendable {
-    /// Generated embeddings.
+    /// Embedding vectors, one per input string.
     public var embeddings: [[Double]]
 
     /// Model used.
@@ -70,5 +37,13 @@ public struct EmbedResponse: Codable, Sendable {
         case embeddings, model
         case requestId = "request_id"
         case costTicks = "cost_ticks"
+    }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        embeddings = try c.decode([[Double]].self, forKey: .embeddings)
+        model = try c.decode(String.self, forKey: .model)
+        requestId = try c.decodeIfPresent(String.self, forKey: .requestId) ?? ""
+        costTicks = try c.decodeIfPresent(Int.self, forKey: .costTicks) ?? 0
     }
 }

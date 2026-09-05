@@ -4,16 +4,24 @@ import Foundation
 
 /// Request body for vision analysis endpoints.
 public struct VisionRequest: Codable, Sendable {
-    /// Base64-encoded image (with or without data: prefix).
+    /// Base64-encoded image (with or without data: prefix). The reliable
+    /// input: the bytes reach the model as an image part on every gateway
+    /// version.
     public var imageBase64: String?
 
-    /// Image URL (fetched by the model provider).
+    /// Image URL. Current gateways fetch it server-side through an
+    /// SSRF-guarded client and send the bytes to the model (400 when the
+    /// fetch fails); the provider never sees the URL. Gateways older than the
+    /// September 2026 vision fix pasted the URL into the prompt as text.
+    /// Prefer `imageBase64` unless you know the gateway you talk to.
     public var imageURL: String?
 
     /// Model to use. Default: gemini-2.5-flash.
     public var model: String?
 
-    /// Analysis profile: "combined" (default), "scene", "objects", "ocr", "quality".
+    /// Analysis profile: "combined" (default), "scene", "objects", "ocr",
+    /// "quality". Overrides the default profile of whichever `vision*`
+    /// method sends it.
     public var profile: String?
 
     /// Domain context for relevance checking.
@@ -70,16 +78,19 @@ public struct VisionContext: Codable, Sendable {
 
 // MARK: - Vision Response
 
-/// Full vision analysis response.
+/// Full vision analysis response. Every section is `omitempty` on the wire
+/// and each profile's prompt only fills its own sections, so a `describe`
+/// answer has no `objects`, an `ocr` answer has neither, and so on; absent
+/// lists decode to `[]`, absent sections to `nil`.
 public struct VisionResponse: Codable, Sendable {
     /// Scene description.
     public var caption: String?
 
     /// Suggested tags (lowercase_snake_case).
-    public var tags: [String]
+    @NullToEmpty public var tags: [String]
 
     /// Detected objects with bounding boxes.
-    public var objects: [DetectedObject]
+    @NullToEmpty public var objects: [DetectedObject]
 
     /// Image quality assessment.
     public var quality: QualityAssessment?
@@ -126,6 +137,19 @@ public struct VisionResponse: Codable, Sendable {
         case costTicks = "cost_ticks"
         case requestId = "request_id"
     }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        caption = try c.decodeIfPresent(String.self, forKey: .caption)
+        _tags = try c.decode(NullToEmpty<String>.self, forKey: .tags)
+        _objects = try c.decode(NullToEmpty<DetectedObject>.self, forKey: .objects)
+        quality = try c.decodeIfPresent(QualityAssessment.self, forKey: .quality)
+        relevance = try c.decodeIfPresent(RelevanceCheck.self, forKey: .relevance)
+        ocr = try c.decodeIfPresent(OCRResult.self, forKey: .ocr)
+        model = try c.decodeIfPresent(String.self, forKey: .model) ?? ""
+        costTicks = try c.decodeIfPresent(Int64.self, forKey: .costTicks) ?? 0
+        requestId = try c.decodeIfPresent(String.self, forKey: .requestId) ?? ""
+    }
 }
 
 /// A detected object with bounding box.
@@ -149,6 +173,13 @@ public struct DetectedObject: Codable, Sendable {
         case label, confidence
         case boundingBox = "bounding_box"
     }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        label = try c.decodeIfPresent(String.self, forKey: .label) ?? ""
+        confidence = try c.decodeIfPresent(Double.self, forKey: .confidence) ?? 0
+        boundingBox = try c.decodeIfPresent([Int].self, forKey: .boundingBox) ?? []
+    }
 }
 
 /// Image quality assessment.
@@ -171,8 +202,8 @@ public struct QualityAssessment: Codable, Sendable {
     /// Exposure: "correct", "over", "under".
     public var exposure: String
 
-    /// Specific issues found.
-    public var issues: [String]
+    /// Specific issues found (empty when the model reported none).
+    @NullToEmpty public var issues: [String]
 
     public init(
         overall: String = "",
@@ -191,6 +222,17 @@ public struct QualityAssessment: Codable, Sendable {
         self.exposure = exposure
         self.issues = issues
     }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        overall = try c.decodeIfPresent(String.self, forKey: .overall) ?? ""
+        score = try c.decodeIfPresent(Double.self, forKey: .score) ?? 0
+        blur = try c.decodeIfPresent(String.self, forKey: .blur) ?? ""
+        darkness = try c.decodeIfPresent(String.self, forKey: .darkness) ?? ""
+        resolution = try c.decodeIfPresent(String.self, forKey: .resolution) ?? ""
+        exposure = try c.decodeIfPresent(String.self, forKey: .exposure) ?? ""
+        _issues = try c.decode(NullToEmpty<String>.self, forKey: .issues)
+    }
 }
 
 /// Relevance check against expected content.
@@ -202,16 +244,16 @@ public struct RelevanceCheck: Codable, Sendable {
     public var score: Double
 
     /// Items expected based on context.
-    public var expectedItems: [String]
+    @NullToEmpty public var expectedItems: [String]
 
     /// Items actually found in the image.
-    public var foundItems: [String]
+    @NullToEmpty public var foundItems: [String]
 
     /// Expected but not found.
-    public var missingItems: [String]
+    @NullToEmpty public var missingItems: [String]
 
     /// Found but not expected.
-    public var unexpectedItems: [String]
+    @NullToEmpty public var unexpectedItems: [String]
 
     /// Additional notes.
     public var notes: String?
@@ -241,6 +283,17 @@ public struct RelevanceCheck: Codable, Sendable {
         case missingItems = "missing_items"
         case unexpectedItems = "unexpected_items"
     }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        relevant = try c.decodeIfPresent(Bool.self, forKey: .relevant) ?? false
+        score = try c.decodeIfPresent(Double.self, forKey: .score) ?? 0
+        _expectedItems = try c.decode(NullToEmpty<String>.self, forKey: .expectedItems)
+        _foundItems = try c.decode(NullToEmpty<String>.self, forKey: .foundItems)
+        _missingItems = try c.decode(NullToEmpty<String>.self, forKey: .missingItems)
+        _unexpectedItems = try c.decode(NullToEmpty<String>.self, forKey: .unexpectedItems)
+        notes = try c.decodeIfPresent(String.self, forKey: .notes)
+    }
 }
 
 /// OCR / text extraction result.
@@ -252,7 +305,7 @@ public struct OCRResult: Codable, Sendable {
     public var metadata: [String: String]
 
     /// Individual text overlays with positions.
-    public var overlays: [TextOverlay]
+    @NullToEmpty public var overlays: [TextOverlay]
 
     public init(
         text: String? = nil,
@@ -262,6 +315,13 @@ public struct OCRResult: Codable, Sendable {
         self.text = text
         self.metadata = metadata
         self.overlays = overlays
+    }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        text = try c.decodeIfPresent(String.self, forKey: .text)
+        metadata = try c.decodeIfPresent([String: String].self, forKey: .metadata) ?? [:]
+        _overlays = try c.decode(NullToEmpty<TextOverlay>.self, forKey: .overlays)
     }
 }
 
@@ -287,46 +347,61 @@ public struct TextOverlay: Codable, Sendable {
         case boundingBox = "bounding_box"
         case overlayType = "type"
     }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        text = try c.decodeIfPresent(String.self, forKey: .text) ?? ""
+        boundingBox = try c.decodeIfPresent([Int].self, forKey: .boundingBox)
+        overlayType = try c.decodeIfPresent(String.self, forKey: .overlayType)
+    }
 }
 
 // MARK: - Client Extension
 
+// Each `vision*` method only sets the default profile for its route; a
+// `profile` in the request overrides it, so `visionDetect` with
+// `profile: "ocr"` runs OCR. Leave `profile` unset to get the analysis the
+// method name promises.
 extension QuantumClient {
     /// Full combined vision analysis (scene + objects + quality + OCR + relevance).
     public func visionAnalyze(_ request: VisionRequest) async throws -> VisionResponse {
-        let (data, _): (VisionResponse, _) = try await http.doJSON(
+        let (data, _): (VisionResponse, _) = try await doReq(
             method: "POST", path: "/qai/v1/vision/analyze", body: request
         )
         return data
     }
 
-    /// Object detection with bounding boxes.
+    /// Object detection with bounding boxes (default profile "objects"; a
+    /// request `profile` overrides it).
     public func visionDetect(_ request: VisionRequest) async throws -> VisionResponse {
-        let (data, _): (VisionResponse, _) = try await http.doJSON(
+        let (data, _): (VisionResponse, _) = try await doReq(
             method: "POST", path: "/qai/v1/vision/detect", body: request
         )
         return data
     }
 
-    /// Scene description and tags.
+    /// Scene description and tags (default profile "scene"; a request
+    /// `profile` overrides it).
     public func visionDescribe(_ request: VisionRequest) async throws -> VisionResponse {
-        let (data, _): (VisionResponse, _) = try await http.doJSON(
+        let (data, _): (VisionResponse, _) = try await doReq(
             method: "POST", path: "/qai/v1/vision/describe", body: request
         )
         return data
     }
 
-    /// Text extraction and overlay metadata (OCR).
+    /// Text extraction and overlay metadata (default profile "ocr"; a
+    /// request `profile` overrides it).
     public func visionOCR(_ request: VisionRequest) async throws -> VisionResponse {
-        let (data, _): (VisionResponse, _) = try await http.doJSON(
+        let (data, _): (VisionResponse, _) = try await doReq(
             method: "POST", path: "/qai/v1/vision/ocr", body: request
         )
         return data
     }
 
-    /// Image quality assessment.
+    /// Image quality assessment (default profile "quality"; a request
+    /// `profile` overrides it).
     public func visionQuality(_ request: VisionRequest) async throws -> VisionResponse {
-        let (data, _): (VisionResponse, _) = try await http.doJSON(
+        let (data, _): (VisionResponse, _) = try await doReq(
             method: "POST", path: "/qai/v1/vision/quality", body: request
         )
         return data

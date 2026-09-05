@@ -2,98 +2,83 @@ import Foundation
 
 /// Parses Server-Sent Events from a URLSession byte stream.
 ///
-/// Yields `SSEEvent` values as an `AsyncSequence`. Handles the SSE wire format
-/// including `data:` prefixes, multi-line data, and `[DONE]` sentinels.
+/// Yields ``SSEEvent`` values as an `AsyncSequence`. Follows the SSE
+/// framing rules: an event is the `data:` lines up to the next blank line,
+/// joined with `\n`; `event:`, `id:` and `retry:` fields and `:` comments
+/// (the gateway's `: ping` keep-alives) are skipped; a final event that the
+/// connection cut off before its blank line is still delivered; and the
+/// `[DONE]` sentinel ends the stream.
 struct SSEParser: AsyncSequence {
     typealias Element = SSEEvent
 
     let bytes: URLSession.AsyncBytes
 
     struct AsyncIterator: AsyncIteratorProtocol {
-        var lineIterator: URLSession.AsyncBytes.AsyncIterator
-        var buffer = ""
+        var byteIterator: URLSession.AsyncBytes.AsyncIterator
+        /// `data:` lines of the event being assembled.
+        private var dataLines: [String] = []
+        private var finished = false
 
-        mutating func next() async throws -> SSEEvent? {
-            while true {
-                // Read raw bytes until newline, then convert to String
-                // This prevents multi-byte UTF-8 sequences from being split
-                var lineBytes: [UInt8] = []
-                var foundLine = false
-
-                while true {
-                    guard let byte = try await lineIterator.next() else {
-                        // Stream ended
-                        if !buffer.isEmpty {
-                            let remaining = buffer
-                            buffer = ""
-                            if remaining.hasPrefix("data: ") {
-                                let payload = String(remaining.dropFirst(6))
-                                if let event = parsePayload(payload) {
-                                    return event
-                                }
-                            }
-                        }
-                        return nil
-                    }
-
-                    if byte == 0x0A { // newline
-                        foundLine = true
-                        break
-                    }
-                    // Skip carriage return
-                    if byte == 0x0D { continue }
-                    lineBytes.append(byte)
-                }
-
-                guard foundLine else { continue }
-
-                // Convert complete line bytes to String (safe for multi-byte UTF-8)
-                let line = String(bytes: lineBytes, encoding: .utf8) ?? String(lineBytes.map { Character(UnicodeScalar($0)) })
-
-                // Skip empty lines (SSE event separators)
-                if line.isEmpty { continue }
-
-                // Skip comments
-                if line.hasPrefix(":") { continue }
-
-                // event/id/retry fields are not surfaced
-                if line.hasPrefix("event:") || line.hasPrefix("id:") || line.hasPrefix("retry:") {
-                    continue
-                }
-
-                // Handle data lines
-                if line.hasPrefix("data: ") || line.hasPrefix("data:") {
-                    let payload: String
-                    if line.hasPrefix("data: ") {
-                        payload = String(line.dropFirst(6))
-                    } else {
-                        payload = String(line.dropFirst(5))
-                    }
-
-                    if let event = parsePayload(payload) {
-                        return event
-                    }
-                }
-            }
+        init(byteIterator: URLSession.AsyncBytes.AsyncIterator) {
+            self.byteIterator = byteIterator
         }
 
-        private func parsePayload(_ payload: String) -> SSEEvent? {
-            let trimmed = payload.trimmingCharacters(in: .whitespaces)
+        mutating func next() async throws -> SSEEvent? {
+            while !finished {
+                guard let line = try await readLine() else {
+                    // Connection ended. An unterminated final event is
+                    // delivered rather than dropped.
+                    finished = true
+                    return flush()
+                }
 
+                if line.isEmpty {
+                    if let event = flush() { return event }
+                    continue
+                }
+                if line.hasPrefix(":") { continue }
+                if line.hasPrefix("data:") {
+                    var payload = line.dropFirst("data:".count)
+                    if payload.first == " " { payload = payload.dropFirst() }
+                    dataLines.append(String(payload))
+                }
+                // event:, id:, retry: and unknown fields are not surfaced.
+            }
+            return nil
+        }
+
+        /// The assembled event, if any `data:` lines are pending.
+        private mutating func flush() -> SSEEvent? {
+            guard !dataLines.isEmpty else { return nil }
+            let payload = dataLines.joined(separator: "\n")
+            dataLines.removeAll()
+            let trimmed = payload.trimmingCharacters(in: .whitespaces)
             if trimmed == "[DONE]" {
+                finished = true
                 return .done
             }
+            return .data(Data(trimmed.utf8))
+        }
 
-            guard let data = trimmed.data(using: .utf8) else {
-                return .error("Invalid UTF-8 in SSE payload")
+        /// One line without its terminator, or `nil` at end of stream.
+        /// Assembled from bytes so a multi-byte UTF-8 sequence is never
+        /// split; an unterminated last line is returned as a line.
+        private mutating func readLine() async throws -> String? {
+            var lineBytes: [UInt8] = []
+            var sawAny = false
+            while let byte = try await byteIterator.next() {
+                sawAny = true
+                if byte == 0x0A { break }
+                if byte == 0x0D { continue }
+                lineBytes.append(byte)
             }
-
-            return .data(data)
+            guard sawAny else { return nil }
+            return String(decoding: lineBytes, as: UTF8.self)
         }
     }
 
     func makeAsyncIterator() -> AsyncIterator {
-        AsyncIterator(lineIterator: bytes.makeAsyncIterator())
+        AsyncIterator(byteIterator: bytes.makeAsyncIterator())
     }
 }
 

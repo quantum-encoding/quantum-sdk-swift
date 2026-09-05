@@ -14,16 +14,16 @@ import Foundation
 ///   endpoint routes by key scope by design)
 ///
 /// The backend accepts region ALIASES and silently degrades anything it
-/// doesn't recognize to unscoped legacy routing — never an error.
-/// ``init(parsing:)`` therefore rejects unknown values client-side instead
-/// of letting a typo route silently unscoped.
+/// doesn't recognize to unscoped legacy routing — never an error. Every
+/// place a region reaches the wire is typed, and both ``init(parsing:)`` and
+/// `Decodable` reject unknown values, so a typo cannot route silently
+/// unscoped.
 public enum Region: String, Codable, Sendable, CaseIterable {
-    /// US-serving endpoints (Vertex us-rep + us-central1).
+    /// US-serving endpoints (us-central1).
     case americas
-    /// EU-serving endpoints (Vertex eu-rep + europe-west4).
+    /// EU-serving endpoints (europe-west4).
     case europe
-    /// Asia-serving endpoints (DashScope token-plan ap-southeast-1 for
-    /// qwen3.6+, intl for the long tail).
+    /// Asia-serving endpoints (DashScope).
     case asia
 
     /// Parses a region, tolerating the aliases the backend accepts
@@ -42,5 +42,24 @@ public enum Region: String, Codable, Sendable, CaseIterable {
         default:
             return nil
         }
+    }
+
+    /// Decodes with the same alias rules as ``init(parsing:)``; an unknown
+    /// value is a decode error.
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        let raw = try container.decode(String.self)
+        guard let region = Region(parsing: raw) else {
+            throw DecodingError.dataCorruptedError(
+                in: container,
+                debugDescription: "unknown region '\(raw)' — expected americas | europe | asia (aliases: us, eu, apac)"
+            )
+        }
+        self = region
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.singleValueContainer()
+        try container.encode(rawValue)
     }
 }
