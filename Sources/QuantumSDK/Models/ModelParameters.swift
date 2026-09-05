@@ -1,7 +1,7 @@
 // ParameterSpec — per-model generation parameter schema.
 //
 // Returned by `GET /qai/v1/models` under each model's `parameters` field.
-// Describes WHAT the model supports, not HOW to render it — clients pick
+// Describes what the model supports, not how to render it — clients pick
 // the renderer (menu / stepper / slider) based on the semantic `kind`.
 //
 // Schema version lives on ``ModelsResponse/schemaVersion``. The parser

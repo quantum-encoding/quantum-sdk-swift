@@ -56,7 +56,7 @@ struct SSEParser: AsyncSequence {
                 // Skip comments
                 if line.hasPrefix(":") { continue }
 
-                // Handle event/id/retry fields (ignore for now)
+                // event/id/retry fields are not surfaced
                 if line.hasPrefix("event:") || line.hasPrefix("id:") || line.hasPrefix("retry:") {
                     continue
                 }

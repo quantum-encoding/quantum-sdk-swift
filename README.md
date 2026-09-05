@@ -37,7 +37,7 @@ print(response.text)
 - iOS 16+, macOS 13+, tvOS 16+, watchOS 9+, visionOS 1+
 - Agent orchestration with SSE event streams
 - GPU/CPU compute rental (requires per-account admin approval)
-- Batch processing (50% discount)
+- Batch processing (async jobs, billed at the real-time rate)
 
 ## Examples
 
@@ -100,8 +100,8 @@ print(audio.audioUrl)
 ### Web Search
 
 ```swift
-let results = try await client.webSearch("latest Swift releases 2026")
-for result in results.results {
+let results = try await client.webSearch(WebSearchRequest(query: "latest Swift releases 2026"))
+for result in results.web ?? [] {
     print("\(result.title): \(result.url)")
 }
 ```
@@ -139,7 +139,7 @@ for try await event in client.agentRun(task: "Research quantum computing breakth
 | Keys | 3 | API key management |
 | Account | 3 | Balance, usage, summary |
 | Credits | 6 | Packs, tiers, lifetime, purchase |
-| Batch | 4 | 50% discount batch processing |
+| Batch | 4 | Async batch processing (real-time rates) |
 | Realtime | 3 | Voice sessions |
 | Models | 2 | Model list + pricing |
 
@@ -163,7 +163,7 @@ The **Lifetime tier** offers 0% margin at-cost pricing via a one-time payment.
 
 ## Other SDKs
 
-All SDKs are at v0.4.0 with type parity verified by scanner.
+All SDKs are at v0.4.0 and share the same type surface.
 
 | Language | Package | Install |
 |----------|---------|---------|

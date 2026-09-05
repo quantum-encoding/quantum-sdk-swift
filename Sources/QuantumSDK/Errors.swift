@@ -33,9 +33,8 @@ public struct ApiError: Codable, Sendable {
     public var isNotFound: Bool { statusCode == 404 }
 
     /// Returns true if this is a 402 payment-required / insufficient-balance
-    /// response. Matches the gateway's `INSUFFICIENT_BALANCE` code
-    /// (`errors.go`: `CodeInsufficientBalance`), emitted as HTTP 402 when the
-    /// wallet can't cover a step's cost.
+    /// response. Matches the gateway's `INSUFFICIENT_BALANCE` code, emitted
+    /// as HTTP 402 when the wallet can't cover a step's cost.
     public var isPaymentRequired: Bool {
         statusCode == 402 || code == "INSUFFICIENT_BALANCE"
     }
@@ -114,10 +113,9 @@ public enum QuantumError: Error, LocalizedError, Sendable {
         return false
     }
 
-    /// True if the error is a 402 / insufficient-balance response. Matches
-    /// the gateway's `INSUFFICIENT_BALANCE` code (`errors.go`), emitted as
-    /// HTTP 402 when the wallet can't cover a step's cost. Use this to branch
-    /// retry vs. top-up-CTA in caller code.
+    /// True if the error is a 402 / insufficient-balance response
+    /// (see ``ApiError/isPaymentRequired``). Use this to branch retry vs.
+    /// top-up in caller code.
     public var isInsufficientBalance: Bool {
         if case let .api(statusCode, code, _, _) = self {
             return statusCode == 402 || code == "INSUFFICIENT_BALANCE"
@@ -126,9 +124,9 @@ public enum QuantumError: Error, LocalizedError, Sendable {
     }
 }
 
-// MARK: - Error (enum matching Rust)
+// MARK: - SDKError
 
-/// Error types returned by the Quantum AI SDK (mirrors Rust Error enum).
+/// Coarse error classification: API response, HTTP transport, or JSON.
 public enum SDKError: Swift.Error, Sendable {
     /// The API returned a non-2xx status code.
     case api(ApiError)
@@ -164,9 +162,8 @@ public struct ResponseMeta: Codable, Sendable {
     public var model: String
 
     /// Post-charge wallet balance in ticks from `X-QAI-Balance-After`.
-    /// Signed Int64: the new claw-back path (`SettleHold`'s `DeductStrict`)
-    /// can drive the balance negative, and the header carries that signed
-    /// value. `nil` when the header is absent (non-media routes don't set it).
+    /// Signed: the claw-back path can drive the balance negative. `nil` when
+    /// the header is absent (non-media routes don't set it).
     public var balanceAfter: Int64?
 
     public init(costTicks: Int64 = 0, requestId: String = "", model: String = "", balanceAfter: Int64? = nil) {

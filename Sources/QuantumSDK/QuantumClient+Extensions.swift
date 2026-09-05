@@ -1,6 +1,6 @@
 import Foundation
 
-// MARK: - Missing Parity Methods
+// MARK: - Chat Jobs & Compute Billing
 
 extension QuantumClient {
 

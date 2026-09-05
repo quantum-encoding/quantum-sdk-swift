@@ -4,7 +4,7 @@ import Foundation
 //
 // A realtime session makes an avatar speak live and publishes a plain HLS
 // stream (720p). Sessions are PREPAID: the entire `maxDurationSeconds` block
-// is charged at create time and is NOT refunded on early cancel (cancelling
+// is charged at create time and is not refunded on early cancel (cancelling
 // only stops the upstream meter).
 //
 // Recommended flow:
@@ -75,7 +75,7 @@ public struct AvatarRealtimeRequest: Codable, Sendable {
     public var audio: AvatarAudioInput?
 
     /// Prepaid block in seconds (1–3600). The whole block is charged at
-    /// create time; early cancel does NOT refund.
+    /// create time; early cancel does not refund.
     public var maxDurationSeconds: Int
 
     public init(
@@ -117,8 +117,8 @@ public struct AvatarRealtimeCreateResponse: Codable, Sendable {
     /// Ticks charged for the prepaid block.
     public var costTicks: Int64
 
-    /// Post-deduction credit balance in ticks (from the X-QAI-Balance-After
-    /// header; Receipt Pattern).
+    /// Post-deduction credit balance in ticks. Filled from the
+    /// X-QAI-Balance-After header when the body omits it.
     public var balanceAfter: Int64?
 
     /// Unique request identifier.

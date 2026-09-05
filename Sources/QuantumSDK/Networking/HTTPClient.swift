@@ -50,10 +50,9 @@ final class HTTPClient: Sendable {
     ///
     /// - Parameters:
     ///   - idempotencyKey: Optional `Idempotency-Key` header value. When
-    ///     non-nil the gateway dedups retries against this key (see
-    ///     `middleware.go` `requestIDMiddleware`). Billing-bearing POSTs
-    ///     should pass a UUID (auto-generate at the call site when the caller
-    ///     doesn't supply one); GETs leave this nil so no header is sent.
+    ///     non-nil the gateway dedups retries against this key. Billing-bearing
+    ///     POSTs should pass a UUID (auto-generate at the call site when the
+    ///     caller doesn't supply one); GETs leave this nil so no header is sent.
     func doJSON<T: Decodable>(
         method: String,
         path: String,
@@ -96,11 +95,10 @@ final class HTTPClient: Sendable {
             let decoded = try decoder.decode(T.self, from: data)
             return (decoded, meta)
         } catch let decodeError {
-            // Some providers/gateways return an error envelope (e.g. a moderation /
-            // content-policy block) with a 2xx status. The success decode then fails
-            // on missing fields — surface the REAL message instead of a generic
-            // "decoding failed". `APIErrorBody` requires `error.message`, so a true
-            // success response can't false-match here.
+            // Error envelope returned with a 2xx status (e.g. moderation block) —
+            // surface the real message rather than a generic "decoding failed".
+            // `APIErrorBody` requires `error.message`, so a true success
+            // response can't false-match here.
             if (try? JSONDecoder().decode(APIErrorBody.self, from: data)) != nil {
                 throw parseAPIError(data: data, statusCode: httpResponse.statusCode, requestId: meta.requestId)
             }

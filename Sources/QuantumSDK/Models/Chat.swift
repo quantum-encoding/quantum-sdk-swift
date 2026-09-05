@@ -37,7 +37,7 @@ public struct ChatRequest: Codable, Sendable {
     /// too — prefer the typed ``region`` property for it.
     public var providerOptions: [String: [String: AnyCodable]]?
 
-    /// Routing region override for THIS chat request — encoded as
+    /// Routing region override for this chat request — encoded as
     /// `provider_options.region` on the wire (it is not a standalone JSON
     /// field) and wins over the key's scope region. Honored by
     /// `/qai/v1/chat` only: the agent endpoint routes by the key's scope by
@@ -106,7 +106,7 @@ public struct ChatRequest: Codable, Sendable {
     }
 
     // Custom Codable: `region` has no JSON field of its own — it rides
-    // INSIDE `provider_options` as the one entry whose value is a plain
+    // inside `provider_options` as the one entry whose value is a plain
     // string, which the nested-dictionary type of `providerOptions` cannot
     // represent. Encoding merges it in; decoding extracts it back out.
 
@@ -332,12 +332,10 @@ public struct ContentBlock: Codable, Sendable {
 
 /// A function tool definition for chat completions.
 ///
-/// Wire shape is FLAT to match the Go gateway contract
-/// (`internal/server/convert.go` `ChatTool`): `{"name","description","parameters","strict"}`.
-/// The previous SDK emitted the OpenAI/Anthropic nested shape
-/// `{"type":"function","function":{...}}`, which the backend silently dropped
-/// (it has no custom UnmarshalJSON), so every tool definition was lost on the
-/// wire. This is a breaking change but the prior shape never worked.
+/// Wire shape is FLAT, matching the gateway contract:
+/// `{"name","description","parameters","strict"}`. The gateway does not
+/// understand the OpenAI/Anthropic nested `{"type":"function","function":{...}}`
+/// shape; tools sent that way are dropped silently.
 public struct ChatTool: Codable, Sendable {
     /// Tool name.
     public var name: String
@@ -487,14 +485,14 @@ public struct ChatResponse: Codable, Sendable {
     /// doesn't surface phase.
     public var phase: String?
 
-    /// Unique request ID. The Go gateway body does NOT carry `request_id` at
-    /// the top level (it's only in the `X-QAI-Request-Id` header, and the body
-    /// `id` field holds it). Decoded as optional and populated from
-    /// ``ResponseMeta`` after decode via ``apply(_:)-4gior``.
+    /// Unique request ID. The body does not carry `request_id` at the top
+    /// level (the `X-QAI-Request-Id` header and the body `id` field hold it).
+    /// Decoded as optional and populated from ``ResponseMeta`` after decode
+    /// via ``apply(_:)-4gior``.
     public var requestId: String?
 
-    /// Cost in ticks. The Go gateway body does NOT carry `cost_ticks` at the
-    /// top level (it lives inside `usage` and the `X-QAI-Cost-Ticks` header).
+    /// Cost in ticks. The body does not carry `cost_ticks` at the top level
+    /// (it lives inside `usage` and the `X-QAI-Cost-Ticks` header).
     /// Decoded as optional and populated from ``ResponseMeta`` after decode.
     public var costTicks: Int?
 
@@ -503,8 +501,8 @@ public struct ChatResponse: Codable, Sendable {
     /// ``ResponseMeta`` after decode.
     public var balanceAfter: Int64?
 
-    /// True when this response was served from the semantic cache
-    /// (`convert.go` sets `cached` on cache hits). `nil` on fresh responses.
+    /// True when this response was served from the semantic cache.
+    /// `nil` on fresh responses.
     public var cached: Bool?
 
     enum CodingKeys: String, CodingKey {
@@ -553,7 +551,8 @@ public struct ChatResponse: Codable, Sendable {
     /// True when a safety classifier declined the request
     /// (`stopReason == StopReason.refusal`). On a refusal the content may be
     /// empty or a partial prefix that should be discarded — check this before
-    /// reading ``text``. (Claude Fable 5 can refuse with an HTTP 200.)
+    /// reading ``text``. A refusal arrives as a normal 2xx response, so the
+    /// HTTP status does not signal it.
     public var isRefusal: Bool { stopReason == StopReason.refusal }
 
     /// True when output was cut off by the token cap

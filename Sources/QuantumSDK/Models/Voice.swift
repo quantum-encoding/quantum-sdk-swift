@@ -72,10 +72,8 @@ public struct CloneVoiceResponse: Codable, Sendable {
     /// The new voice identifier.
     public var voiceId: String
 
-    /// The name assigned to the cloned voice. Optional: the gateway's
-    /// response historically carried only `voice_id` + `request_id`, and a
-    /// required `name` made an otherwise-successful clone throw
-    /// `decodingFailed` client-side.
+    /// The name assigned to the cloned voice. Optional because the gateway
+    /// may return only `voice_id` and `request_id`.
     public var name: String?
 
     /// Status message.

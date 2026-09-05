@@ -209,7 +209,7 @@ public struct SurrealRagProvider: Codable, Sendable {
 /// Legacy alias.
 public typealias SurrealRAGProviderInfo = SurrealRagProvider
 
-/// Parity alias matching Rust SDK naming.
+/// Alias for ``SurrealRagProvider``.
 public typealias SurrealRagProviderInfo = SurrealRagProvider
 
 /// Response from listing SurrealDB RAG providers.

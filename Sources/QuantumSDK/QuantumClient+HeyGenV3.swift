@@ -6,7 +6,7 @@ extension QuantumClient {
     /// Create a live avatar realtime session (HeyGen Broadcast).
     ///
     /// PREPAID: the entire `maxDurationSeconds` block (1–3600 s) is charged
-    /// at create time; cancelling early does NOT refund.
+    /// at create time; cancelling early does not refund.
     ///
     /// Poll ``getAvatarRealtimeSession(streamId:)`` (~2s) until
     /// `status == "streaming"`, then play `hlsUrl`.
@@ -18,8 +18,7 @@ extension QuantumClient {
             method: "POST", path: "/qai/v1/avatar/realtime", body: request,
             idempotencyKey: idempotencyKey ?? UUID().uuidString
         )
-        // Fill billing fields from the X-QAI-* headers when the body didn't
-        // carry them (Receipt Pattern; matches the Rust reference SDK).
+        // Billing fields fall back to the X-QAI-* headers when the body omits them.
         var response = data
         if response.costTicks == 0 { response.costTicks = Int64(meta.costTicks) }
         if response.balanceAfter == nil { response.balanceAfter = meta.balanceAfter }

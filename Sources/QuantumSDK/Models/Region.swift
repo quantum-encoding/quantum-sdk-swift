@@ -3,11 +3,10 @@ import Foundation
 /// An inference region for region-scoped routing.
 ///
 /// The gateway routes inference in-region when a region is attached to the
-/// work (EU AI Act Art 50 compliance shipped 2026-08-19): a key minted with
-/// a region scope routes every request made with it, and a chat request can
-/// override that scope for one call. Regions pick the serving endpoints
-/// inside the ONE gateway host (`https://api.quantumencoding.ai`) — there
-/// is no region-per-hostname.
+/// work (EU AI Act Art 50): a key minted with a region scope routes every
+/// request made with it, and a chat request can override that scope for one
+/// call. Regions pick the serving endpoints inside a single gateway host;
+/// there is no region-per-hostname.
 ///
 /// Two places a region is expressed on the wire, both typed here:
 /// - key mint: ``CreateKeyRequest/region``

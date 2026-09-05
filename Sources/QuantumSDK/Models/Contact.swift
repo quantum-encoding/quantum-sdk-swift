@@ -1,7 +1,6 @@
 import Foundation
 
-// ContactRequest is defined in Account.swift
-// ContactResponse kept here.
+// ContactRequest is declared in Account.swift.
 
 /// Response from the contact form endpoint.
 public struct ContactResponse: Codable, Sendable {

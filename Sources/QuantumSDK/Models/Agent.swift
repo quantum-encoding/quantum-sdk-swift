@@ -48,7 +48,7 @@ public struct AgentRequest: Codable, Sendable {
 
     /// Capability allowlist. If provided, the backend only exposes tools whose
     /// capability IDs appear in this list. An empty array disables all tools
-    /// (pure chat mode). nil means "server default" — backward compatible.
+    /// (pure chat mode). `nil` leaves the choice to the server.
     public var capabilities: [String]?
 
     public init(
@@ -140,21 +140,18 @@ public struct AgentEvent: Sendable {
     public var error: String?
 
     /// Authoring role of the event (e.g. "user", "assistant", "tool").
-    /// Mirrors `agentruntime.Event.Role`.
     public var role: String?
 
-    /// Free-form structured payload (mirrors `agentruntime.Event.Data`).
+    /// Free-form structured payload.
     public var data: [String: AnyCodable]?
 
-    /// Server-assigned event timestamp (RFC3339). Mirrors
-    /// `agentruntime.Event.Timestamp`.
+    /// Server-assigned event timestamp (RFC3339).
     public var timestamp: String?
 
     /// 1-based sequential id for durable structural state-transition events.
     /// The value a client sends back as `Last-Event-ID` to resume a dropped
     /// stream. Zero/nil for high-frequency ephemeral events (token deltas,
-    /// bash output) which are never persisted. Mirrors
-    /// `agentruntime.Event.Index`.
+    /// bash output), which are never persisted.
     public var index: Int64?
 
     public init(

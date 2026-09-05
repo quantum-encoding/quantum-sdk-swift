@@ -34,13 +34,11 @@ public final class QuantumClient: Sendable {
 
     /// Default URLSession tuned for the Quantum AI API.
     ///
-    /// `URLSession.shared` defaults to `timeoutIntervalForRequest = 60`, which
-    /// aborts long-running *buffered* calls — image and video generation return a
-    /// single JSON blob only once the provider finishes, so no bytes flow for the
-    /// whole generation and the request dies at 60s even though the server is
-    /// still working. We raise the per-request (inactivity) timeout to 5 minutes
-    /// and the overall resource timeout to 1 hour so synchronous media generation
-    /// completes. Streaming chat is unaffected (data flows continuously).
+    /// `URLSession.shared` aborts a request after 60s without bytes. Buffered
+    /// media calls (image and video generation) return one JSON blob only once
+    /// the provider finishes, so nothing flows for the whole generation. This
+    /// session allows 5 minutes between bytes and 1 hour overall so synchronous
+    /// media generation completes. Streaming chat is unaffected.
     public static let defaultSession: URLSession = {
         let config = URLSessionConfiguration.default
         config.timeoutIntervalForRequest = 300   // 5 min between bytes (buffered media gen)
@@ -378,13 +376,12 @@ public final class QuantumClient: Sendable {
 
     /// Run an agent orchestration with a full ``AgentRequest``.
     ///
-    /// Note: `/qai/v1/agent` is the stateless provider-passthrough endpoint
-    /// (Anthropic-style `{ model, messages, tools, ... }` shape).
     /// `AgentRequest` carries the conductor-style
-    /// `{ goal, conductor_model, workers, max_steps, ... }` shape — that's
-    /// the Mission orchestrator's contract (POST `/qai/v1/missions`), so
-    /// that's where we post it. Swift exposes the field as `task` for
-    /// readability; `CodingKeys` remaps it to `goal` on the wire.
+    /// `{ goal, conductor_model, workers, max_steps, ... }` shape, which is
+    /// the Mission orchestrator's contract, so it posts to `/qai/v1/missions`.
+    /// `/qai/v1/agent` is the stateless provider-passthrough endpoint and takes
+    /// an Anthropic-style `{ model, messages, tools, ... }` body. Swift exposes
+    /// the goal field as `task`; `CodingKeys` remaps it to `goal` on the wire.
     public func agentRun(_ request: AgentRequest) -> AsyncThrowingStream<AgentEvent, any Error> {
         return makeSSEStream(path: "/qai/v1/missions", body: request) { data in
             try self.parseAgentEvent(data)
@@ -425,7 +422,11 @@ public final class QuantumClient: Sendable {
     ///   - prompt: Text prompt describing the image.
     ///   - n: Number of images to generate.
     ///   - size: Image size (e.g. "1024x1024").
+    ///   - aspectRatio: Aspect ratio (e.g. "16:9", "1:1"). Gemini/Imagen honour this.
     ///   - quality: Quality level (e.g. "standard", "hd").
+    ///   - outputFormat: Output image format (e.g. "png", "jpeg", "webp").
+    ///   - compression: JPEG/WebP quality 0-100 (GPT-Image). Sent only when non-nil.
+    ///   - style: DALL-E 3 preset — "vivid" or "natural". Sent only when non-nil.
     ///   - background: Background mode — "transparent", "opaque", or "auto".
     ///     GPT-Image (gpt-image-1) honours this; other providers ignore it.
     ///     Sent only when non-nil.
@@ -433,10 +434,6 @@ public final class QuantumClient: Sendable {
     ///   - cfgScale: Classifier-free guidance scale (provider support varies).
     ///     Sent only when non-nil.
     /// - Returns: The image response with URLs or base64 data.
-    ///   - aspectRatio: Aspect ratio (e.g. "16:9", "1:1"). Gemini/Imagen honour this.
-    ///   - outputFormat: Output image format (e.g. "png", "jpeg", "webp").
-    ///   - compression: JPEG/WebP quality 0-100 (GPT-Image). Sent only when non-nil.
-    ///   - style: DALL-E 3 preset — "vivid" or "natural". Sent only when non-nil.
     public func generateImage(
         model: String,
         prompt: String,
@@ -579,7 +576,7 @@ public final class QuantumClient: Sendable {
 
     /// Generate music via the advanced endpoint with the full Eleven Music
     /// surface — sections (composition plan), vocals toggle, global styles,
-    /// and finetunes. Rust-SDK parity (ElevenMusicRequest).
+    /// and finetunes.
     public func generateElevenMusic(_ request: ElevenMusicRequest) async throws -> ElevenMusicResponse {
         let (data, _): (ElevenMusicResponse, _) = try await doReq(
             method: "POST", path: "/qai/v1/audio/music/advanced", body: request
@@ -650,10 +647,9 @@ public final class QuantumClient: Sendable {
 
     // MARK: - Audio: Voice Design
 
-    /// Generate voice previews from a text description (ElevenLabs).
     /// Save a voice-design preview as a permanent account voice.
-    /// Completes the two-step design flow: voiceDesign() returns previews
-    /// (each with a generatedVoiceId); this persists the chosen one.
+    /// Completes the two-step design flow: ``voiceDesign(_:)`` returns previews
+    /// (each with a `generatedVoiceId`); this persists the chosen one.
     public func saveDesignedVoice(generatedVoiceId: String, name: String, description: String? = nil) async throws -> SavedDesignedVoice {
         struct Body: Codable {
             let generatedVoiceId: String
@@ -671,6 +667,7 @@ public final class QuantumClient: Sendable {
         return data
     }
 
+    /// Generate voice previews from a text description (ElevenLabs).
     public func voiceDesign(_ request: VoiceDesignRequest) async throws -> VoiceDesignResponse {
         let (data, _): (VoiceDesignResponse, _) = try await doReq(
             method: "POST", path: "/qai/v1/audio/voice-design", body: request
@@ -690,7 +687,6 @@ public final class QuantumClient: Sendable {
 
     // MARK: - Audio: Finetunes
 
-    /// List all music finetunes.
     /// Poll one music finetune's training status. When status == "complete",
     /// modelId carries the usable model identifier for generation.
     public func getFinetune(id: String) async throws -> MusicFinetuneStatus {
@@ -700,6 +696,7 @@ public final class QuantumClient: Sendable {
         return data
     }
 
+    /// List all music finetunes.
     public func listFinetunes() async throws -> MusicFinetuneListResponse {
         let (data, _): (MusicFinetuneListResponse, _) = try await doReq(
             method: "GET", path: "/qai/v1/audio/finetunes"
@@ -776,11 +773,9 @@ public final class QuantumClient: Sendable {
 
     /// Render a video of a trained twin avatar. Returns an async job.
     ///
-    /// Historical note: this method used to POST its render payload to
-    /// `/qai/v1/video/digital-twin`, which is the twin *training* endpoint —
-    /// the call never worked. It now forwards to ``twinVideo(_:)``
-    /// (`/qai/v1/video/twin-video`). Twin *creation* is
-    /// ``createDigitalTwin(name:footage:filename:contentType:avatarGroupId:)``.
+    /// Forwards to ``twinVideo(_:)`` (`/qai/v1/video/twin-video`). Twin
+    /// creation is ``createDigitalTwin(name:footage:filename:contentType:avatarGroupId:)``;
+    /// `/qai/v1/video/digital-twin` trains a twin and does not render one.
     @available(*, deprecated, renamed: "twinVideo(_:)")
     public func videoDigitalTwin(avatarId: String, script: String) async throws -> JobAcceptedResponse {
         try await videoDigitalTwin(DigitalTwinRequest(avatarId: avatarId, script: script))
@@ -1468,8 +1463,8 @@ public final class QuantumClient: Sendable {
             event.delta = raw.delta
 
         case "tool_use":
-            // Legacy single-event tool call. Kept for back-compat; the gateway
-            // also emits the streaming triplet (start/input_delta/complete).
+            // Single-event tool call with complete arguments. The gateway also
+            // emits the streaming triplet (start/input_delta/complete).
             if let id = raw.id, let name = raw.name {
                 event.toolUse = StreamToolUse(
                     id: id,
@@ -1530,7 +1525,7 @@ public final class QuantumClient: Sendable {
                 }
             }
             if let usage = raw.usage {
-                // If we already set delta, emit usage as a separate concern on same event
+                // Usage may share the event with the delta.
                 event.usage = usage
             }
             if let error = raw.error {
@@ -1552,15 +1547,11 @@ public final class QuantumClient: Sendable {
             toolUse = StreamToolUse(id: id, name: name, input: raw.input ?? [:])
         }
 
-        // Only the model's own output fills `content`. Diagnostic /
-        // lifecycle events (tick_completed, mission_started, etc.)
-        // ship a `message` describing what happened — those belong
-        // in an activity timeline, not concatenated into the
-        // assistant's reply. Earlier we coalesced both via
-        //   `raw.content ?? raw.message`
-        // which leaked breadcrumbs like
-        //   "conductor step 0: 0 tool calls, content=32 chars, finish=stop"
-        // into the chat surface for every reply.
+        // Only the model's own output fills `content`. Lifecycle events
+        // (tick_completed, mission_started, ...) carry a `message` describing
+        // what happened; that belongs in an activity timeline, not in the
+        // assistant's reply, so `message` fills `content` only for
+        // content-bearing event types.
         let contentBearingTypes: Set<String> = [
             "content", "content_delta",
             "thinking", "thinking_delta",
