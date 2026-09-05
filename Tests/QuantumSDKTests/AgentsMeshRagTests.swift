@@ -148,6 +148,19 @@ final class AgentsMeshRagTests: XCTestCase {
         XCTAssertTrue(list.collections.isEmpty)
     }
 
+    func testTheOldCollectionNameStillNamesRagCollection() throws {
+        // The struct was renamed off the bare `Collection`, which is also a
+        // standard-library protocol. A caller that already wrote the old name
+        // has to keep compiling, and it has to be the very same type — the
+        // assignment below is only legal if the alias really is an alias.
+        let json = Data(#"{"id":"c1","name":"docs","owner":"u1","provider":"xai"}"#.utf8)
+        let viaOldName = try JSONDecoder().decode(QuantumSDK.Collection.self, from: json)
+        let renamed: RagCollection = viaOldName
+        XCTAssertEqual(renamed.id, "c1")
+        XCTAssertEqual(renamed.name, "docs")
+        XCTAssertEqual(renamed.provider, "xai")
+    }
+
     func testUploadResultDecodesTheDocumentRecord() throws {
         let document = try JSONDecoder().decode(CollectionUploadResult.self, from: Data("""
         {"id":"d1","collection_id":"c1","file_id":"file_9","filename":"spec.pdf",

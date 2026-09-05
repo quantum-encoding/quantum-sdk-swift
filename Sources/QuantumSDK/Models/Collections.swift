@@ -2,9 +2,16 @@ import Foundation
 
 // MARK: - Collection Types
 
+/// The former name of ``RagCollection``, kept so existing callers compile.
+/// Bare `Collection` is also a standard-library protocol, so in a file that
+/// imports this SDK the unqualified name is ambiguous and generic code
+/// constrained on `Collection` can resolve to the protocol instead. Prefer
+/// ``RagCollection``.
+public typealias Collection = RagCollection
+
 /// A user-scoped document collection, proxied through the gateway onto the
 /// upstream provider.
-public struct Collection: Codable, Sendable {
+public struct RagCollection: Codable, Sendable {
     /// Collection identifier, gateway-issued.
     public var id: String
 

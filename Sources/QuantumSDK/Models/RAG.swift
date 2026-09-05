@@ -263,7 +263,7 @@ public struct CreateCollectionRequest: Codable, Sendable {
 public struct CollectionsListResponse: Codable, Sendable {
     /// The caller's collections plus the shared ones. Sent as `null` when
     /// the caller has neither.
-    @NullToEmpty public var collections: [Collection]
+    @NullToEmpty public var collections: [RagCollection]
 
     /// Gateway request identifier.
     public var requestId: String?
@@ -278,7 +278,7 @@ public struct CollectionsListResponse: Codable, Sendable {
 /// `GET /qai/v1/rag/collections/{id}` returns.
 public struct CollectionDetail: Codable, Sendable {
     /// The collection itself.
-    public var collection: Collection
+    public var collection: RagCollection
 
     /// Its documents. Sent as `null` when the collection is empty.
     @NullToEmpty public var documents: [CollectionDocument]

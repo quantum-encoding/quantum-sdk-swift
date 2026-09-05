@@ -93,7 +93,7 @@ extension QuantumClient {
     /// caller has neither.
     ///
     /// `GET /qai/v1/rag/collections`
-    public func collectionsList() async throws -> [Collection] {
+    public func collectionsList() async throws -> [RagCollection] {
         let (data, _): (CollectionsListResponse, _) = try await doReq(
             method: "GET", path: "/qai/v1/rag/collections"
         )
@@ -104,8 +104,8 @@ extension QuantumClient {
     /// creates on xAI whatever `provider` says.
     ///
     /// `POST /qai/v1/rag/collections` (201)
-    public func collectionsCreate(_ request: CreateCollectionRequest, idempotencyKey: String? = nil) async throws -> Collection {
-        let (data, _): (Collection, _) = try await doReq(
+    public func collectionsCreate(_ request: CreateCollectionRequest, idempotencyKey: String? = nil) async throws -> RagCollection {
+        let (data, _): (RagCollection, _) = try await doReq(
             method: "POST", path: "/qai/v1/rag/collections", body: request,
             idempotencyKey: idempotencyKey ?? UUID().uuidString
         )
@@ -113,7 +113,7 @@ extension QuantumClient {
     }
 
     /// Creates a collection with just a name. See ``collectionsCreate(_:idempotencyKey:)``.
-    public func collectionsCreate(_ name: String) async throws -> Collection {
+    public func collectionsCreate(_ name: String) async throws -> RagCollection {
         try await collectionsCreate(CreateCollectionRequest(name: name))
     }
 
