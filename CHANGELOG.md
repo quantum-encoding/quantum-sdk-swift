@@ -40,6 +40,13 @@ every response type decodes the shape its handler writes.
   `Models/WireDecoding.swift` and `Models/Search.swift`, for the list and map
   fields a nil Go slice or map serialises as `null`. Both a `null` and an absent
   key decode to empty, which is what removed most of the decode failures below.
+- `extra` on `ImageRequest` and `VideoRequest`: a `[String: AnyCodable]`
+  flattened into the top-level body, for the catalog-schema-driven parameters a
+  model accepts that have no typed field here — `negative_prompt`,
+  `person_generation`, `resolution`, `generate_audio`. The reference forwards
+  these with `#[serde(flatten)]`, and without an equivalent a Swift caller
+  could not send them at all. Empty by default, and an empty map is invisible on
+  the wire.
 - Complete strict-concurrency checking on the library target. A data race here
   is a compile error in a consumer's Swift 6 language-mode build, so it is one
   here too.

@@ -62,6 +62,16 @@ public struct ImageRequest: Codable, Sendable {
     /// Generate PBR texture maps (base_color, metallic, roughness, normal).
     public var enablePbr: Bool?
 
+    /// Catalog-schema-driven parameters with no typed field here —
+    /// `negative_prompt`, `person_generation`, `number_of_images`, and
+    /// whatever else the model's schema accepts. Flattened into the top-level
+    /// body, so an entry lands beside `prompt` rather than nested under a key.
+    /// Empty by default, and an empty map encodes to nothing.
+    ///
+    /// A name that collides with a typed field overwrites it, since both write
+    /// to the same JSON object.
+    public var extra: [String: AnyCodable]
+
     public init(
         model: String,
         prompt: String,
@@ -80,7 +90,8 @@ public struct ImageRequest: Codable, Sendable {
         targetPolycount: Int? = nil,
         symmetryMode: String? = nil,
         poseMode: String? = nil,
-        enablePbr: Bool? = nil
+        enablePbr: Bool? = nil,
+        extra: [String: AnyCodable] = [:]
     ) {
         self.model = model
         self.prompt = prompt
@@ -100,9 +111,10 @@ public struct ImageRequest: Codable, Sendable {
         self.symmetryMode = symmetryMode
         self.poseMode = poseMode
         self.enablePbr = enablePbr
+        self.extra = extra
     }
 
-    enum CodingKeys: String, CodingKey {
+    enum CodingKeys: String, CodingKey, CaseIterable {
         case model, prompt, count, size, quality, style, background, seed, topology
         case cfgScale = "cfg_scale"
         case aspectRatio = "aspect_ratio"
@@ -113,6 +125,52 @@ public struct ImageRequest: Codable, Sendable {
         case symmetryMode = "symmetry_mode"
         case poseMode = "pose_mode"
         case enablePbr = "enable_pbr"
+    }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        model = try c.decode(String.self, forKey: .model)
+        prompt = try c.decode(String.self, forKey: .prompt)
+        count = try c.decodeIfPresent(Int.self, forKey: .count)
+        size = try c.decodeIfPresent(String.self, forKey: .size)
+        aspectRatio = try c.decodeIfPresent(String.self, forKey: .aspectRatio)
+        quality = try c.decodeIfPresent(String.self, forKey: .quality)
+        outputFormat = try c.decodeIfPresent(String.self, forKey: .outputFormat)
+        compression = try c.decodeIfPresent(Int.self, forKey: .compression)
+        style = try c.decodeIfPresent(String.self, forKey: .style)
+        background = try c.decodeIfPresent(String.self, forKey: .background)
+        seed = try c.decodeIfPresent(Int.self, forKey: .seed)
+        cfgScale = try c.decodeIfPresent(Double.self, forKey: .cfgScale)
+        imageUrl = try c.decodeIfPresent(String.self, forKey: .imageUrl)
+        topology = try c.decodeIfPresent(String.self, forKey: .topology)
+        targetPolycount = try c.decodeIfPresent(Int.self, forKey: .targetPolycount)
+        symmetryMode = try c.decodeIfPresent(String.self, forKey: .symmetryMode)
+        poseMode = try c.decodeIfPresent(String.self, forKey: .poseMode)
+        enablePbr = try c.decodeIfPresent(Bool.self, forKey: .enablePbr)
+        extra = try decodeFlattened(from: decoder, known: Set(CodingKeys.allCases.map(\.rawValue)))
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(model, forKey: .model)
+        try c.encode(prompt, forKey: .prompt)
+        try c.encodeIfPresent(count, forKey: .count)
+        try c.encodeIfPresent(size, forKey: .size)
+        try c.encodeIfPresent(aspectRatio, forKey: .aspectRatio)
+        try c.encodeIfPresent(quality, forKey: .quality)
+        try c.encodeIfPresent(outputFormat, forKey: .outputFormat)
+        try c.encodeIfPresent(compression, forKey: .compression)
+        try c.encodeIfPresent(style, forKey: .style)
+        try c.encodeIfPresent(background, forKey: .background)
+        try c.encodeIfPresent(seed, forKey: .seed)
+        try c.encodeIfPresent(cfgScale, forKey: .cfgScale)
+        try c.encodeIfPresent(imageUrl, forKey: .imageUrl)
+        try c.encodeIfPresent(topology, forKey: .topology)
+        try c.encodeIfPresent(targetPolycount, forKey: .targetPolycount)
+        try c.encodeIfPresent(symmetryMode, forKey: .symmetryMode)
+        try c.encodeIfPresent(poseMode, forKey: .poseMode)
+        try c.encodeIfPresent(enablePbr, forKey: .enablePbr)
+        try encodeFlattened(extra, into: encoder)
     }
 }
 

@@ -16,17 +16,52 @@ public struct VideoRequest: Codable, Sendable {
     /// Video aspect ratio (e.g. "16:9", "9:16").
     public var aspectRatio: String?
 
-    public init(model: String, prompt: String, durationSeconds: Int? = nil, aspectRatio: String? = nil) {
+    /// Catalog-schema-driven parameters with no typed field here —
+    /// `resolution`, `sample_count`, `negative_prompt`, `generate_audio`, and
+    /// whatever else the model's schema accepts. Flattened into the top-level
+    /// body, so an entry lands beside `prompt` rather than nested under a key.
+    /// Empty by default, and an empty map encodes to nothing.
+    ///
+    /// A name that collides with a typed field overwrites it, since both write
+    /// to the same JSON object.
+    public var extra: [String: AnyCodable]
+
+    public init(
+        model: String,
+        prompt: String,
+        durationSeconds: Int? = nil,
+        aspectRatio: String? = nil,
+        extra: [String: AnyCodable] = [:]
+    ) {
         self.model = model
         self.prompt = prompt
         self.durationSeconds = durationSeconds
         self.aspectRatio = aspectRatio
+        self.extra = extra
     }
 
-    enum CodingKeys: String, CodingKey {
+    enum CodingKeys: String, CodingKey, CaseIterable {
         case model, prompt
         case durationSeconds = "duration_seconds"
         case aspectRatio = "aspect_ratio"
+    }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        model = try c.decode(String.self, forKey: .model)
+        prompt = try c.decode(String.self, forKey: .prompt)
+        durationSeconds = try c.decodeIfPresent(Int.self, forKey: .durationSeconds)
+        aspectRatio = try c.decodeIfPresent(String.self, forKey: .aspectRatio)
+        extra = try decodeFlattened(from: decoder, known: Set(CodingKeys.allCases.map(\.rawValue)))
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(model, forKey: .model)
+        try c.encode(prompt, forKey: .prompt)
+        try c.encodeIfPresent(durationSeconds, forKey: .durationSeconds)
+        try c.encodeIfPresent(aspectRatio, forKey: .aspectRatio)
+        try encodeFlattened(extra, into: encoder)
     }
 }
 
