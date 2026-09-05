@@ -2,31 +2,55 @@
 
 ## SDK Parity Check
 
-This SDK must stay in sync with the Rust reference SDK. Use `sdk-graph` to check parity:
+This SDK must stay in sync with the Rust reference SDK. Use `sdk-graph` to check parity.
+
+`sdk-graph` resolves its graph file against the **working directory**, so run
+every command from the collection root. Run it from anywhere else and you
+silently start a second graph holding only the SDKs you happened to scan there.
 
 ```bash
-# Scan this SDK (run after making changes)
-sdk-graph scan --sdk swift --dir ~/work/poly-repo/quantum-ai-polyrepo/qe-sdk-collection/swift_projects/quantum-sdk/Sources
+cd ~/work/poly-repo/quantum-ai-polyrepo/qe-sdk-collection
 
-# Scan Rust reference (if not recently scanned)
-sdk-graph scan --sdk rust --dir ~/work/poly-repo/quantum-ai-polyrepo/qe-sdk-collection/rust_projects/quantum-sdk/src
-
-# Show what this SDK is missing vs Rust
-sdk-graph diff --base rust --target swift
-
-# Show overall stats
+sdk-graph scan --sdk swift --dir swift_projects/quantum-sdk/Sources  # after making changes
+sdk-graph scan --sdk rust  --dir rust_projects/quantum-sdk/src       # if not recently scanned
+sdk-graph diff --base rust --target swift                            # what Swift is missing
 sdk-graph stats
 ```
 
-Binary: `~/go/bin/sdk-graph` (in PATH)
-Graph file: `~/work/poly-repo/quantum-ai-polyrepo/quantum-ai-backend/sdk-graph.json` (shared across all SDKs)
+- Binary: `~/go/bin/sdk-graph` (in PATH)
+- Source: `~/work/poly-repo/quantum-ai-polyrepo/quantum-ai-backend/cmd/sdk-graph/main.go`
+- Graph: `~/work/poly-repo/quantum-ai-polyrepo/qe-sdk-collection/sdk-graph.json`
+
+A stale graph from 2026-03-23 sits at `quantum-ai-backend/sdk-graph.json`.
+Nothing reads it — don't inspect it or treat its counts as current.
 
 ## Workflow
 
 1. Before starting work: run `sdk-graph diff --base rust --target swift` to see current gaps
 2. After adding types/fields: rescan with `sdk-graph scan`
 3. Verify gap reduced: run diff again
-4. Goal: zero missing types and fields vs Rust
+4. Goal: no *unintended* missing types or fields vs Rust
+
+## Reading the diff
+
+The diff is a name-and-tag comparison, so it reports shape differences it
+cannot judge. These rows are intended divergence — do not "fix" them:
+
+- `Error`, `ApiError` — Swift's equivalent is `QuantumError`.
+- `OcrResult`, `SecurityScanHtmlRequest`, `SecurityScanUrlRequest` — Swift uses
+  correct acronym casing: `OCRResult`, `SecurityScanHTMLRequest`,
+  `SecurityScanURLRequest`.
+- `StreamEvent`, `AgentStreamEvent` — Swift models these tagged unions as an
+  `enum` with associated values; the diff reads each Rust field as missing
+  because an enum records no fields.
+- The `Scrape*` / `Screenshot*` types — those gateway routes were retired to
+  close an abuse vector. Rust still carries deprecated stubs; Swift carries
+  nothing. This gap is permanent by design.
+
+Anything else in the diff is worth investigating against the Rust source before
+changing Swift: the scanner has had blind spots before (property-wrapped
+fields, typealiases and serde renames were all invisible until fixed), so
+confirm a row is real by reading both declarations.
 
 ## Reference Implementation
 
