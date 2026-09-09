@@ -281,11 +281,20 @@ public struct MusicResponse: Codable, Sendable {
     /// Unique request identifier.
     public var requestId: String
 
+    /// Length actually generated, when the provider reports it.
+    ///
+    /// Music is duration-metered — Lyria per 30 seconds, ElevenLabs per
+    /// minute — and settlement prefers this over the requested length, so it
+    /// is the basis of ``costTicks``. `nil` when the provider reports no
+    /// length, never 0, which would claim a measured empty track.
+    public var durationSeconds: Double?
+
     enum CodingKeys: String, CodingKey {
         case model
         case audioClips = "audio_clips"
         case costTicks = "cost_ticks"
         case requestId = "request_id"
+        case durationSeconds = "duration_seconds"
     }
 }
 

@@ -114,11 +114,29 @@ public struct VideoResponse: Codable, Sendable {
     /// Unique request identifier.
     public var requestId: String
 
+    /// Length of the video actually produced, when the provider reports it.
+    ///
+    /// This is the quantity a per-second model is billed on — settlement
+    /// prefers it over the requested duration — so it is the basis of
+    /// ``costTicks``. `nil` when the provider reports no length, never 0,
+    /// which would claim a measured zero-length video.
+    public var durationSeconds: Double?
+
+    /// The token counts behind a TOKEN-billed video charge.
+    ///
+    /// Gemini Omni is the only such model — it meters output by modality at
+    /// ~5,792 tokens per second of 720p — so on that path tokens are the whole
+    /// cost basis. `nil` for per-second and per-clip models, whose cost is a
+    /// function of duration instead; the gateway sends no all-zero object for
+    /// them, because that would assert a token basis the charge does not have.
+    public var usage: MediaTokenUsage?
+
     enum CodingKeys: String, CodingKey {
-        case videos, model
+        case videos, model, usage
         case costTicks = "cost_ticks"
         case balanceAfter = "balance_after"
         case requestId = "request_id"
+        case durationSeconds = "duration_seconds"
     }
 
     public init(from decoder: Decoder) throws {
@@ -128,6 +146,66 @@ public struct VideoResponse: Codable, Sendable {
         costTicks = try c.decodeIfPresent(Int64.self, forKey: .costTicks) ?? 0
         balanceAfter = try c.decodeIfPresent(Int64.self, forKey: .balanceAfter)
         requestId = try c.decodeIfPresent(String.self, forKey: .requestId) ?? ""
+        durationSeconds = try c.decodeIfPresent(Double.self, forKey: .durationSeconds)
+        usage = try c.decodeIfPresent(MediaTokenUsage.self, forKey: .usage)
+    }
+}
+
+// MARK: - Media Token Usage
+
+/// The token breakdown behind a token-billed media charge.
+///
+/// Every bucket is optional because absent and zero are different claims:
+/// absent means the provider does not report that bucket, zero means it
+/// reported none. Defaulting to 0 would make a per-second video look like a
+/// token-billed one that used no tokens, and would report a 0% cache hit rate
+/// for models that have no cache.
+public struct MediaTokenUsage: Codable, Sendable {
+    /// Input tokens billed at the prompt rate.
+    public var promptTokens: Int?
+
+    /// Output tokens. For Gemini Omni this is the modality-metered video
+    /// output, which is most of the charge.
+    public var completionTokens: Int?
+
+    /// Reasoning tokens, billed at the output rate.
+    public var reasoningTokens: Int?
+
+    /// Input tokens served from cache, billed at the cache-read rate.
+    public var cachedTokens: Int?
+
+    /// Provider-reported total across the buckets.
+    public var totalTokens: Int?
+
+    enum CodingKeys: String, CodingKey {
+        case promptTokens = "prompt_tokens"
+        case completionTokens = "completion_tokens"
+        case reasoningTokens = "reasoning_tokens"
+        case cachedTokens = "cached_tokens"
+        case totalTokens = "total_tokens"
+    }
+
+    public init(
+        promptTokens: Int? = nil,
+        completionTokens: Int? = nil,
+        reasoningTokens: Int? = nil,
+        cachedTokens: Int? = nil,
+        totalTokens: Int? = nil
+    ) {
+        self.promptTokens = promptTokens
+        self.completionTokens = completionTokens
+        self.reasoningTokens = reasoningTokens
+        self.cachedTokens = cachedTokens
+        self.totalTokens = totalTokens
+    }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        promptTokens = try c.decodeIfPresent(Int.self, forKey: .promptTokens)
+        completionTokens = try c.decodeIfPresent(Int.self, forKey: .completionTokens)
+        reasoningTokens = try c.decodeIfPresent(Int.self, forKey: .reasoningTokens)
+        cachedTokens = try c.decodeIfPresent(Int.self, forKey: .cachedTokens)
+        totalTokens = try c.decodeIfPresent(Int.self, forKey: .totalTokens)
     }
 }
 

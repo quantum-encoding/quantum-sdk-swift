@@ -295,6 +295,77 @@ final class MediaResponseDecodingTests: XCTestCase {
         XCTAssertNil(image.usage)
     }
 
+    // The gateway's video and music receipts: how much was actually produced,
+    // and — on the one token-billed video model — what it cost in tokens.
+    // Settlement prefers the produced duration over the requested one, so
+    // this is the basis of cost_ticks on both routes.
+
+    func testVideoReceiptCarriesDurationAndEveryUsageBucket() throws {
+        let video = try decode(VideoResponse.self, #"""
+        {"videos":[{"base64":"AAAA","format":"mp4","size_bytes":184320,"index":0}],
+         "model":"gemini-omni-video","duration_seconds":8.5,
+         "usage":{"prompt_tokens":412,"completion_tokens":49232,"reasoning_tokens":96,
+                  "cached_tokens":128,"total_tokens":49868},
+         "cost_ticks":1247000000,"balance_after":73,"request_id":"qai_req_2f1c8ab0-91d"}
+        """#)
+
+        XCTAssertEqual(video.durationSeconds, 8.5)
+        let usage = try XCTUnwrap(video.usage)
+        XCTAssertEqual(usage.promptTokens, 412)
+        XCTAssertEqual(usage.completionTokens, 49232)
+        XCTAssertEqual(usage.reasoningTokens, 96)
+        XCTAssertEqual(usage.cachedTokens, 128)
+        XCTAssertEqual(usage.totalTokens, 49868)
+    }
+
+    // A per-second model reports no tokens and the gateway sends no usage
+    // object at all. Zeros here would read as a token-billed call that spent
+    // nothing, and would report a 0% cache hit rate on a model that has no
+    // cache. A gateway predating these fields must still decode.
+    func testVideoReceiptWithoutThemStaysNilRatherThanZero() throws {
+        let video = try decode(VideoResponse.self, #"""
+        {"videos":[{"base64":"AAAA","format":"mp4","size_bytes":184320,"index":0}],
+         "model":"veo-2","cost_ticks":3200000000,"balance_after":41,
+         "request_id":"qai_req_7d5e0c14-33a"}
+        """#)
+
+        XCTAssertNil(video.durationSeconds, "a duration was invented")
+        XCTAssertNil(video.usage, "a usage block was invented")
+    }
+
+    // A partially reported usage keeps the buckets the provider did not send
+    // distinct from the ones it reported as zero.
+    func testUnreportedBucketsDifferFromReportedZeros() throws {
+        let video = try decode(VideoResponse.self, #"""
+        {"videos":[],"model":"gemini-omni-video","duration_seconds":4,
+         "usage":{"completion_tokens":23168,"cached_tokens":0},
+         "cost_ticks":1,"request_id":"r"}
+        """#)
+
+        let usage = try XCTUnwrap(video.usage)
+        XCTAssertEqual(usage.cachedTokens, 0, "a reported zero was dropped")
+        XCTAssertNil(usage.promptTokens, "an unreported bucket became a zero")
+        XCTAssertNil(usage.reasoningTokens, "an unreported bucket became a zero")
+        XCTAssertNil(usage.totalTokens, "an unreported bucket became a zero")
+    }
+
+    func testMusicReceiptCarriesTheGeneratedDuration() throws {
+        let music = try decode(MusicResponse.self, #"""
+        {"audio_clips":[{"base64":"SUQz","format":"mp3","size_bytes":2941184,"index":0}],
+         "model":"lyria-002","duration_seconds":184.0,"cost_ticks":1840000000,
+         "request_id":"qai_req_bb31f907-4c1"}
+        """#)
+
+        XCTAssertEqual(music.durationSeconds, 184.0)
+
+        // A provider that reports no length leaves it nil, not 0 — a zero
+        // would claim a measured empty track.
+        let bare = try decode(MusicResponse.self, #"""
+        {"audio_clips":null,"model":"eleven-music","cost_ticks":600000000,"request_id":"r"}
+        """#)
+        XCTAssertNil(bare.durationSeconds, "a duration was invented")
+    }
+
     // The gateway's image receipt: the prompt the picture was actually made
     // from, and the token counts the charge was computed from. A caller
     // holding only its own prompt cannot reproduce its own image, and a price
