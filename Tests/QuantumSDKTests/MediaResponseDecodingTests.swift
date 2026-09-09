@@ -287,6 +287,40 @@ final class MediaResponseDecodingTests: XCTestCase {
         let image = try decode(ImageResponse.self, #"{"images":[{"base64":"AAAA","format":"png","index":0}],"model":"gpt-image-1","cost_ticks":1,"request_id":"r"}"#)
         XCTAssertEqual(image.images[0].format, "png")
         XCTAssertNil(image.balanceAfter)
+
+        // A flat-priced model states a rate that is checkable without
+        // quantities, and rewrites nothing — both receipt fields stay nil
+        // rather than decoding as zero.
+        XCTAssertNil(image.revisedPrompt)
+        XCTAssertNil(image.usage)
+    }
+
+    // The gateway's image receipt: the prompt the picture was actually made
+    // from, and the token counts the charge was computed from. A caller
+    // holding only its own prompt cannot reproduce its own image, and a price
+    // stated without its quantities cannot be checked by whoever pays it.
+    func testImageReceiptDecodes() throws {
+        let r = try decode(ImageResponse.self, #"""
+        {"images":[{"base64":"AAAA","format":"png","index":0}],"model":"gpt-image-2",
+         "cost_ticks":527000000,"request_id":"req_1",
+         "revised_prompt":"A golden rubber duck wearing a black silk top hat, studio lit",
+         "usage":{"prompt_tokens":31,"completion_tokens":1568,"total_tokens":1599}}
+        """#)
+        XCTAssertEqual(r.revisedPrompt, "A golden rubber duck wearing a black silk top hat, studio lit")
+        XCTAssertEqual(r.usage?.promptTokens, 31)
+        XCTAssertEqual(r.usage?.completionTokens, 1568)
+        XCTAssertEqual(r.usage?.totalTokens, 1599)
+
+        // The edit route is the same envelope, so it carries the same receipt.
+        let e = try decode(ImageEditResponse.self, #"""
+        {"images":null,"model":"gemini-3-pro-image-preview","cost_ticks":1,"request_id":"r",
+         "revised_prompt":"tidied","usage":{"total_tokens":42}}
+        """#)
+        XCTAssertEqual(e.images.count, 0)
+        XCTAssertEqual(e.revisedPrompt, "tidied")
+        XCTAssertEqual(e.usage?.totalTokens, 42)
+        // Buckets absent from a partial usage object read as zero, not a throw.
+        XCTAssertEqual(e.usage?.promptTokens, 0)
     }
 
     // MARK: Media sessions / files / caches

@@ -195,6 +195,40 @@ public struct GeneratedImage: Codable, Sendable {
     }
 }
 
+// MARK: - Image Usage
+
+/// The token counts behind a token-priced image charge.
+///
+/// Flat-priced models report none and ``ImageResponse/usage`` is `nil`: their
+/// rate is per image and checkable without them. For a token-priced model
+/// these are the whole audit — two real gpt-image-2 generations on the same
+/// day came back at $0.0527 and $0.01628, a 3x spread with nothing else on
+/// the wire to explain it.
+public struct ImageUsage: Codable, Sendable {
+    public var promptTokens: Int
+    public var completionTokens: Int
+    public var totalTokens: Int
+
+    enum CodingKeys: String, CodingKey {
+        case promptTokens = "prompt_tokens"
+        case completionTokens = "completion_tokens"
+        case totalTokens = "total_tokens"
+    }
+
+    public init(promptTokens: Int = 0, completionTokens: Int = 0, totalTokens: Int = 0) {
+        self.promptTokens = promptTokens
+        self.completionTokens = completionTokens
+        self.totalTokens = totalTokens
+    }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        promptTokens = try c.decodeIfPresent(Int.self, forKey: .promptTokens) ?? 0
+        completionTokens = try c.decodeIfPresent(Int.self, forKey: .completionTokens) ?? 0
+        totalTokens = try c.decodeIfPresent(Int.self, forKey: .totalTokens) ?? 0
+    }
+}
+
 // MARK: - Image Response
 
 /// Response from image generation.
@@ -214,11 +248,25 @@ public struct ImageResponse: Codable, Sendable {
     /// Unique request identifier.
     public var requestId: String
 
+    /// The prompt the provider actually generated from, when it rewrote the
+    /// one it was given.
+    ///
+    /// gpt-image routinely rewrites; the picture is made from this text, not
+    /// from what was sent. A caller holding only its own prompt cannot
+    /// reproduce its own image, and cannot tell why the output drifted.
+    /// `nil` when the provider returned no rewrite.
+    public var revisedPrompt: String?
+
+    /// The token counts the charge was computed from, for models priced on
+    /// tokens rather than per image. `nil` on flat-priced models.
+    public var usage: ImageUsage?
+
     enum CodingKeys: String, CodingKey {
-        case images, model
+        case images, model, usage
         case costTicks = "cost_ticks"
         case balanceAfter = "balance_after"
         case requestId = "request_id"
+        case revisedPrompt = "revised_prompt"
     }
 
     public init(from decoder: Decoder) throws {
@@ -228,6 +276,8 @@ public struct ImageResponse: Codable, Sendable {
         costTicks = try c.decodeIfPresent(Int64.self, forKey: .costTicks) ?? 0
         balanceAfter = try c.decodeIfPresent(Int64.self, forKey: .balanceAfter)
         requestId = try c.decodeIfPresent(String.self, forKey: .requestId) ?? ""
+        revisedPrompt = try c.decodeIfPresent(String.self, forKey: .revisedPrompt)
+        usage = try c.decodeIfPresent(ImageUsage.self, forKey: .usage)
     }
 }
 
