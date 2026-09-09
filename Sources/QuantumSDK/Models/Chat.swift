@@ -417,9 +417,15 @@ public struct ChatUsage: Codable, Sendable {
     public var costTicks: Int
 
     /// Input tokens served from the provider's prompt cache, billed at the
-    /// lower cached rate. `nil` on responses with no cache hit and on the
-    /// streaming usage event.
+    /// lower cached rate. `nil` when the turn had no cache hit.
     public var cachedTokens: Int?
+
+    /// Input tokens that triggered a cache WRITE, billed at a premium over
+    /// standard input — Anthropic charges 1.25x base for the 5-minute TTL.
+    /// These OVERLAP ``inputTokens``, so reconciling a bill adds the premium
+    /// on the write rate, never the tokens twice. `nil` on providers that
+    /// charge no write premium.
+    public var cacheWriteTokens: Int?
 
     /// Reasoning / thinking tokens, billed at the output rate. `nil` on
     /// responses from non-reasoning models. Already inside ``outputTokens``
@@ -430,6 +436,7 @@ public struct ChatUsage: Codable, Sendable {
     enum CodingKeys: String, CodingKey {
         case inputTokens = "input_tokens"
         case cachedTokens = "cached_tokens"
+        case cacheWriteTokens = "cache_write_tokens"
         case outputTokens = "output_tokens"
         case reasoningTokens = "reasoning_tokens"
         case costTicks = "cost_ticks"
@@ -441,14 +448,23 @@ public struct ChatUsage: Codable, Sendable {
         outputTokens = try container.decodeIfPresent(Int.self, forKey: .outputTokens) ?? 0
         costTicks = try container.decodeIfPresent(Int.self, forKey: .costTicks) ?? 0
         cachedTokens = try container.decodeIfPresent(Int.self, forKey: .cachedTokens)
+        cacheWriteTokens = try container.decodeIfPresent(Int.self, forKey: .cacheWriteTokens)
         reasoningTokens = try container.decodeIfPresent(Int.self, forKey: .reasoningTokens)
     }
 
-    public init(inputTokens: Int, outputTokens: Int, costTicks: Int = 0, cachedTokens: Int? = nil, reasoningTokens: Int? = nil) {
+    public init(
+        inputTokens: Int,
+        outputTokens: Int,
+        costTicks: Int = 0,
+        cachedTokens: Int? = nil,
+        cacheWriteTokens: Int? = nil,
+        reasoningTokens: Int? = nil
+    ) {
         self.inputTokens = inputTokens
         self.outputTokens = outputTokens
         self.costTicks = costTicks
         self.cachedTokens = cachedTokens
+        self.cacheWriteTokens = cacheWriteTokens
         self.reasoningTokens = reasoningTokens
     }
 }
@@ -835,6 +851,8 @@ struct RawStreamEvent: Decodable {
     var inputTokens: Int?
     var outputTokens: Int?
     var reasoningTokens: Int?
+    var cachedTokens: Int?
+    var cacheWriteTokens: Int?
     var costTicks: Int?
     /// `partial_json` fragment from `tool_use_input_delta` events.
     var partialJSON: String?
@@ -855,6 +873,8 @@ struct RawStreamEvent: Decodable {
         case inputTokens = "input_tokens"
         case outputTokens = "output_tokens"
         case reasoningTokens = "reasoning_tokens"
+        case cachedTokens = "cached_tokens"
+        case cacheWriteTokens = "cache_write_tokens"
         case costTicks = "cost_ticks"
         case partialJSON = "partial_json"
         case sessionId = "session_id"

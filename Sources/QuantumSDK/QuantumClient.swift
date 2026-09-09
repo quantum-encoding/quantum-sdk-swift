@@ -904,14 +904,12 @@ public final class QuantumClient: Sendable {
             event.toolUseComplete = StreamToolUseComplete(id: raw.id ?? "", name: raw.name ?? "", input: raw.input ?? [:])
 
         case "usage":
-            // The streaming usage event carries reasoning_tokens but not
-            // cached_tokens; the cache split arrives only on the
-            // non-streaming envelope.
             event.usage = ChatUsage(
                 inputTokens: raw.inputTokens ?? 0,
                 outputTokens: raw.outputTokens ?? 0,
                 costTicks: raw.costTicks ?? 0,
-                cachedTokens: nil,
+                cachedTokens: raw.cachedTokens,
+                cacheWriteTokens: raw.cacheWriteTokens,
                 reasoningTokens: raw.reasoningTokens
             )
 
