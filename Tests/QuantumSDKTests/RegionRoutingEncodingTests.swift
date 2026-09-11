@@ -4,8 +4,8 @@
 // places: `region` at key mint, and `provider_options.region` on chat
 // requests. There is NO region header and NO standalone chat field — the
 // chat override rides INSIDE provider_options as the one entry whose value
-// is a plain string, which ChatRequest's custom Codable merges in (the
-// nested-dictionary type of `providerOptions` cannot represent it).
+// is a plain string, which ChatRequest's custom Codable merges in on encode
+// and extracts back into the typed `region` property on decode.
 //
 // Copyright (c) 2025-2026 Quantum Encoding Ltd
 
@@ -129,7 +129,8 @@ final class RegionRoutingEncodingTests: XCTestCase {
         """
         let request = try JSONDecoder().decode(ChatRequest.self, from: Data(json.utf8))
         XCTAssertEqual(request.region, .asia)
-        XCTAssertEqual(request.providerOptions?["anthropic"]?["thinking"]?.value as? Bool, true)
+        let anthropic = try XCTUnwrap(request.providerOptions?["anthropic"]?.value as? [String: Any])
+        XCTAssertEqual(anthropic["thinking"] as? Bool, true)
     }
 
     // MARK: Client-level hook

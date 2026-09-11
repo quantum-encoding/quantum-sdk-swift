@@ -75,6 +75,72 @@ for try await event in client.chatStream(
 }
 ```
 
+### Reasoning state across a tool loop
+
+Reasoning models on the OpenAI and xAI lanes mint a `reasoning` content block
+alongside their `tool_use` blocks. It is the provider's own state, opaque, and
+it must go back **unchanged and in the same position** on the next turn's
+assistant message — its place among the tool calls is how the provider learns
+where the reasoning sat. Drop it and the reasoning tokens are re-billed on
+every round of the loop.
+
+The simplest correct thing is to hand the whole `content` array back:
+
+```swift
+var messages: [ChatMessage] = [.user("What is the weather in Oslo?")]
+
+let response = try await client.chat(ChatRequest(
+    model: "gpt-5.6",
+    messages: messages,
+    // One key per conversation, reused on every turn, so all of them land
+    // on the same warm provider cache shard.
+    promptCacheKey: "conv-7f3a"
+))
+
+// Verbatim, in order: reasoning blocks, tool_use blocks, text blocks.
+messages.append(ChatMessage(role: .assistant, contentBlocks: response.content))
+// ... then append one tool-result message per tool_use block and loop.
+```
+
+`ContentBlock.reasoning` holds the provider's item as it arrived — never
+inspect or rebuild it. A `thinking` block is the human-readable summary of the
+same turn: render that one, replay this one.
+
+On Gemini 3 the equivalent state is `ContentBlock.thoughtSignature`, and it now
+rides the **text** block of a turn that ended in text as well as the `tool_use`
+blocks. Streaming delivers it as a `thought_signature` event just before
+`done`, on `StreamEvent.thoughtSignature`.
+
+### Provider options
+
+`providerOptions` is an open `[String: AnyCodable]`, so a key the gateway
+documents but this SDK version does not name still rides through — as does a
+provider entry that is not an object:
+
+```swift
+let request = ChatRequest(
+    model: "gpt-5.6",
+    messages: messages,
+    providerOptions: [
+        "openai": [
+            "reasoning_summary": "detailed",   // auto | concise | detailed | none
+            "reasoning_mode": "pro",           // standard | pro
+            "verbosity": "low",                // low | medium | high
+            "text_format": "json_object",      // text | json_object
+        ],
+        "xai": ["native_files": true],
+    ],
+    region: .europe
+)
+```
+
+The routing region is the one exception: set it through the typed `region`
+property, which the encoder merges in as the flat `provider_options.region`
+entry.
+
+`reasoningEffort` accepts `none`, `low`, `medium`, `high`, `xhigh` and `max` on
+every lane; each adapter folds a tier its model lacks onto the nearest one.
+
 ### Image Generation
 
 ```swift

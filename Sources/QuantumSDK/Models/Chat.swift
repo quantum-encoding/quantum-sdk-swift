@@ -33,10 +33,22 @@ public struct ChatRequest: Codable, Sendable {
     /// JSON Schema for structured output. When set, the model returns valid JSON matching this schema.
     public var outputSchema: [String: AnyCodable]?
 
-    /// Provider-specific settings (e.g. Anthropic thinking, xAI search).
+    /// Provider-specific settings, keyed by provider. An OPEN map — the
+    /// value is any JSON, so a key the gateway documents but this SDK
+    /// version does not name still rides through, and so does a provider
+    /// entry that is not an object.
+    ///
+    /// Documented keys:
+    /// - `openai.reasoning_summary`: `auto` | `concise` | `detailed` | `none`
+    /// - `openai.reasoning_mode`: `standard` | `pro`
+    /// - `openai.verbosity`: `low` | `medium` | `high`
+    /// - `openai.text_format`: `text` | `json_object`
+    /// - `xai.native_files`: `Bool` — send files to xAI natively instead of
+    ///   extracting them gateway-side
+    ///
     /// The routing-region override (`provider_options.region`) rides here
     /// too — prefer the typed ``region`` property for it.
-    public var providerOptions: [String: [String: AnyCodable]]?
+    public var providerOptions: [String: AnyCodable]?
 
     /// Routing region override for this chat request — encoded as
     /// `provider_options.region` on the wire (it is not a standalone JSON
@@ -54,6 +66,18 @@ public struct ChatRequest: Codable, Sendable {
     /// it. An unknown value is rejected with 400 by the gateway.
     public var reasoningEffort: String?
 
+    /// Pins every turn of one conversation to the same provider prompt-cache
+    /// shard. Any stable string the client keeps per conversation — the
+    /// gateway hashes it with the caller's identity before forwarding it as
+    /// OpenAI/xAI `prompt_cache_key` (or `x-grok-conv-id` on the xAI
+    /// chat-completions lane). `nil` = derived from the caller's identity
+    /// alone, which puts all of that user's conversations on one shard.
+    /// Generate one per conversation object and reuse it on every turn.
+    ///
+    /// Honored by `/qai/v1/chat` only: the session endpoint derives its key
+    /// from the session ID and ignores a client-supplied one.
+    public var promptCacheKey: String?
+
     /// Vertex resource name of a previously created context cache (e.g.
     /// `"cachedContents/abc123"`). When set, the cached content is billed at
     /// the cached-read rate and need not be re-sent. Gemini-only; the cache's
@@ -69,9 +93,10 @@ public struct ChatRequest: Codable, Sendable {
         maxTokens: Int? = nil,
         toolChoice: String? = nil,
         outputSchema: [String: AnyCodable]? = nil,
-        providerOptions: [String: [String: AnyCodable]]? = nil,
+        providerOptions: [String: AnyCodable]? = nil,
         region: Region? = nil,
         reasoningEffort: String? = nil,
+        promptCacheKey: String? = nil,
         cachedContent: String? = nil
     ) {
         self.model = model
@@ -85,6 +110,7 @@ public struct ChatRequest: Codable, Sendable {
         self.providerOptions = providerOptions
         self.region = region
         self.reasoningEffort = reasoningEffort
+        self.promptCacheKey = promptCacheKey
         self.cachedContent = cachedContent
     }
 
@@ -95,6 +121,7 @@ public struct ChatRequest: Codable, Sendable {
         case outputSchema = "output_schema"
         case providerOptions = "provider_options"
         case reasoningEffort = "reasoning_effort"
+        case promptCacheKey = "prompt_cache_key"
         case cachedContent = "cached_content"
     }
 
@@ -113,8 +140,7 @@ public struct ChatRequest: Codable, Sendable {
         try container.encodeIfPresent(maxTokens, forKey: .maxTokens)
         try container.encodeIfPresent(toolChoice, forKey: .toolChoice)
         try container.encodeIfPresent(outputSchema, forKey: .outputSchema)
-        var merged: [String: AnyCodable]? =
-            providerOptions?.mapValues { AnyCodable($0) }
+        var merged: [String: AnyCodable]? = providerOptions
         if let region {
             var opts = merged ?? [:]
             opts["region"] = AnyCodable(region.rawValue)
@@ -122,6 +148,7 @@ public struct ChatRequest: Codable, Sendable {
         }
         try container.encodeIfPresent(merged, forKey: .providerOptions)
         try container.encodeIfPresent(reasoningEffort, forKey: .reasoningEffort)
+        try container.encodeIfPresent(promptCacheKey, forKey: .promptCacheKey)
         try container.encodeIfPresent(cachedContent, forKey: .cachedContent)
     }
 
@@ -140,15 +167,13 @@ public struct ChatRequest: Codable, Sendable {
             if let raw = rawOptions["region"]?.value as? String {
                 region = Region(parsing: raw)
             }
-            var rest: [String: [String: AnyCodable]] = [:]
-            for (key, value) in rawOptions where key != "region" {
-                if let nested = value.value as? [String: Any] {
-                    rest[key] = nested.mapValues { AnyCodable($0) }
-                }
-            }
+            // Every other entry survives whatever its JSON shape: the map is
+            // open, so a key this SDK version cannot name is still data.
+            let rest = rawOptions.filter { $0.key != "region" }
             providerOptions = rest.isEmpty ? nil : rest
         }
         reasoningEffort = try container.decodeIfPresent(String.self, forKey: .reasoningEffort)
+        promptCacheKey = try container.decodeIfPresent(String.self, forKey: .promptCacheKey)
         cachedContent = try container.decodeIfPresent(String.self, forKey: .cachedContent)
     }
 }
@@ -234,8 +259,8 @@ public struct ChatMessage: Codable, Sendable {
 
 /// A structured content block in a chat message or response.
 public struct ContentBlock: Codable, Sendable {
-    /// Block type (e.g. "text", "thinking", "tool_use", "image", "file",
-    /// "file_uri").
+    /// Block type (e.g. "text", "thinking", "reasoning", "tool_use",
+    /// "image", "file", "file_uri").
     public var blockType: String
 
     /// Text content for text/thinking blocks.
@@ -250,8 +275,30 @@ public struct ContentBlock: Codable, Sendable {
     /// Tool input arguments for tool_use blocks.
     public var input: [String: AnyCodable]?
 
-    /// Gemini thought signature -- must be echoed back with tool results.
+    /// Gemini thought signature (base64). Rides `tool_use` blocks and, on
+    /// Gemini 3, the `text` block of a turn that ended in text — echo it back
+    /// on the corresponding block of the next turn's assistant message. A
+    /// streaming turn that ends in text carries it on the
+    /// `thought_signature` event instead, see
+    /// ``StreamEvent/thoughtSignature``.
     public var thoughtSignature: String?
+
+    /// The provider's own reasoning item, verbatim, on a block of type
+    /// `"reasoning"`. Opaque — never inspect or rebuild it. Pass the whole
+    /// block back untouched, **in the position it arrived in**, on the next
+    /// turn's assistant message: its place among the `tool_use` blocks is how
+    /// the provider learns where the reasoning sat, and replaying it behind
+    /// the call it reasoned about is a different conversation the provider
+    /// rejects. Dropping it re-bills the reasoning tokens on every round of a
+    /// tool loop.
+    ///
+    /// Distinct from a `"thinking"` block, which is the human-readable
+    /// summary of the same turn: one is for the reader, one is for the wire.
+    public var reasoning: AnyCodable?
+
+    /// Model that produced a `"reasoning"` block. Reasoning state is bound to
+    /// its model, so a block is never replayed to a different one.
+    public var mintedBy: String?
 
     /// Base64-encoded content for `"image"` and `"file"` blocks.
     public var data: String?
@@ -275,6 +322,8 @@ public struct ContentBlock: Codable, Sendable {
         name: String? = nil,
         input: [String: AnyCodable]? = nil,
         thoughtSignature: String? = nil,
+        reasoning: AnyCodable? = nil,
+        mintedBy: String? = nil,
         data: String? = nil,
         mimeType: String? = nil,
         fileName: String? = nil,
@@ -286,6 +335,8 @@ public struct ContentBlock: Codable, Sendable {
         self.name = name
         self.input = input
         self.thoughtSignature = thoughtSignature
+        self.reasoning = reasoning
+        self.mintedBy = mintedBy
         self.data = data
         self.mimeType = mimeType
         self.fileName = fileName
@@ -318,6 +369,8 @@ public struct ContentBlock: Codable, Sendable {
         case text, id, name, input, data
         case blockType = "type"
         case thoughtSignature = "thought_signature"
+        case reasoning
+        case mintedBy = "minted_by"
         case mimeType = "mime_type"
         case fileName = "file_name"
         case fileURI = "file_uri"
@@ -762,8 +815,8 @@ public struct StreamSession: Sendable {
 public struct StreamEvent: Sendable {
     /// Event type: "content_delta", "thinking_delta", "tool_use_start",
     /// "tool_use_input_delta", "tool_use_complete", "tool_use" (atomic),
-    /// "citations", "session", "usage", "heartbeat", "error",
-    /// "invalid_request", "rate_limit", "done".
+    /// "citations", "session", "usage", "thought_signature", "heartbeat",
+    /// "error", "invalid_request", "rate_limit", "done".
     public var eventType: String
 
     /// Text delta for content_delta/thinking_delta events.
@@ -794,6 +847,13 @@ public struct StreamEvent: Sendable {
     /// `chatSessionStream`.
     public var session: StreamSession?
 
+    /// Gemini 3's signature (base64) for a stream that ended in text, on the
+    /// `thought_signature` event the gateway sends just before `done`. It
+    /// also rides the atomic `tool_use` event. Store it on the assistant
+    /// block echoed back next turn — the same value
+    /// ``ContentBlock/thoughtSignature`` carries on a non-streaming response.
+    public var thoughtSignature: String?
+
     /// The failure message, on `error`, `invalid_request` and `rate_limit`
     /// events, and on an `error` the SDK raises for a payload it could not
     /// parse.
@@ -812,6 +872,7 @@ public struct StreamEvent: Sendable {
         usage: ChatUsage? = nil,
         citations: [Citation] = [],
         session: StreamSession? = nil,
+        thoughtSignature: String? = nil,
         error: String? = nil,
         done: Bool = false
     ) {
@@ -824,6 +885,7 @@ public struct StreamEvent: Sendable {
         self.usage = usage
         self.citations = citations
         self.session = session
+        self.thoughtSignature = thoughtSignature
         self.error = error
         self.done = done
     }
@@ -858,6 +920,8 @@ struct RawStreamEvent: Decodable {
     var partialJSON: String?
     /// Carried by the `citations` event.
     var citations: [Citation]?
+    /// Carried by the `thought_signature` event and by atomic `tool_use`.
+    var thoughtSignature: String?
     /// Carried by the `session` event that opens a session stream.
     var sessionId: String?
     var compacted: Bool?
@@ -877,6 +941,7 @@ struct RawStreamEvent: Decodable {
         case cacheWriteTokens = "cache_write_tokens"
         case costTicks = "cost_ticks"
         case partialJSON = "partial_json"
+        case thoughtSignature = "thought_signature"
         case sessionId = "session_id"
         case stopReason = "stop_reason"
     }

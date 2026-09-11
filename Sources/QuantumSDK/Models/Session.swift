@@ -65,8 +65,11 @@ public struct SessionChatRequest: Codable, Sendable {
     /// `nil` = provider default. Mirrors ``ChatRequest/reasoningEffort``.
     public var reasoningEffort: String?
 
-    /// Provider-specific settings.
-    public var providerOptions: [String: [String: AnyCodable]]?
+    /// Provider-specific settings, keyed by provider — the same open map as
+    /// ``ChatRequest/providerOptions``. The value is any JSON, so a key the
+    /// gateway documents but this SDK version does not name still rides
+    /// through.
+    public var providerOptions: [String: AnyCodable]?
 
     public init(
         message: String,
@@ -77,7 +80,7 @@ public struct SessionChatRequest: Codable, Sendable {
         stream: Bool? = nil,
         systemPrompt: String? = nil,
         contextConfig: ContextConfig? = nil,
-        providerOptions: [String: [String: AnyCodable]]? = nil,
+        providerOptions: [String: AnyCodable]? = nil,
         reasoningEffort: String? = nil
     ) {
         self.message = message

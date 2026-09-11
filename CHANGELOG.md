@@ -1,5 +1,81 @@
 # Changelog
 
+## 0.10.0
+
+The reasoning state a tool loop has to hand back, and the cache key that keeps a
+conversation on one shard.
+
+### Added
+- `ChatRequest.promptCacheKey` — any stable string the client keeps per
+  conversation. The gateway hashes it with the caller's identity and forwards it
+  as OpenAI/xAI `prompt_cache_key` (or `x-grok-conv-id` on the xAI
+  chat-completions lane), so every turn of one conversation lands on the same
+  warm provider cache shard. `nil` = derived from the caller's identity alone,
+  which puts all of that user's conversations on one shard. Generate one per
+  conversation object and reuse it on every turn.
+
+  `/qai/v1/chat` only: the session endpoint derives its key from the session ID
+  and ignores a client-supplied one.
+
+- `ContentBlock.reasoning` and `ContentBlock.mintedBy`, on blocks of the new
+  type `"reasoning"`. This is the provider's own reasoning item, verbatim and
+  opaque. It arrives interleaved with the `tool_use` blocks and must be echoed
+  back unchanged, **in the position it arrived in**, on the next turn's
+  assistant message: its place among the tool calls is how the provider learns
+  where the reasoning sat, and replaying it behind the call it reasoned about is
+  a different conversation the provider rejects. Dropping it re-bills the
+  reasoning tokens on every round of a tool loop.
+
+  `mintedBy` names the model that produced the block; reasoning state is bound
+  to its model and is never replayed to a different one.
+
+  Distinct from the existing `"thinking"` block, which is the human-readable
+  summary of the same turn. One is for the reader, one is for the wire.
+
+- `StreamEvent.thoughtSignature`, carried by the new `thought_signature` SSE
+  event the gateway sends just before `done` on a Gemini 3 stream that ended in
+  text, and by the atomic `tool_use` event — which a streaming tool loop
+  previously had no way to read.
+
+### Changed — SOURCE BREAKING
+- **`providerOptions` is now `[String: AnyCodable]`, widened from
+  `[String: [String: AnyCodable]]`** on `ChatRequest`, `SessionChatRequest` and
+  the `chat`/`chatStream`/`chatSession`/`chatSessionStream` convenience
+  overloads. The nested-only type could express nothing but an object per
+  provider, so the decoder silently DROPPED any entry whose value was not one —
+  a provider flag the gateway adds as a bool or string reached an older client
+  and vanished.
+
+  Dictionary literals are unaffected (`AnyCodable` is
+  `ExpressibleByDictionaryLiteral`), so
+  `["openai": ["verbosity": "low"]]` still compiles. Code that *reads* a
+  nested value must now unwrap one level:
+  `options["openai"]?.value as? [String: Any]` rather than
+  `options["openai"]?["verbosity"]`.
+
+  Newly documented keys: `openai.reasoning_summary`
+  (`auto` | `concise` | `detailed` | `none`), `openai.reasoning_mode`
+  (`standard` | `pro`), `openai.verbosity` (`low` | `medium` | `high`),
+  `openai.text_format` (`text` | `json_object`), and `xai.native_files`
+  (`Bool`). The typed `region` property is unchanged: it still encodes as the
+  flat `provider_options.region` entry.
+
+### Changed
+- `ContentBlock.thoughtSignature` is documented on **text** blocks as well as
+  `tool_use` blocks: Gemini 3 signs a turn that ends in text. The field already
+  accepted it — this states the contract, it is not a shape change.
+
+Additive on the wire against an older gateway: the new fields are simply absent.
+
+### Also released in this tag
+
+Work merged after 0.9.0 that had not yet been tagged:
+
+- `media: the receipt says how much was made, and what it cost in tokens` (086d57e)
+- `image: the receipt was on the wire and the SDK dropped it` (60fd35e)
+- `chat: cache_write_tokens, and the cache split on the streaming event` (491864a)
+- `exec: a client for the sandbox route` (9b33fe6)
+
 ## 0.9.0
 
 Parity with the Rust reference crate at 0.9.0, and with the gateway as of

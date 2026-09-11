@@ -344,7 +344,7 @@ public final class QuantumClient: Sendable {
         maxTokens: Int? = nil,
         toolChoice: String? = nil,
         outputSchema: [String: AnyCodable]? = nil,
-        providerOptions: [String: [String: AnyCodable]]? = nil,
+        providerOptions: [String: AnyCodable]? = nil,
         reasoningEffort: String? = nil
     ) async throws -> ChatResponse {
         let request = ChatRequest(
@@ -409,7 +409,7 @@ public final class QuantumClient: Sendable {
         maxTokens: Int? = nil,
         toolChoice: String? = nil,
         outputSchema: [String: AnyCodable]? = nil,
-        providerOptions: [String: [String: AnyCodable]]? = nil,
+        providerOptions: [String: AnyCodable]? = nil,
         reasoningEffort: String? = nil
     ) -> AsyncThrowingStream<StreamEvent, any Error> {
         let request = ChatRequest(
@@ -495,7 +495,7 @@ public final class QuantumClient: Sendable {
         model: String? = nil,
         systemPrompt: String? = nil,
         contextConfig: ContextConfig? = nil,
-        providerOptions: [String: [String: AnyCodable]]? = nil
+        providerOptions: [String: AnyCodable]? = nil
     ) async throws -> SessionChatResponse {
         let request = SessionChatRequest(
             message: message,
@@ -549,7 +549,7 @@ public final class QuantumClient: Sendable {
         model: String? = nil,
         systemPrompt: String? = nil,
         contextConfig: ContextConfig? = nil,
-        providerOptions: [String: [String: AnyCodable]]? = nil
+        providerOptions: [String: AnyCodable]? = nil
     ) async throws -> SessionChatStream {
         try await chatSessionStream(SessionChatRequest(
             message: message,
@@ -892,6 +892,9 @@ public final class QuantumClient: Sendable {
 
         case "tool_use":
             // Atomic form, from backends that do not stream the triplet.
+            // Gemini rides its signature here; the client echoes it on the
+            // tool_use block of the next turn.
+            event.thoughtSignature = raw.thoughtSignature
             event.toolUse = StreamToolUse(id: raw.id ?? "", name: raw.name ?? "", input: raw.input ?? [:])
 
         case "tool_use_start":
@@ -923,6 +926,11 @@ public final class QuantumClient: Sendable {
 
         case "session":
             event.session = StreamSession(sessionId: raw.sessionId ?? "", compacted: raw.compacted ?? false)
+
+        case "thought_signature":
+            // Gemini 3 signs a turn that ended in TEXT; the gateway sends
+            // this just before `done`.
+            event.thoughtSignature = raw.thoughtSignature
 
         case "done":
             event.done = true
