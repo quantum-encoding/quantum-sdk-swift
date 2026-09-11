@@ -122,15 +122,24 @@ extension QuantumClient {
     /// - Returns: The TTS response with base64 audio.
     public func speak(
         text: String,
-        model: String,
+        model: String = "",
         voice: String? = nil,
         outputFormat: String? = nil,
         speed: Double? = nil,
         instructions: String? = nil,
+        language: String? = nil,
+        sampleRate: Int? = nil,
+        bitRate: Int? = nil,
         voiceSettings: TTSVoiceSettings? = nil,
+        speakers: [TTSSpeaker]? = nil,
         idempotencyKey: String? = nil
     ) async throws -> TTSResponse {
-        let request = TTSRequest(model: model, text: text, voice: voice, outputFormat: outputFormat, speed: speed, instructions: instructions, voiceSettings: voiceSettings)
+        let request = TTSRequest(
+            model: model, text: text, voice: voice, outputFormat: outputFormat,
+            speed: speed, instructions: instructions, language: language,
+            sampleRate: sampleRate, bitRate: bitRate,
+            voiceSettings: voiceSettings, speakers: speakers
+        )
         let (data, _): (TTSResponse, _) = try await doReq(
             method: "POST", path: "/qai/v1/audio/tts", body: request,
             idempotencyKey: idempotencyKey ?? UUID().uuidString

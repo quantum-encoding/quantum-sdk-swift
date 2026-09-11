@@ -1,5 +1,47 @@
 # Changelog
 
+## 0.11.0
+
+The TTS request catches up with the gateway: a house voice you do not have to
+name, and prose steering for Gemini.
+
+### Added
+- `TtsRequest.language` — BCP-47 tag (`en-GB`, `es-ES`, `auto`). Gemini detects
+  the language on its own; set this to pin the pronunciation or accent family.
+  Also drives xAI pronunciation, where an English default sounds robotic on
+  other languages.
+- `TtsRequest.sampleRate` and `.bitRate` — Hz and bits/sec, xAI only.
+- `TtsRequest.speakers` and the new `TTSSpeaker` (`name`, `voice`) — Gemini
+  two-voice dialogue. Each entry pairs a speaker label used in `text`
+  ("Lacey: …") with the prebuilt voice that reads it. Exactly two; the gateway
+  rejects any other count with a 400, and `voice` is then ignored.
+- `speak(...)` gains `language`, `sampleRate`, `bitRate` and `speakers`
+  parameters, and its `model` parameter now defaults to `""` so the house
+  voice can be had without naming one.
+
+`instructions` and `voiceSettings` were already here (0.9.0).
+
+### Changed
+- `TtsRequest.model` is omitted from the body when empty, via a hand-written
+  `encode(to:)`. `text` alone is a complete request and the gateway supplies
+  its house default — `gemini-3.1-flash-tts-preview` with the `Laomedeia`
+  voice. Previously the synthesized encoder always wrote `"model": ""`,
+  pinning the request to a model that does not exist.
+- `TtsRequest.model` gains a default of `""` in the initializer, so
+  `TtsRequest(text: "…")` compiles. Existing call sites that pass a model are
+  unaffected.
+- `TtsRequest` now has a hand-written `init(from:)` alongside the encoder; an
+  absent `model` decodes as `""` rather than failing.
+
+### Docs
+- README gains "Steering a Gemini voice", summarising the gateway's
+  `docs/TTS_GUIDE.md`: `instructions` for tone/accent/pace, the inline audio
+  tags (`[whispers]`, `[excited]`, …) that go inside `text`, two-speaker
+  dialogue, the 30 Gemini prebuilt voices, and which fields are xAI- or
+  ElevenLabs-only.
+
+Additive against an older gateway: the new fields are simply absent.
+
 ## 0.10.0
 
 The reasoning state a tool loop has to hand back, and the cache key that keeps a

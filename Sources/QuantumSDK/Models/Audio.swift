@@ -26,45 +26,149 @@ public struct TTSVoiceSettings: Codable, Sendable, Hashable {
     }
 }
 
+/// One voice in a Gemini two-speaker dialogue.
+public struct TTSSpeaker: Codable, Sendable, Hashable {
+    /// The label this speaker's lines carry in the text, e.g. "Lacey" for
+    /// lines written as `Lacey: …`.
+    public var name: String
+
+    /// The prebuilt voice that reads those lines, e.g. "Laomedeia".
+    public var voice: String
+
+    public init(name: String, voice: String) {
+        self.name = name
+        self.voice = voice
+    }
+}
+
 /// Request body for text-to-speech.
+///
+/// Only `text` is required. Leaving ``model`` empty gets the gateway's house
+/// voice: `gemini-3.1-flash-tts-preview` with the `Laomedeia` voice.
+///
+/// Most of the steering is prose, not parameters — see ``instructions`` and
+/// the inline audio tags described in the README under "Steering a Gemini
+/// voice".
 public struct TtsRequest: Codable, Sendable {
-    /// TTS model (e.g. "tts-1", "eleven_multilingual_v2", "grok-3-tts").
+    /// TTS model. Empty = the gateway default,
+    /// `gemini-3.1-flash-tts-preview`, paired with the `Laomedeia` voice, and
+    /// the field is then omitted from the body entirely. Also
+    /// `gemini-2.5-flash-preview-tts`, `gemini-2.5-pro-preview-tts`, OpenAI
+    /// `openai-tts-1` / `gpt-4o-mini-tts`, xAI `grok-tts`, ElevenLabs
+    /// `eleven_*`.
     public var model: String
 
-    /// Text to synthesise into speech.
+    /// Text to synthesise into speech. May carry inline audio tags
+    /// (`[whispers]`, `[excited]`, …) and, for dialogue, the speaker labels
+    /// named in ``speakers``.
     public var text: String
 
-    /// Voice to use (e.g. "alloy", "echo", "nova", "Rachel").
+    /// Voice to use — an id from ``QuantumClient/listVoices()``. Gemini's
+    /// default is `Laomedeia`. Ignored when ``speakers`` is set.
     public var voice: String?
 
-    /// Audio format (e.g. "mp3", "wav", "opus"). Default: "mp3".
+    /// Audio format: "mp3" (default), "wav", "opus", "pcm".
     public var outputFormat: String?
 
-    /// Speech rate (provider-dependent).
+    /// Speech rate, 0.7–1.5. xAI only — on Gemini, ask for it in
+    /// ``instructions`` ("at a slow, measured pace").
     public var speed: Double?
 
-    /// Voice-steering instructions (tone, emotion, accent). OpenAI
-    /// gpt-4o-mini-tts only — the backend drops it for tts-1/tts-1-hd, which
-    /// reject the field. Omitted from the JSON body when nil.
+    /// Style direction: tone, pace, accent, character. On Gemini this is
+    /// prepended to the prompt and is the main way to steer a read, since
+    /// Gemini exposes no knobs for any of it. On OpenAI only gpt-4o-mini-tts
+    /// honours it — the gateway drops it for tts-1/tts-1-hd, which reject the
+    /// field. Omitted from the JSON body when nil.
     public var instructions: String?
+
+    /// BCP-47 language tag, e.g. "en-GB", "es-ES", or "auto". Gemini detects
+    /// the language on its own; set this to pin the pronunciation or accent
+    /// family. Also drives xAI pronunciation, where an English default sounds
+    /// robotic on other languages.
+    public var language: String?
+
+    /// Output sample rate in Hz, e.g. 24000 or 44100. xAI only.
+    public var sampleRate: Int?
+
+    /// Output bit rate in bits/sec, e.g. 128000. xAI only.
+    public var bitRate: Int?
 
     /// ElevenLabs synthesis tuning (ignored by other providers).
     public var voiceSettings: TTSVoiceSettings?
 
-    public init(model: String, text: String, voice: String? = nil, outputFormat: String? = nil, speed: Double? = nil, instructions: String? = nil, voiceSettings: TTSVoiceSettings? = nil) {
+    /// Two-voice dialogue on Gemini TTS. Each entry pairs a speaker label used
+    /// in ``text`` ("Lacey: …") with the prebuilt voice that reads it.
+    /// **Exactly two** — the gateway rejects any other count with a 400 — and
+    /// ``voice`` is then ignored.
+    public var speakers: [TTSSpeaker]?
+
+    public init(
+        model: String = "",
+        text: String,
+        voice: String? = nil,
+        outputFormat: String? = nil,
+        speed: Double? = nil,
+        instructions: String? = nil,
+        language: String? = nil,
+        sampleRate: Int? = nil,
+        bitRate: Int? = nil,
+        voiceSettings: TTSVoiceSettings? = nil,
+        speakers: [TTSSpeaker]? = nil
+    ) {
         self.model = model
         self.text = text
         self.voice = voice
         self.outputFormat = outputFormat
         self.speed = speed
         self.instructions = instructions
+        self.language = language
+        self.sampleRate = sampleRate
+        self.bitRate = bitRate
         self.voiceSettings = voiceSettings
+        self.speakers = speakers
     }
 
     enum CodingKeys: String, CodingKey {
-        case model, text, voice, speed, instructions
+        case model, text, voice, speed, instructions, language, speakers
         case outputFormat = "format"
         case voiceSettings = "voice_settings"
+        case sampleRate = "sample_rate"
+        case bitRate = "bit_rate"
+    }
+
+    // Custom encode for one reason: an empty `model` must be OMITTED, not sent
+    // as "model": "". An absent model gets the gateway's house default; an
+    // empty string pins the request to a model that does not exist.
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        if !model.isEmpty {
+            try container.encode(model, forKey: .model)
+        }
+        try container.encode(text, forKey: .text)
+        try container.encodeIfPresent(voice, forKey: .voice)
+        try container.encodeIfPresent(outputFormat, forKey: .outputFormat)
+        try container.encodeIfPresent(speed, forKey: .speed)
+        try container.encodeIfPresent(instructions, forKey: .instructions)
+        try container.encodeIfPresent(language, forKey: .language)
+        try container.encodeIfPresent(sampleRate, forKey: .sampleRate)
+        try container.encodeIfPresent(bitRate, forKey: .bitRate)
+        try container.encodeIfPresent(voiceSettings, forKey: .voiceSettings)
+        try container.encodeIfPresent(speakers, forKey: .speakers)
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        model = try container.decodeIfPresent(String.self, forKey: .model) ?? ""
+        text = try container.decode(String.self, forKey: .text)
+        voice = try container.decodeIfPresent(String.self, forKey: .voice)
+        outputFormat = try container.decodeIfPresent(String.self, forKey: .outputFormat)
+        speed = try container.decodeIfPresent(Double.self, forKey: .speed)
+        instructions = try container.decodeIfPresent(String.self, forKey: .instructions)
+        language = try container.decodeIfPresent(String.self, forKey: .language)
+        sampleRate = try container.decodeIfPresent(Int.self, forKey: .sampleRate)
+        bitRate = try container.decodeIfPresent(Int.self, forKey: .bitRate)
+        voiceSettings = try container.decodeIfPresent(TTSVoiceSettings.self, forKey: .voiceSettings)
+        speakers = try container.decodeIfPresent([TTSSpeaker].self, forKey: .speakers)
     }
 }
 
