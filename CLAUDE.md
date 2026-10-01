@@ -9,7 +9,7 @@ every command from the collection root. Run it from anywhere else and you
 silently start a second graph holding only the SDKs you happened to scan there.
 
 ```bash
-cd ~/work/poly-repo/quantum-ai-polyrepo/qe-sdk-collection
+cd ~/work/qe-sdk-collection
 
 sdk-graph scan --sdk swift --dir swift_projects/quantum-sdk/Sources  # after making changes
 sdk-graph scan --sdk rust  --dir rust_projects/quantum-sdk/src       # if not recently scanned
@@ -18,8 +18,8 @@ sdk-graph stats
 ```
 
 - Binary: `~/go/bin/sdk-graph` (in PATH)
-- Source: `~/work/poly-repo/quantum-ai-polyrepo/quantum-ai-backend/cmd/sdk-graph/main.go`
-- Graph: `~/work/poly-repo/quantum-ai-polyrepo/qe-sdk-collection/sdk-graph.json`
+- Source: `~/work/go_programs/quantum-ai-backend/cmd/sdk-graph/main.go`
+- Graph: `~/work/qe-sdk-collection/sdk-graph.json`
 
 A stale graph from 2026-03-23 sits at `quantum-ai-backend/sdk-graph.json`.
 Nothing reads it — don't inspect it or treat its counts as current.
@@ -66,7 +66,7 @@ confirm a row is real by reading both declarations.
 
 ## Reference Implementation
 
-The Rust SDK is the source of truth: `~/work/poly-repo/quantum-ai-polyrepo/qe-sdk-collection/rust_projects/quantum-sdk/src/`
+The Rust SDK is the source of truth: `~/work/qe-sdk-collection/rust_projects/quantum-sdk/src/`
 
 When adding missing types, follow the Rust SDK's field names and JSON serialization. Map types idiomatically:
 - Rust `Option<T>` → Swift `T?`
@@ -84,4 +84,4 @@ When adding missing types, follow the Rust SDK's field names and JSON serializat
 ## API Server
 
 Backend: https://api.quantumencoding.ai
-Repo: ~/work/poly-repo/quantum-ai-polyrepo/quantum-ai-backend
+Repo: ~/work/go_programs/quantum-ai-backend
