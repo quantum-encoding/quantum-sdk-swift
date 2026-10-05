@@ -47,6 +47,24 @@ final class FlattenedExtraTests: XCTestCase {
         XCTAssertNil(obj["aspect_ratio"])
     }
 
+    func testImageEditExtraLandsBesideTheTypedKeys() throws {
+        let obj = try encodeToObject(ImageEditRequest(
+            model: "gemini-3.1-flash-image",
+            prompt: "same pot, on a windowsill",
+            inputImages: ["AAAA"],
+            imageSize: "2K",
+            extra: ["thinking_level": AnyCodable("high")]
+        ))
+        XCTAssertNil(obj["extra"])
+        XCTAssertEqual(obj["thinking_level"] as? String, "high")
+        XCTAssertEqual(obj["image_size"] as? String, "2K")
+        XCTAssertEqual(obj["input_images"] as? [String], ["AAAA"])
+        XCTAssertEqual(
+            try encodeToObject(ImageEditRequest(model: "m", prompt: "p", inputImages: ["x"])).keys.sorted(),
+            ["input_images", "model", "prompt"]
+        )
+    }
+
     func testAnEmptyExtraEncodesNothing() throws {
         // A caller that never sets extra sends a body identical to the one
         // this type produced before the field existed.

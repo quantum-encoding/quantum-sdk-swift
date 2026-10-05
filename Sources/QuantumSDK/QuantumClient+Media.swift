@@ -394,6 +394,14 @@ extension QuantumClient {
         idempotencyKey: String? = nil
     ) async throws -> VideoResponse {
         let request = VideoRequest(model: model, prompt: prompt, durationSeconds: durationSeconds, aspectRatio: aspectRatio)
+        return try await generateVideo(request, idempotencyKey: idempotencyKey)
+    }
+
+    /// Generate a video from a fully-specified ``VideoRequest`` — the path for a
+    /// parameter set built from a model's schema, or for fields the convenience
+    /// overload doesn't surface (`image_url` for image-to-video, `resolution`,
+    /// `sample_count`) carried in ``VideoRequest/extra``.
+    public func generateVideo(_ request: VideoRequest, idempotencyKey: String? = nil) async throws -> VideoResponse {
         let (data, meta): (VideoResponse, HTTPClient.ResponseMeta) = try await doReq(
             method: "POST", path: "/qai/v1/video/generate", body: request,
             idempotencyKey: idempotencyKey ?? UUID().uuidString

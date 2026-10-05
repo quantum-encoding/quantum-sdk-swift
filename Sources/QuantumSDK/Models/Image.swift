@@ -322,6 +322,12 @@ public struct ImageEditRequest: Codable, Sendable {
     /// Enable Google Search grounding (Gemini Pro only).
     public var grounding: Bool?
 
+    /// Catalog-schema-driven parameters with no typed field here, flattened into
+    /// the top-level body exactly like ``ImageRequest/extra``. Empty by default,
+    /// and an empty map encodes to nothing. A name that collides with a typed
+    /// field overwrites it.
+    public var extra: [String: AnyCodable]
+
     public init(
         model: String,
         prompt: String,
@@ -334,7 +340,8 @@ public struct ImageEditRequest: Codable, Sendable {
         outputFormat: String? = nil,
         background: String? = nil,
         inputFidelity: String? = nil,
-        grounding: Bool? = nil
+        grounding: Bool? = nil,
+        extra: [String: AnyCodable] = [:]
     ) {
         self.model = model
         self.prompt = prompt
@@ -348,15 +355,50 @@ public struct ImageEditRequest: Codable, Sendable {
         self.background = background
         self.inputFidelity = inputFidelity
         self.grounding = grounding
+        self.extra = extra
     }
 
-    enum CodingKeys: String, CodingKey {
+    enum CodingKeys: String, CodingKey, CaseIterable {
         case model, prompt, count, size, quality, background, grounding
         case inputImages = "input_images"
         case aspectRatio = "aspect_ratio"
         case imageSize = "image_size"
         case outputFormat = "output_format"
         case inputFidelity = "input_fidelity"
+    }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        model = try c.decode(String.self, forKey: .model)
+        prompt = try c.decode(String.self, forKey: .prompt)
+        inputImages = try c.decode([String].self, forKey: .inputImages)
+        count = try c.decodeIfPresent(Int.self, forKey: .count)
+        size = try c.decodeIfPresent(String.self, forKey: .size)
+        aspectRatio = try c.decodeIfPresent(String.self, forKey: .aspectRatio)
+        imageSize = try c.decodeIfPresent(String.self, forKey: .imageSize)
+        quality = try c.decodeIfPresent(String.self, forKey: .quality)
+        outputFormat = try c.decodeIfPresent(String.self, forKey: .outputFormat)
+        background = try c.decodeIfPresent(String.self, forKey: .background)
+        inputFidelity = try c.decodeIfPresent(String.self, forKey: .inputFidelity)
+        grounding = try c.decodeIfPresent(Bool.self, forKey: .grounding)
+        extra = try decodeFlattened(from: decoder, known: Set(CodingKeys.allCases.map(\.rawValue)))
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(model, forKey: .model)
+        try c.encode(prompt, forKey: .prompt)
+        try c.encode(inputImages, forKey: .inputImages)
+        try c.encodeIfPresent(count, forKey: .count)
+        try c.encodeIfPresent(size, forKey: .size)
+        try c.encodeIfPresent(aspectRatio, forKey: .aspectRatio)
+        try c.encodeIfPresent(imageSize, forKey: .imageSize)
+        try c.encodeIfPresent(quality, forKey: .quality)
+        try c.encodeIfPresent(outputFormat, forKey: .outputFormat)
+        try c.encodeIfPresent(background, forKey: .background)
+        try c.encodeIfPresent(inputFidelity, forKey: .inputFidelity)
+        try c.encodeIfPresent(grounding, forKey: .grounding)
+        try encodeFlattened(extra, into: encoder)
     }
 }
 
