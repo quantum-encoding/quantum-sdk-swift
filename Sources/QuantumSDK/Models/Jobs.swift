@@ -24,8 +24,8 @@ public struct JobCreateRequest: Codable, Sendable {
 // MARK: - Job Accepted
 
 /// The 202 envelope every async submission answers with: the Jobs API,
-/// the HeyGen video routes (studio, translate, photo-avatar, twin-video,
-/// template render) and the 3D pipeline. Poll with `getJob` / `pollJob`
+/// the HeyGen video routes (translate, photo-avatar, twin-video, template
+/// render) and the 3D pipeline. Poll with `getJob` / `pollJob`
 /// or subscribe with `streamJob`.
 ///
 /// No cost appears here; `costTicks` is reported by `getJob` once the job
@@ -37,7 +37,7 @@ public struct JobAcceptedResponse: Codable, Sendable {
     /// Initial job status (always "pending").
     public var status: String
 
-    /// Job type (e.g. "video/studio", "3d/generate").
+    /// Job type (e.g. "video/translate", "3d/generate").
     public var jobType: String?
 
     /// Unique request identifier.

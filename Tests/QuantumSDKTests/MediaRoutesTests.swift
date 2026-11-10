@@ -26,61 +26,6 @@ final class MediaRoutesTests: XCTestCase {
         String(decoding: MockGatewayProtocol.captured?.body ?? Data(), as: UTF8.self)
     }
 
-    // MARK: Batch JSONL is a raw ndjson body
-
-    func testBatchSubmitJsonlSendsRawBody() async throws {
-        MockGatewayProtocol.stub(status: 202, json: #"{"batch_id":"batch_2","jobs":2,"job_ids":["a","b"],"pricing":"50%","status":"queued"}"#)
-        let jsonl = "{\"model\":\"m\",\"prompt\":\"a\"}\n{\"model\":\"m\",\"prompt\":\"b\"}\n"
-        let resp = try await client.batchSubmitJsonl(jsonl)
-
-        let captured = MockGatewayProtocol.captured
-        XCTAssertEqual(captured?.method, "POST")
-        XCTAssertEqual(captured?.url.path, "/qai/v1/batch/jsonl")
-        XCTAssertEqual(captured?.headers["Content-Type"], "application/x-ndjson")
-        XCTAssertEqual(captured?.headers["Authorization"], "Bearer qai_k_test")
-        XCTAssertEqual(bodyText(), jsonl)
-        XCTAssertEqual(resp.jobIds, ["a", "b"])
-    }
-
-    // MARK: Documents are multipart, field `file`
-
-    func testExtractDocumentPostsMultipartFile() async throws {
-        MockGatewayProtocol.stub(status: 200, json: ##"{"markdown":"# T","format":"markdown","meta":{"extraction_method":"pdf"}}"##,
-                                 headers: ["X-QAI-Cost-Ticks": "1000", "X-QAI-Request-Id": "req_doc"])
-        let resp = try await client.extractDocument(DocumentRequest(
-            content: Data("%PDF-1.4".utf8), filename: "a.pdf", mimeType: "application/pdf", extractImages: true
-        ))
-
-        let captured = MockGatewayProtocol.captured
-        XCTAssertEqual(captured?.url.path, "/qai/v1/documents/extract")
-        XCTAssertTrue(captured?.headers["Content-Type"]?.hasPrefix("multipart/form-data; boundary=") ?? false)
-        let body = bodyText()
-        XCTAssertTrue(body.contains("name=\"file\"; filename=\"a.pdf\""), body)
-        XCTAssertTrue(body.contains("Content-Type: application/pdf"), body)
-        XCTAssertTrue(body.contains("name=\"extract_images\"\r\n\r\ntrue"), body)
-        XCTAssertFalse(body.contains("chunk_size"))
-        XCTAssertEqual(resp.costTicks, 1000, "cost fills from the header when the body omits it")
-        XCTAssertEqual(resp.requestId, "req_doc")
-    }
-
-    func testChunkAndProcessSendCharacterSizedFields() async throws {
-        MockGatewayProtocol.stub(status: 200, json: #"{"format":"markdown","meta":{"chunk_count":1},"chunks":[{"index":0,"text":"t"}]}"#)
-        _ = try await client.chunkDocument(ChunkDocumentRequest(content: Data("x".utf8), filename: "a.docx", chunkSize: 1500, overlap: 100))
-        var body = bodyText()
-        XCTAssertEqual(MockGatewayProtocol.captured?.url.path, "/qai/v1/documents/chunk")
-        XCTAssertTrue(body.contains("name=\"chunk_size\"\r\n\r\n1500"), body)
-        XCTAssertTrue(body.contains("name=\"overlap\"\r\n\r\n100"), body)
-        XCTAssertTrue(body.contains("Content-Type: application/octet-stream"), body)
-
-        MockGatewayProtocol.stub(status: 200, json: #"{"markdown":"m","format":"markdown","meta":{},"chunks":null}"#)
-        let processed = try await client.processDocument(ProcessDocumentRequest(content: Data("x".utf8), filename: "a.pdf", extractImages: true, chunkSize: 500))
-        body = bodyText()
-        XCTAssertEqual(MockGatewayProtocol.captured?.url.path, "/qai/v1/documents/process")
-        XCTAssertTrue(body.contains("name=\"extract_images\""), body)
-        XCTAssertTrue(body.contains("name=\"chunk_size\"\r\n\r\n500"), body)
-        XCTAssertEqual(processed.chunks, [])
-    }
-
     // MARK: Files / media sessions / caches
 
     func testFileUploadIsMultipartFieldFile() async throws {

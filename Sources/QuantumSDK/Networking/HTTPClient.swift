@@ -234,9 +234,8 @@ final class HTTPClient: Sendable {
     /// replay on 502/503/504.
     ///
     /// Only routes billed through the gateway's `DeductAndTrack` rail read
-    /// `Idempotency-Key`: agent, batch, jobs, search, scanner, rag,
-    /// documents, vision, voice, compute and deployments, inference,
-    /// missions, cloudrun and security. On those the billing result is
+    /// `Idempotency-Key`: agent, jobs, search, rag, vision, voice, compute,
+    /// inference, missions, cloudrun and security. On those the billing result is
     /// cached for 24 hours under (key, account); the request body is not
     /// part of the cache key, so a key reused for a different payload
     /// returns the first request's billing result while the provider
@@ -381,28 +380,6 @@ final class HTTPClient: Sendable {
         body.append(fileData)
         body.append(Data("\r\n--\(boundary)--\r\n".utf8))
         request.httpBody = body
-
-        let (data, response) = try await send(request, replay: .none)
-        return try decodeSuccess(data, response)
-    }
-
-    // MARK: - Raw Upload
-
-    /// Sends a raw binary body with a specific content type and decodes
-    /// the JSON response. Single attempt.
-    func doRawUpload<T: Decodable>(
-        method: String = "POST",
-        path: String,
-        data bodyData: Data,
-        contentType: String,
-        idempotencyKey: String? = nil
-    ) async throws -> (data: T, meta: ResponseMeta) {
-        var request = try makeRequest(method: method, path: path)
-        request.setValue(contentType, forHTTPHeaderField: "Content-Type")
-        if method.uppercased() == "POST" {
-            request.setValue(idempotencyKey ?? UUID().uuidString, forHTTPHeaderField: "Idempotency-Key")
-        }
-        request.httpBody = bodyData
 
         let (data, response) = try await send(request, replay: .none)
         return try decodeSuccess(data, response)

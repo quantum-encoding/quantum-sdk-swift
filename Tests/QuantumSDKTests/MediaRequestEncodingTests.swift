@@ -88,10 +88,6 @@ final class MediaRequestEncodingTests: XCTestCase {
 
     // MARK: Video
 
-    func testStudioRequestCarriesTheThreeRequiredKeys() throws {
-        XCTAssertEqual(try keys(VideoStudioRequest(avatarId: "av", script: "Hello", voiceId: "vc")), ["avatar_id", "script", "voice_id"])
-    }
-
     func testTranslateUsesVideoUrlAndOutputLanguage() throws {
         let req = VideoTranslateRequest(videoUrl: "https://x/v.mp4", outputLanguage: "es", title: "t")
         XCTAssertEqual(try keys(req), ["output_language", "title", "video_url"])
@@ -123,16 +119,6 @@ final class MediaRequestEncodingTests: XCTestCase {
         let items = VoiceLibraryQuery(query: "deep narrator", cursor: "a&b", language: "en", useCase: "narration").queryItems
         XCTAssertEqual(items, ["q=deep%20narrator", "cursor=a%26b", "language=en", "use_case=narration"])
         XCTAssertEqual(VoiceLibraryQuery().queryItems, [])
-    }
-
-    // MARK: Documents
-
-    func testDocumentFormFieldsMatchTheMultipartHandler() {
-        XCTAssertEqual(documentFormFields(extractImages: false, chunkSize: nil, overlap: nil), [:])
-        XCTAssertEqual(
-            documentFormFields(extractImages: true, chunkSize: 1500, overlap: 100),
-            ["extract_images": "true", "chunk_size": "1500", "overlap": "100"]
-        )
     }
 
     // MARK: Search

@@ -459,95 +459,6 @@ public struct SearchContextResponse: Codable, Sendable {
     }
 }
 
-// MARK: - Search Answer
-
-/// A chat message for the search answer endpoint.
-public struct SearchAnswerMessage: Codable, Sendable {
-    /// Message role ("user", "assistant", "system").
-    public var role: String
-
-    /// Message text content.
-    public var content: String
-
-    public init(role: String, content: String) {
-        self.role = role
-        self.content = content
-    }
-}
-
-/// Request body for search answer (AI-generated answer grounded in search).
-public struct SearchAnswerRequest: Codable, Sendable {
-    /// Conversation messages.
-    public var messages: [SearchAnswerMessage]
-
-    /// Model to use for answer generation.
-    public var model: String?
-
-    public init(messages: [SearchAnswerMessage], model: String? = nil) {
-        self.messages = messages
-        self.model = model
-    }
-}
-
-/// A citation reference in a search answer.
-public struct SearchAnswerCitation: Codable, Sendable {
-    /// Source URL.
-    public var url: String
-
-    /// Source title.
-    public var title: String
-
-    /// Snippet from the source.
-    public var snippet: String?
-
-    public init(from decoder: Decoder) throws {
-        let c = try decoder.container(keyedBy: CodingKeys.self)
-        url = try c.decode(String.self, forKey: .url)
-        title = try c.decodeIfPresent(String.self, forKey: .title) ?? ""
-        snippet = try c.decodeIfPresent(String.self, forKey: .snippet)
-    }
-}
-
-/// A choice in the search answer response.
-public struct SearchAnswerChoice: Codable, Sendable {
-    /// Choice index.
-    public var index: Int
-
-    /// The generated message, absent when the choice carries none.
-    public var message: SearchAnswerMessage?
-
-    /// Finish reason (e.g. "stop").
-    public var finishReason: String?
-
-    enum CodingKeys: String, CodingKey {
-        case index, message
-        case finishReason = "finish_reason"
-    }
-}
-
-/// Response from the search answer endpoint.
-public struct SearchAnswerResponse: Codable, Sendable {
-    /// Generated answer choices.
-    @NullToEmpty public var choices: [SearchAnswerChoice]
-
-    /// Model that produced the answer.
-    public var model: String
-
-    /// Unique response identifier.
-    public var id: String
-
-    /// Citations used in the answer.
-    @NullToEmpty public var citations: [SearchAnswerCitation]
-
-    public init(from decoder: Decoder) throws {
-        let c = try decoder.container(keyedBy: CodingKeys.self)
-        _choices = try c.decode(NullToEmpty<SearchAnswerChoice>.self, forKey: .choices)
-        model = try c.decodeIfPresent(String.self, forKey: .model) ?? ""
-        id = try c.decodeIfPresent(String.self, forKey: .id) ?? ""
-        _citations = try c.decode(NullToEmpty<SearchAnswerCitation>.self, forKey: .citations)
-    }
-}
-
 // MARK: - Google Grounded Search (Gemini + google_search tool)
 
 /// Request body for Google grounded search via Gemini.
@@ -652,9 +563,6 @@ public struct GoogleSearchResponse: Codable, Sendable {
 
 /// Backwards-compatible alias for ``SearchContextChunk``.
 public typealias ContextChunk = SearchContextChunk
-
-/// Backwards-compatible alias for ``SearchAnswerMessage``.
-public typealias SearchMessage = SearchAnswerMessage
 
 /// Backwards-compatible alias: the context route has one response shape.
 public typealias LLMContextResponse = SearchContextResponse

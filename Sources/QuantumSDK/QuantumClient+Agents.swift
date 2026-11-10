@@ -1,7 +1,7 @@
 import Foundation
 
-// Agent turns, mission runs, RAG, courses, compute rentals and model
-// deployments. The shared SSE reader for every ``AgentStreamEvent`` stream
+// Agent turns, mission runs, RAG, courses and compute rentals. The shared
+// SSE reader for every ``AgentStreamEvent`` stream
 // (missions, Cloud Run, managed agents, inference) also lives here.
 
 // MARK: - Shared helpers
@@ -321,102 +321,6 @@ extension QuantumClient {
     public func computeKeepalive(id: String) async throws -> StatusResponse {
         let (data, _): (StatusResponse, _) = try await doReq(
             method: "POST", path: "/qai/v1/compute/instance/\(id.strictQueryEncoded)/keepalive"
-        )
-        return data
-    }
-
-    // MARK: - Model deployments
-
-    /// Lists deployable models: curated configurations with live pricing,
-    /// plus whatever the dynamic Model Garden catalogue reports.
-    ///
-    /// `GET /qai/v1/compute/catalog`
-    public func computeCatalog() async throws -> ComputeCatalogResponse {
-        let (data, _): (ComputeCatalogResponse, _) = try await doReq(
-            method: "GET", path: "/qai/v1/compute/catalog"
-        )
-        return data
-    }
-
-    /// Prices a model deployment without billing for it.
-    ///
-    /// Sends the request with `confirmed` forced off, so the gateway answers
-    /// with an estimate and the resolved machine spec. Even the estimate
-    /// needs per-account compute approval: an unapproved account gets 403
-    /// `compute_not_approved` before anything is priced.
-    ///
-    /// `POST /qai/v1/compute/deploy-model`
-    public func computeDeployModelEstimate(_ request: DeployModelRequest) async throws -> DeployModelEstimate {
-        var request = request
-        request.confirmed = nil
-        let (data, _): (DeployModelEstimate, _) = try await doReq(
-            method: "POST", path: "/qai/v1/compute/deploy-model", body: request
-        )
-        return data
-    }
-
-    /// Provisions a model deployment, deducting the full duration up front.
-    ///
-    /// Sends the request with `confirmed` forced on. Provisioning is
-    /// asynchronous: poll ``computeDeployment(id:)`` until the status is
-    /// `ready`, then call it through ``inference(deploymentId:body:)``. A
-    /// failed provision is refunded.
-    ///
-    /// `POST /qai/v1/compute/deploy-model`
-    public func computeDeployModel(_ request: DeployModelRequest, idempotencyKey: String? = nil) async throws -> DeployModelAccepted {
-        var request = request
-        request.confirmed = true
-        let (data, _): (DeployModelAccepted, _) = try await doReq(
-            method: "POST", path: "/qai/v1/compute/deploy-model", body: request,
-            idempotencyKey: idempotencyKey ?? UUID().uuidString
-        )
-        return data
-    }
-
-    /// Lists the caller's model deployments.
-    ///
-    /// `GET /qai/v1/compute/deployments`
-    public func computeDeployments() async throws -> DeploymentsResponse {
-        let (data, _): (DeploymentsResponse, _) = try await doReq(
-            method: "GET", path: "/qai/v1/compute/deployments"
-        )
-        return data
-    }
-
-    /// Reads one model deployment, including its endpoint URL once ready.
-    ///
-    /// `GET /qai/v1/compute/deployments/{id}`
-    public func computeDeployment(id: String) async throws -> ModelDeployment {
-        let (data, _): (ModelDeployment, _) = try await doReq(
-            method: "GET", path: "/qai/v1/compute/deployments/\(id.strictQueryEncoded)"
-        )
-        return data
-    }
-
-    /// Extends a ready deployment's lifetime, billing for the extra hours.
-    ///
-    /// Requires compute approval (403 `compute_not_approved`). Only a
-    /// `ready` deployment can be extended (400 `invalid_state`). `hours` at
-    /// or below zero becomes 1; the extension is refused with 402
-    /// `insufficient_funds` when the balance does not cover it.
-    ///
-    /// `POST /qai/v1/compute/deployments/{id}/extend`
-    public func computeDeploymentExtend(id: String, hours: Int, idempotencyKey: String? = nil) async throws -> ExtendDeploymentResponse {
-        let (data, _): (ExtendDeploymentResponse, _) = try await doReq(
-            method: "POST", path: "/qai/v1/compute/deployments/\(id.strictQueryEncoded)/extend",
-            body: ExtendDeploymentRequest(hours: hours),
-            idempotencyKey: idempotencyKey ?? UUID().uuidString
-        )
-        return data
-    }
-
-    /// Tears a model deployment down early. The remaining hours are not
-    /// refunded.
-    ///
-    /// `DELETE /qai/v1/compute/deployments/{id}`
-    public func computeDeploymentDelete(id: String) async throws -> DeploymentDeleteResponse {
-        let (data, _): (DeploymentDeleteResponse, _) = try await doReq(
-            method: "DELETE", path: "/qai/v1/compute/deployments/\(id.strictQueryEncoded)"
         )
         return data
     }

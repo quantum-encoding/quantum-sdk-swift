@@ -1,7 +1,7 @@
 import XCTest
 @testable import QuantumSDK
 
-/// Compute rentals and model deployments against routes_compute.go and
+/// Compute rentals against routes_compute.go and
 /// compute/templates.go.
 final class AgentsComputeTests: XCTestCase {
 
@@ -99,61 +99,5 @@ final class AgentsComputeTests: XCTestCase {
         XCTAssertNil(json["username"])
         XCTAssertNil(json["ssh_public_key"])
         XCTAssertEqual(Set(json.keys), ["public_key"])
-    }
-
-    // MARK: - Deployments
-
-    func testKnownModelIdCarriesNoMachineSpec() throws {
-        let json = try encodeToObject(DeployModelRequest(model: "nemotron-3-super-120b", durationHours: 4, isPublic: true))
-        XCTAssertEqual(json["model"] as? String, "nemotron-3-super-120b")
-        XCTAssertEqual(json["duration_hours"] as? Int, 4)
-        XCTAssertEqual(json["public"] as? Bool, true)
-        XCTAssertNil(json["machine_type"])
-        XCTAssertNil(json["accelerator_type"])
-        XCTAssertNil(json["confirmed"])
-        XCTAssertEqual(Set(json.keys), ["model", "duration_hours", "public"])
-    }
-
-    func testExtendRequestKey() throws {
-        XCTAssertEqual(try encodeToObject(ExtendDeploymentRequest(hours: 3))["hours"] as? Int, 3)
-    }
-
-    func testDeploymentMapsTheErrorKeyToErrorMessage() throws {
-        let fixture = """
-        {"id":"d1","user_id":"u1","model":"publishers/x/models/y",
-         "status":"failed","error":"quota exhausted","cost_per_hour_usd":12.5}
-        """
-        let deployment = try JSONDecoder().decode(ModelDeployment.self, from: Data(fixture.utf8))
-        XCTAssertEqual(deployment.errorMessage, "quota exhausted")
-        XCTAssertEqual(deployment.status, "failed")
-        XCTAssertNil(deployment.readyAt)
-    }
-
-    func testCatalogDecodesWithoutTheDynamicHalf() throws {
-        let fixture = """
-        {"verified_models":[{"id":"m1","name":"M1","machine_type":"a4-highgpu-8g",
-                             "regions":null,"price_per_hour_usd":30.0}]}
-        """
-        let catalog = try JSONDecoder().decode(ComputeCatalogResponse.self, from: Data(fixture.utf8))
-        XCTAssertEqual(catalog.verifiedModels.count, 1)
-        XCTAssertTrue(catalog.verifiedModels[0].regions.isEmpty)
-        XCTAssertNil(catalog.discoveredModels)
-    }
-
-    func testEstimateAndAcceptedShapes() throws {
-        let estimate = try JSONDecoder().decode(DeployModelEstimate.self, from: Data("""
-        {"cost_per_hour_usd":12.5,"total_estimate_usd":25,"total_ticks":250000000000,"duration_hours":2,
-         "model_display_name":"M1","model":"publishers/x/models/y","machine_type":"a2","accelerator_type":"nvidia-a100",
-         "accelerator_count":1,"region":"us-east1","note":"resubmit with confirmed:true to deploy"}
-        """.utf8))
-        XCTAssertEqual(estimate.totalTicks, 250_000_000_000)
-        XCTAssertEqual(estimate.durationHours, 2)
-
-        let accepted = try JSONDecoder().decode(DeployModelAccepted.self, from: Data("""
-        {"deployment_id":"d1","status":"provisioning","model_display_name":"M1","cost_per_hour_usd":12.5,
-         "total_cost_usd":25,"expires_at":"2026-01-01T02:00:00Z","operation":"op/1","note":"poll"}
-        """.utf8))
-        XCTAssertEqual(accepted.deploymentId, "d1")
-        XCTAssertEqual(accepted.totalCostUsd, 25)
     }
 }

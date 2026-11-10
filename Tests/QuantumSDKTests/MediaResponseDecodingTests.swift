@@ -84,8 +84,8 @@ final class MediaResponseDecodingTests: XCTestCase {
     func testJobAcceptedDecodesBothProducers() throws {
         let created = try decode(JobAcceptedResponse.self, #"{"job_id":"qai_job_1","status":"pending","type":"3d/generate","created_at":"2026-09-05T10:00:00Z","request_id":"req_1"}"#)
         XCTAssertEqual(created.createdAt, "2026-09-05T10:00:00Z")
-        let media = try decode(JobAcceptedResponse.self, #"{"job_id":"qai_job_2","status":"pending","type":"video/studio","request_id":"req_2"}"#)
-        XCTAssertEqual(media.jobType, "video/studio")
+        let media = try decode(JobAcceptedResponse.self, #"{"job_id":"qai_job_2","status":"pending","type":"video/translate","request_id":"req_2"}"#)
+        XCTAssertEqual(media.jobType, "video/translate")
         XCTAssertNil(media.createdAt)
         let alias: JobCreateResponse = created
         XCTAssertEqual(alias.jobId, "qai_job_1")
@@ -109,47 +109,6 @@ final class MediaResponseDecodingTests: XCTestCase {
         let progress = try decode(JobStreamEvent.self, #"{"type":"progress","job_id":"j1","status":"running"}"#)
         XCTAssertEqual(progress.eventType, "progress")
         XCTAssertEqual(progress.costTicks, 0)
-    }
-
-    // MARK: Batch
-
-    func testBatchSubmitDecodesThe202EnvelopeAndNullJobIds() throws {
-        let resp = try decode(BatchSubmitResponse.self, #"{"batch_id":"batch_2","jobs":2,"job_ids":["a","b"],"pricing":"50% of real-time rates","status":"queued"}"#)
-        XCTAssertEqual(resp.jobIds, ["a", "b"])
-        XCTAssertEqual(resp.jobs, 2)
-        let none = try decode(BatchJsonlResponse.self, #"{"batch_id":"batch_0","jobs":0,"job_ids":null,"pricing":"","status":"queued"}"#)
-        XCTAssertEqual(none.jobIds, [])
-    }
-
-    func testBatchJobDecodesTheStoreShape() throws {
-        let job = try decode(BatchJobInfo.self, #"{"id":"abc123","priority":10,"type":"user_batch","title":"Batch 1/1: hi","prompt":"hi","model":"claude-sonnet-4-6","status":"complete","output":"hello","created_by":"user_1","created_at":"2026-09-05T10:00:00Z","started_at":"2026-09-05T10:00:05Z","completed_at":"2026-09-05T10:00:09Z","tokens":42}"#)
-        XCTAssertEqual(job.id, "abc123")
-        XCTAssertEqual(job.status, "complete")
-        XCTAssertEqual(job.output, "hello")
-        XCTAssertNil(job.outputGcs)
-        XCTAssertEqual(job.tokens, 42)
-
-        XCTAssertEqual(try decode(BatchJobsResponse.self, #"{"jobs":null}"#).jobs.count, 0)
-        let queued = try decode(BatchJobInfo.self, #"{"id":"q","priority":10,"type":"user_batch","title":"t","prompt":"p","model":"m","status":"queued","created_by":"u","created_at":"2026-09-05T10:00:00Z"}"#)
-        XCTAssertNil(queued.completedAt)
-    }
-
-    // MARK: Documents
-
-    func testDocumentResponsesReadTheGatewayShape() throws {
-        let extract = try decode(DocumentResponse.self, ##"{"markdown":"# Title","format":"markdown","meta":{"extraction_method":"pdf","images_found":1},"images":[{"name":"img0","mime":"image/png","data":"AAAA"}]}"##)
-        XCTAssertEqual(extract.markdown, "# Title")
-        XCTAssertEqual(extract.meta.imagesFound, 1)
-        XCTAssertEqual(extract.images.count, 1)
-        XCTAssertEqual(extract.costTicks, 0)
-
-        let chunk = try decode(ChunkDocumentResponse.self, #"{"format":"markdown","meta":{"extraction_method":"docx","chunk_count":0},"chunks":null}"#)
-        XCTAssertEqual(chunk.chunks, [])
-        XCTAssertEqual(chunk.meta.extractionMethod, "docx")
-
-        let process = try decode(ProcessDocumentResponse.self, #"{"markdown":"body","format":"markdown","meta":{"extraction_method":"pdf","chunk_count":1},"chunks":[{"index":0,"text":"body"}]}"#)
-        XCTAssertEqual(process.chunks.first?.text, "body")
-        XCTAssertEqual(process.images, [])
     }
 
     // MARK: Search
@@ -183,16 +142,12 @@ final class MediaResponseDecodingTests: XCTestCase {
         XCTAssertNil(bare.infobox)
     }
 
-    func testContextAnswerAndGoogleDecodeNullLists() throws {
+    func testContextAndGoogleDecodeNullLists() throws {
         let ctx = try decode(SearchContextResponse.self, #"{"chunks":[{"content":"c","url":"https://x","title":"t","score":0.5,"content_type":"text/html"}],"sources":null,"query":"q"}"#)
         XCTAssertEqual(ctx.sources, [])
         XCTAssertEqual(ctx.chunks[0].score, 0.5)
         let alias: LLMContextResponse = ctx
         XCTAssertEqual(alias.query, "q")
-
-        let answer = try decode(SearchAnswerResponse.self, #"{"choices":[{"index":0,"message":{"role":"assistant","content":"hi"},"finish_reason":"stop"}],"model":"brave","id":"a1","citations":null}"#)
-        XCTAssertEqual(answer.citations, [])
-        XCTAssertEqual(answer.choices[0].message?.content, "hi")
 
         let google = try decode(GoogleSearchResponse.self, #"{"answer":"Ducks float.","citations":[{"url":"https://g/1","title":"Ducks"}],"search_entry_point":"<div/>","web_search_queries":["do ducks float"],"supports":[{"start_index":0,"end_index":12,"text":"Ducks float.","grounding_chunk_indices":[0]}]}"#)
         XCTAssertEqual(google.webSearchQueries, ["do ducks float"])
@@ -432,18 +387,6 @@ extension DetectedObject: Equatable {
     }
 }
 
-extension DocumentChunk: Equatable {
-    public static func == (lhs: DocumentChunk, rhs: DocumentChunk) -> Bool {
-        lhs.index == rhs.index && lhs.text == rhs.text
-    }
-}
-
-extension DocumentImage: Equatable {
-    public static func == (lhs: DocumentImage, rhs: DocumentImage) -> Bool {
-        lhs.name == rhs.name && lhs.mime == rhs.mime && lhs.data == rhs.data
-    }
-}
-
 extension WebResult: Equatable {
     public static func == (lhs: WebResult, rhs: WebResult) -> Bool { lhs.url == rhs.url }
 }
@@ -454,10 +397,6 @@ extension Thumbnail: Equatable {
 
 extension SearchContextSource: Equatable {
     public static func == (lhs: SearchContextSource, rhs: SearchContextSource) -> Bool { lhs.url == rhs.url }
-}
-
-extension SearchAnswerCitation: Equatable {
-    public static func == (lhs: SearchAnswerCitation, rhs: SearchAnswerCitation) -> Bool { lhs.url == rhs.url }
 }
 
 extension GoogleSearchCitation: Equatable {

@@ -95,11 +95,10 @@ public struct ClientConfiguration: Sendable {
 /// replayed on all four statuses. Every JSON POST carries an
 /// `Idempotency-Key` (a fresh UUID unless the caller supplies one), reused
 /// across replays. Only routes billed through the gateway's
-/// `DeductAndTrack` rail read it: agent, batch, jobs, search, scanner, rag,
-/// documents, vision, voice, compute and deployments, inference, missions,
-/// cloudrun and security. It is ignored on `/chat`, `/chat/session`,
-/// `/chat/estimate`, every image, video, audio and avatar route, and on
-/// keys, credits, auth and account.
+/// `DeductAndTrack` rail read it: agent, jobs, search, rag, vision, voice,
+/// compute, inference, missions, cloudrun and security. It is ignored on
+/// `/chat`, `/chat/session`, `/chat/estimate`, every image, video, audio
+/// and avatar route, and on keys, credits, auth and account.
 public final class QuantumClient: Sendable {
     let http: HTTPClient
     let baseURLString: String

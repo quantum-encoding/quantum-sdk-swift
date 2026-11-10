@@ -257,7 +257,7 @@ public enum ErrorCode: Sendable, Hashable {
     case unsupportedCapability
     /// The legacy `invalid_state` / `conflict` types: the resource is not
     /// in a state that allows the operation (rotating an already-rotated
-    /// key, extending a deployment that is not ready).
+    /// key).
     case invalidState
 
     // System

@@ -413,15 +413,6 @@ extension QuantumClient {
         return r
     }
 
-    /// Create a HeyGen studio talking-head video (async job type
-    /// "video/studio"). Poll the returned job id for the result.
-    public func videoStudio(_ request: VideoStudioRequest) async throws -> JobAcceptedResponse {
-        let (data, _): (JobAcceptedResponse, _) = try await doReq(
-            method: "POST", path: "/qai/v1/video/studio", body: request
-        )
-        return data
-    }
-
     /// Translate a video into another language (HeyGen; async job type
     /// "video/translate"). A flat hold is taken at submit and trued up when
     /// the job settles.
@@ -505,64 +496,6 @@ extension QuantumClient {
         try await embed(EmbedRequest(model: model, input: inputs))
     }
 
-    // MARK: - Documents
-
-    /// Extract a PDF or DOCX to Markdown.
-    ///
-    /// `POST /qai/v1/documents/extract` (multipart, field `file`)
-    public func extractDocument(_ request: DocumentRequest) async throws -> DocumentResponse {
-        let (data, meta): (DocumentResponse, HTTPClient.ResponseMeta) = try await doMultipartReq(
-            path: "/qai/v1/documents/extract",
-            fieldName: "file",
-            filename: request.filename,
-            data: request.content,
-            contentType: request.mimeType ?? "application/octet-stream",
-            fields: documentFormFields(extractImages: request.extractImages, chunkSize: nil, overlap: nil)
-        )
-        var r = data
-        if r.costTicks == 0 { r.costTicks = Int64(meta.costTicks) }
-        if r.requestId.isEmpty { r.requestId = meta.requestId }
-        return r
-    }
-
-    /// Extract a document and split the Markdown into overlapping chunks
-    /// sized in characters, for embeddings or RAG.
-    ///
-    /// `POST /qai/v1/documents/chunk` (multipart, field `file`)
-    public func chunkDocument(_ request: ChunkDocumentRequest) async throws -> ChunkDocumentResponse {
-        let (data, meta): (ChunkDocumentResponse, HTTPClient.ResponseMeta) = try await doMultipartReq(
-            path: "/qai/v1/documents/chunk",
-            fieldName: "file",
-            filename: request.filename,
-            data: request.content,
-            contentType: request.mimeType ?? "application/octet-stream",
-            fields: documentFormFields(extractImages: false, chunkSize: request.chunkSize, overlap: request.overlap)
-        )
-        var r = data
-        if r.costTicks == 0 { r.costTicks = Int64(meta.costTicks) }
-        if r.requestId.isEmpty { r.requestId = meta.requestId }
-        return r
-    }
-
-    /// Run the whole pipeline: extraction, chunking, and images when asked.
-    /// No model is involved; the price is the same mechanical rate.
-    ///
-    /// `POST /qai/v1/documents/process` (multipart, field `file`)
-    public func processDocument(_ request: ProcessDocumentRequest) async throws -> ProcessDocumentResponse {
-        let (data, meta): (ProcessDocumentResponse, HTTPClient.ResponseMeta) = try await doMultipartReq(
-            path: "/qai/v1/documents/process",
-            fieldName: "file",
-            filename: request.filename,
-            data: request.content,
-            contentType: request.mimeType ?? "application/octet-stream",
-            fields: documentFormFields(extractImages: request.extractImages, chunkSize: request.chunkSize, overlap: request.overlap)
-        )
-        var r = data
-        if r.costTicks == 0 { r.costTicks = Int64(meta.costTicks) }
-        if r.requestId.isEmpty { r.requestId = meta.requestId }
-        return r
-    }
-
     // MARK: - Search
 
     /// Perform a Brave web search. Returns web results, news, videos,
@@ -582,20 +515,13 @@ extension QuantumClient {
         return data
     }
 
-    /// Get a grounded AI answer with citations (Brave).
-    public func searchAnswer(_ request: SearchAnswerRequest) async throws -> SearchAnswerResponse {
-        let (data, _): (SearchAnswerResponse, _) = try await doReq(
-            method: "POST", path: "/qai/v1/search/answer", body: request
-        )
-        return data
-    }
-
     /// Google grounded search via Gemini Flash + the `google_search` built-in
     /// tool: a grounded answer plus citations, the ToS-required
     /// search-entry-point widget, and the queries Gemini actually executed.
     ///
-    /// Billed per executed query ($0.035 each); ``searchAnswer(_:)`` is the
-    /// Brave-backed alternative for cheap high-volume search.
+    /// Billed per executed query ($0.035 each); ``webSearch(_:)`` and
+    /// ``searchContext(_:)`` are the Brave-backed alternatives for cheap
+    /// high-volume search.
     ///
     /// `POST /qai/v1/search/google`
     public func googleSearch(_ request: GoogleSearchRequest) async throws -> GoogleSearchResponse {
@@ -617,8 +543,7 @@ extension QuantumClient {
         return data
     }
 
-    /// Check the status of an async job. Batch jobs live in a different
-    /// store: read those with ``batchJob(id:)``.
+    /// Check the status of an async job.
     public func getJob(jobId: String) async throws -> JobStatusResponse {
         let (data, _): (JobStatusResponse, _) = try await doReq(
             method: "GET", path: "/qai/v1/jobs/\(jobId)"
@@ -779,62 +704,6 @@ extension QuantumClient {
             body: Body(session_id: sessionId)
         )
         return data.ephemeral_token
-    }
-
-    // MARK: - Batch Processing
-
-    /// Submit a batch of jobs for processing (1–100 per call).
-    ///
-    /// The gateway requires a small per-job minimum balance (402 otherwise)
-    /// and rejects the whole batch when any job names an unpriced model
-    /// (400). Each accepted job runs independently; read results with
-    /// ``batchJob(id:)``, not the Jobs API. See ``BatchSubmitResponse`` for
-    /// why `jobIds` may be shorter than the input.
-    public func batchSubmit(_ request: BatchSubmitRequest) async throws -> BatchSubmitResponse {
-        let (data, _): (BatchSubmitResponse, _) = try await doReq(
-            method: "POST", path: "/qai/v1/batch", body: request
-        )
-        return data
-    }
-
-    /// Submit a batch of jobs as raw JSONL: the body is the text itself,
-    /// one JSON object per line in the ``BatchJob`` shape (up to 1 MiB).
-    /// Blank lines and lines starting with `#` are ignored; lines that fail
-    /// to parse or lack `model`/`prompt` are dropped, and a body with no
-    /// valid line is rejected with 400.
-    public func batchSubmitJsonl(_ jsonl: String) async throws -> BatchJsonlResponse {
-        let (data, meta): (BatchJsonlResponse, HTTPClient.ResponseMeta) = try await http.doRawUpload(
-            method: "POST",
-            path: "/qai/v1/batch/jsonl",
-            data: Data(jsonl.utf8),
-            contentType: "application/x-ndjson"
-        )
-        _ = recordMeta(meta)
-        return data
-    }
-
-    /// List the caller's batch jobs.
-    ///
-    /// The gateway reads the newest 100 batch jobs across all users and
-    /// filters to the caller, so a caller's older jobs drop out of this
-    /// list once other users' jobs push them past that window.
-    public func batchJobs() async throws -> BatchJobsResponse {
-        let (data, _): (BatchJobsResponse, _) = try await doReq(
-            method: "GET", path: "/qai/v1/batch/jobs"
-        )
-        return data
-    }
-
-    /// Get the status and output of a single batch job.
-    ///
-    /// The lookup scans the newest 200 batch jobs across all users; a
-    /// caller's job older than that window answers 404 even though it
-    /// exists. Read the output promptly once `status == "complete"`.
-    public func batchJob(id: String) async throws -> BatchJobInfo {
-        let (data, _): (BatchJobInfo, _) = try await doReq(
-            method: "GET", path: "/qai/v1/batch/jobs/\(id)"
-        )
-        return data
     }
 
     // MARK: - Job SSE Streaming

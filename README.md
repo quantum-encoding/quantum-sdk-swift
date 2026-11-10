@@ -29,7 +29,7 @@ print(response.text)
 
 ## Features
 
-- 242 client methods across 10 AI providers and 45+ models
+- 211 client methods across 10 AI providers and 45+ models
 - Swift concurrency with async/await throughout
 - Streaming via `AsyncThrowingStream`, and WebSocket realtime voice
 - Codable request/response types
@@ -38,8 +38,7 @@ print(response.text)
 - Retries that never replay a billed POST, with `Idempotency-Key` on every JSON request
 - Typed error codes, and errors that never carry a response body or a credential
 - Agent orchestration, agent runtime sessions and managed agents over SSE
-- Code scanning, GPU/CPU compute rental (requires per-account admin approval)
-- Batch processing (async jobs, billed at the real-time rate)
+- GPU/CPU compute rental (requires per-account admin approval)
 
 ## Examples
 
@@ -263,7 +262,7 @@ print(reply.stopReason, reply.content.count)
 
 ## Surface
 
-242 public client methods. Grouped by what they cover:
+211 public client methods. Grouped by what they cover:
 
 | Area | Covers |
 |------|--------|
@@ -272,18 +271,16 @@ print(reply.stopReason, reply.content.count)
 | Agent runtime | Runtime agents, environments, sessions, session streaming, workspaces |
 | Managed agents | Passthrough get/post/delete plus streaming variants |
 | Images | Generation and editing |
-| Video & avatars | Generation, studio, translation, photo avatars, batch status |
+| Video & avatars | Generation, translation, photo avatars, batch status |
 | HeyGen & digital twin | HeyGen v3 video, twin creation, status, consent, twin video |
 | Audio & voices | TTS, STT, speech-to-speech, music, dialogue, dubbing, remix, isolate, align, voice design and cloning |
 | Realtime | WebSocket voice sessions, gateway and ElevenLabs proxy, ephemeral tokens |
 | Vision | Detect, describe, OCR, quality, analyze |
 | Embeddings | Text embeddings |
 | RAG & collections | Vertex AI and SurrealDB search, corpora, collection proxy |
-| Documents | Extract, chunk, process (multipart) |
-| Search | Web search, context, answers, Google grounding |
-| Code scanner | Scan, upload, diff, verify, audit, vulnerabilities, graphs |
-| Jobs & batch | Async job polling and streaming, batch submit and status |
-| Compute & Cloud Run | GPU/CPU rental (admin-approved accounts only), deployments, sandboxed orchestration |
+| Search | Web search, context, Google grounding |
+| Jobs | Async job submit, polling and streaming |
+| Compute & Cloud Run | GPU/CPU rental (admin-approved accounts only), sandboxed orchestration |
 | Inference | Dedicated deployments, buffered and streaming |
 | Media sessions, files, caches | Session create/list/get/chat/delete, multipart file upload, Gemini context caches |
 | Licences | Licence listing, revocations, public key |

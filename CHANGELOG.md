@@ -1,5 +1,57 @@
 # Changelog
 
+## Unreleased
+
+The gateway removed 32 routes on 2026-11-10; a call to any of them now answers
+404. The SDK surface that called them is gone.
+
+### Removed — SOURCE BREAKING
+- **Code scanner** (`/qai/v1/scanner/*`): `scannerScan`, `scannerUpload`,
+  `scannerDiff`, `scannerVerify`, `scannerAudit`, `scannerVulnerabilities`,
+  `scannerScans`, `scannerScanGet`, `scannerScanDelete`, `scannerTypes`,
+  `scannerType`, `scannerGraphSVG`, and every type in `Models/Scanner.swift`:
+  `CodeModule`, `CodeField`, `CodeType`, `CodeFunction`, `CallEdge`,
+  `CodebaseGraph`, `ScanStats`, `ScanRequest`, `ScanResult`,
+  `ScanListResponse`, `ScanDeleteResponse`, `ScanTypeSummary`,
+  `ScanTypeListResponse`, `ScanTypeDetail`, `DiffRequest`, `ConventionDiff`,
+  `DiffResult`, `BlueprintType`, `BlueprintFunction`, `BlueprintModule`,
+  `Blueprint`, `VerifyRequest`, `FileStatus`, `VerifyResult`,
+  `AuditJobResponse`, `AuditFileResult`, `AuditResult`,
+  `VulnerabilityScanOptions`, `VulnerabilityScanRequest`.
+- **User batch** (`POST /qai/v1/batch`, `POST /qai/v1/batch/jsonl`,
+  `GET /qai/v1/batch/jobs`, `GET /qai/v1/batch/jobs/{id}`): `batchSubmit`,
+  `batchSubmitJsonl`, `batchJobs`, `batchJob(id:)`, and `BatchJob`,
+  `BatchJobInput`, `BatchSubmitRequest`, `BatchSubmitResponse`,
+  `BatchJsonlResponse`, `BatchJobInfo`, `BatchJobsResponse`. The HeyGen video
+  batch (`videoBatchSubmit`, `/qai/v1/video/batch`) is a different route and
+  stays.
+- **Model deployments** (`GET /qai/v1/compute/catalog`,
+  `POST /qai/v1/compute/deploy-model`, `/qai/v1/compute/deployments*`):
+  `computeCatalog`, `computeDeployModelEstimate`, `computeDeployModel`,
+  `computeDeployments`, `computeDeployment(id:)`, `computeDeploymentExtend`,
+  `computeDeploymentDelete`, and `KnownModel`, `ComputeCatalogResponse`,
+  `DeployModelRequest`, `DeployModelEstimate`, `DeployModelAccepted`,
+  `ModelDeployment`, `DeploymentsResponse`, `ExtendDeploymentRequest`,
+  `ExtendDeploymentResponse`, `DeploymentDeleteResponse`. Instance rental
+  (`computeTemplates`, `computeProvision`, `computeInstances`, …) and
+  `inference(deploymentId:body:)` / `inferenceStream` stay.
+- **Documents** (`/qai/v1/documents/extract|chunk|process`): `extractDocument`,
+  `chunkDocument`, `processDocument`, and `DocumentRequest`, `DocumentImage`,
+  `DocumentMeta`, `DocumentResponse`, `ChunkDocumentRequest`, `ChunkRequest`,
+  `DocumentChunk`, `ChunkDocumentResponse`, `ChunkResponse`,
+  `ProcessDocumentRequest`, `ProcessRequest`, `ProcessDocumentResponse`,
+  `ProcessResponse`.
+- **Search answer** (`POST /qai/v1/search/answer`): `searchAnswer`, and
+  `SearchAnswerMessage`, `SearchMessage`, `SearchAnswerRequest`,
+  `SearchAnswerCitation`, `SearchAnswerChoice`, `SearchAnswerResponse`.
+  `webSearch`, `searchContext` and `googleSearch` stay.
+- **HeyGen studio video** (`POST /qai/v1/video/studio`): `videoStudio`, and
+  `VideoStudioRequest` / `StudioVideoRequest`.
+
+`videoPhotoAvatar` is unchanged: it sends the talking-photo body
+(`photo_base64` + `script`), the only body `/qai/v1/video/photo-avatar` still
+accepts.
+
 ## 0.11.0
 
 The TTS request catches up with the gateway: a house voice you do not have to

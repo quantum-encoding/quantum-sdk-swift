@@ -213,40 +213,6 @@ public struct MediaTokenUsage: Codable, Sendable {
 /// shared 202 job envelope (which never carries a cost).
 public typealias JobResponse = JobAcceptedResponse
 
-// MARK: - HeyGen Studio
-
-/// Request body for a HeyGen studio talking-head video: one avatar reading
-/// one script in one voice. All three fields are required.
-///
-/// Submission is gated by a balance preflight estimated from the script
-/// length, so an under-funded caller gets 402 at submit rather than a
-/// failed job.
-public struct VideoStudioRequest: Codable, Sendable {
-    /// HeyGen avatar id.
-    public var avatarId: String
-
-    /// Script the avatar speaks.
-    public var script: String
-
-    /// HeyGen voice id.
-    public var voiceId: String
-
-    public init(avatarId: String, script: String, voiceId: String) {
-        self.avatarId = avatarId
-        self.script = script
-        self.voiceId = voiceId
-    }
-
-    enum CodingKeys: String, CodingKey {
-        case script
-        case avatarId = "avatar_id"
-        case voiceId = "voice_id"
-    }
-}
-
-/// Backwards-compatible alias.
-public typealias StudioVideoRequest = VideoStudioRequest
-
 // MARK: - HeyGen Translate
 
 /// Request body for video translation. The source must be reachable by
