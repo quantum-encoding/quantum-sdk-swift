@@ -1,7 +1,7 @@
-// Credits — purchase credit packs, check balance, view tiers, lifetime
-// plans, and apply for the developer program.
+// Credits — purchase credit packs, check balance, view tiers, and apply for
+// the developer program.
 //
-// Packs, tiers and lifetime plans need no authentication.
+// Packs and tiers need no authentication.
 
 import Foundation
 
@@ -105,7 +105,8 @@ public struct CreditBalanceResponse: Codable, Sendable {
 
 /// A developer tier, as `/qai/v1/credits/tiers` describes it.
 public struct CreditTier: Codable, Sendable {
-    /// Tier identifier (e.g. `"standard"`, `"lifetime"`, `"internal"`).
+    /// Tier identifier: `"standard"`, `"developer"` or `"enterprise"`.
+    /// The route lists only the tiers a caller can reach.
     public var tier: String
 
     /// Display label.
@@ -175,67 +176,4 @@ public struct DevProgramApplyRequest: Codable, Sendable {
 public struct DevProgramApplyResponse: Codable, Sendable {
     /// Application status.
     public var status: String
-}
-
-// MARK: - Lifetime
-
-/// A one-time lifetime unlock product.
-public struct LifetimePlan: Codable, Sendable {
-    public var id: String
-    public var label: String
-    public var amountUsd: Double
-    /// Seats included; 0 means unlimited.
-    public var seats: Int64
-    public var description: String?
-
-    enum CodingKeys: String, CodingKey {
-        case id, label, seats, description
-        case amountUsd = "amount_usd"
-    }
-
-    public init(from decoder: Decoder) throws {
-        let c = try decoder.container(keyedBy: CodingKeys.self)
-        id = try c.decode(String.self, forKey: .id)
-        label = try c.decodeIfPresent(String.self, forKey: .label) ?? ""
-        amountUsd = try c.decodeIfPresent(Double.self, forKey: .amountUsd) ?? 0
-        seats = try c.decodeIfPresent(Int64.self, forKey: .seats) ?? 0
-        description = try c.decodeIfPresent(String.self, forKey: .description)
-    }
-}
-
-/// Response from `lifetimePlans()`.
-public struct LifetimePlansResponse: Codable, Sendable {
-    public var plans: [LifetimePlan]
-}
-
-/// Request body for buying a lifetime plan.
-public struct LifetimePurchaseRequest: Codable, Sendable {
-    public var planId: String
-    public var successUrl: String?
-    public var cancelUrl: String?
-
-    public init(planId: String, successUrl: String? = nil, cancelUrl: String? = nil) {
-        self.planId = planId
-        self.successUrl = successUrl
-        self.cancelUrl = cancelUrl
-    }
-
-    enum CodingKeys: String, CodingKey {
-        case planId = "plan_id"
-        case successUrl = "success_url"
-        case cancelUrl = "cancel_url"
-    }
-}
-
-/// Response from `lifetimePurchase(_:)`: where to pay.
-public struct LifetimePurchaseResponse: Codable, Sendable {
-    public var checkoutUrl: String
-    public var sessionId: String
-    public var plan: LifetimePlan
-
-    enum CodingKeys: String, CodingKey {
-        case plan
-        case checkoutUrl = "checkout_url"
-        case sessionId = "session_id"
-    }
 }

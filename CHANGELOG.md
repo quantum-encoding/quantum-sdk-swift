@@ -2,8 +2,9 @@
 
 ## Unreleased
 
-The gateway removed 32 routes on 2026-11-10; a call to any of them now answers
-404. The SDK surface that called them is gone.
+The gateway removed 32 routes on 2026-11-10, and the lifetime-plan routes on
+2026-11-07; a call to any of them now answers 404. The SDK surface that called
+them is gone.
 
 ### Removed — SOURCE BREAKING
 - **Code scanner** (`/qai/v1/scanner/*`): `scannerScan`, `scannerUpload`,
@@ -47,6 +48,12 @@ The gateway removed 32 routes on 2026-11-10; a call to any of them now answers
   `webSearch`, `searchContext` and `googleSearch` stay.
 - **HeyGen studio video** (`POST /qai/v1/video/studio`): `videoStudio`, and
   `VideoStudioRequest` / `StudioVideoRequest`.
+- **Lifetime plans** (`GET` and `POST /qai/v1/credits/lifetime`), retired on
+  2026-11-07 when lifetime plans stopped being sold: `lifetimePlans`,
+  `lifetimePurchase`, and `LifetimePlan`, `LifetimePlansResponse`,
+  `LifetimePurchaseRequest`, `LifetimePurchaseResponse`. The gateway keeps
+  the `lifetime` tier for earlier buyers; `/qai/v1/credits/tiers` does not
+  list it.
 
 `videoPhotoAvatar` is unchanged: it sends the talking-photo body
 (`photo_base64` + `script`), the only body `/qai/v1/video/photo-avatar` still

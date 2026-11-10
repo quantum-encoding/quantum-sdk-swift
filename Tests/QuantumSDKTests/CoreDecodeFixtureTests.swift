@@ -121,16 +121,6 @@ final class CoreDecodeFixtureTests: XCTestCase {
         XCTAssertEqual(t.requirements, "None")
     }
 
-    func testLifetimeShapes() throws {
-        let plans = try decode(LifetimePlansResponse.self, #"{"plans":[{"id":"lt1","label":"Lifetime","amount_usd":499,"seats":1}]}"#)
-        XCTAssertEqual(plans.plans[0].amountUsd, 499)
-        XCTAssertEqual(plans.plans[0].seats, 1)
-        let purchase = try decode(LifetimePurchaseResponse.self, #"{"checkout_url":"https://checkout","session_id":"cs_1","plan":{"id":"lt1","label":"Lifetime","amount_usd":499}}"#)
-        XCTAssertEqual(purchase.checkoutUrl, "https://checkout")
-        XCTAssertEqual(purchase.sessionId, "cs_1")
-        XCTAssertEqual(purchase.plan.seats, 0)
-    }
-
     // MARK: Keys
 
     func testKeyResponsesDecodeAndMaskSecrets() throws {

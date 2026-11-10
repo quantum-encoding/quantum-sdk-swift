@@ -29,7 +29,7 @@ print(response.text)
 
 ## Features
 
-- 211 client methods across 10 AI providers and 45+ models
+- 209 client methods across 10 AI providers and 45+ models
 - Swift concurrency with async/await throughout
 - Streaming via `AsyncThrowingStream`, and WebSocket realtime voice
 - Codable request/response types
@@ -262,7 +262,7 @@ print(reply.stopReason, reply.content.count)
 
 ## Surface
 
-211 public client methods. Grouped by what they cover:
+209 public client methods. Grouped by what they cover:
 
 | Area | Covers |
 |------|--------|
@@ -285,7 +285,7 @@ print(reply.stopReason, reply.content.count)
 | Media sessions, files, caches | Session create/list/get/chat/delete, multipart file upload, Gemini context caches |
 | Licences | Licence listing, revocations, public key |
 | Security | URL and HTML scanning, code scanning, check, blocklist, report |
-| Account, keys & credits | Balance, usage, key management and rotation, packs, tiers, lifetime, dev programme |
+| Account, keys & credits | Balance, usage, key management and rotation, packs, tiers, dev programme |
 | Auth | Google, Firebase, Apple, key verification, session revocation |
 | Models & pricing | Model list, pricing map, parameters |
 | Courses | Learn courses, downloads, publishing |
@@ -323,7 +323,8 @@ Get your API key at [cosmicduck.dev](https://cosmicduck.dev).
 
 See [api.quantumencoding.ai/pricing](https://api.quantumencoding.ai/pricing) for current rates.
 
-The **Lifetime tier** offers 0% margin at-cost pricing via a one-time payment.
+The **Lifetime tier** (0% margin, at-cost pricing) is held by earlier buyers of
+the lifetime plans. The plans are no longer sold.
 
 ## Other SDKs
 

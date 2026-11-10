@@ -43,11 +43,6 @@ final class CoreEncodeTests: XCTestCase {
         XCTAssertEqual(Set(partner.keys), ["partner_id", "partner_ref"])
     }
 
-    func testLifetimePurchaseRequest() throws {
-        let obj = try encode(LifetimePurchaseRequest(planId: "lt1", successUrl: "https://ok"))
-        XCTAssertEqual(Set(obj.keys), ["plan_id", "success_url"])
-    }
-
     func testContextConfigUsesTheGatewaysKeys() throws {
         let obj = try encode(ContextConfig(compactAtTokens: 50_000, keepRecentToolResults: 3, clearThinking: true, summarizeStrategy: "plan_and_tools", summarizeModel: "gemini-2.5-flash"))
         XCTAssertEqual(Set(obj.keys), ["compact_at_tokens", "keep_recent_tool_results", "clear_thinking", "summarize_strategy", "summarize_model"])

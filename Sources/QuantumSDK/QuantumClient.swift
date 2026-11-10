@@ -763,23 +763,6 @@ public final class QuantumClient: Sendable {
         return data
     }
 
-    /// List the lifetime unlock plans (no auth required).
-    public func lifetimePlans() async throws -> LifetimePlansResponse {
-        let (data, _): (LifetimePlansResponse, _) = try await doReq(
-            method: "GET", path: "/qai/v1/credits/lifetime"
-        )
-        return data
-    }
-
-    /// Buy a lifetime plan. Returns a checkout URL for payment. Never
-    /// replayed on a 5xx: Stripe checkout has no dedupe.
-    public func lifetimePurchase(_ request: LifetimePurchaseRequest) async throws -> LifetimePurchaseResponse {
-        let (data, _): (LifetimePurchaseResponse, _) = try await doReq(
-            method: "POST", path: "/qai/v1/credits/lifetime", body: request
-        )
-        return data
-    }
-
     /// Apply for the developer program.
     public func devProgramApply(_ request: DevProgramApplyRequest) async throws -> DevProgramApplyResponse {
         let (data, _): (DevProgramApplyResponse, _) = try await doReq(
