@@ -6,6 +6,12 @@ The gateway removed 32 routes on 2026-11-10, and the lifetime-plan routes on
 2026-11-07; a call to any of them now answers 404. The SDK surface that called
 them is gone.
 
+### Added
+- `ModelInfo.deprecated` / `ModelInfo.replacement` (and `isDeprecated`): since
+  2026-11-19 `GET /qai/v1/models` flags a chat model the gateway still lists
+  and prices but refuses (400 `MODEL_DEPRECATED`), naming the model to use
+  instead. Both are absent on served models and on older gateways.
+
 ### Removed — SOURCE BREAKING
 - **Code scanner** (`/qai/v1/scanner/*`): `scannerScan`, `scannerUpload`,
   `scannerDiff`, `scannerVerify`, `scannerAudit`, `scannerVulnerabilities`,

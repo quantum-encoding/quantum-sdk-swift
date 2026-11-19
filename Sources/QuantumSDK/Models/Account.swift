@@ -292,8 +292,20 @@ public struct ModelInfo: Codable, Sendable {
     /// implement the v1+ `/qai/v1/models` contract, absent on older servers.
     public var parameters: [ParameterSpec]?
 
+    /// True when the gateway still lists and prices this model but refuses a
+    /// request naming it (400 `MODEL_DEPRECATED`). Absent on gateways that
+    /// predate deprecation, and on models still served.
+    public var deprecated: Bool?
+
+    /// The model the gateway names in place of a deprecated one.
+    public var replacement: String?
+
+    /// Whether the gateway refuses requests naming this model.
+    public var isDeprecated: Bool { deprecated == true }
+
     enum CodingKeys: String, CodingKey {
         case id, provider, category, parameters, route, aliases
+        case deprecated, replacement
         case displayName = "display_name"
         case contextWindow = "context_window"
         case inputPerMillion = "input_per_million"
@@ -318,7 +330,9 @@ public struct ModelInfo: Codable, Sendable {
         vertexAvailable: Bool? = nil,
         aliases: [String]? = nil,
         isDefault: Bool? = nil,
-        parameters: [ParameterSpec]? = nil
+        parameters: [ParameterSpec]? = nil,
+        deprecated: Bool? = nil,
+        replacement: String? = nil
     ) {
         self.id = id
         self.provider = provider
@@ -334,6 +348,8 @@ public struct ModelInfo: Codable, Sendable {
         self.aliases = aliases
         self.isDefault = isDefault
         self.parameters = parameters
+        self.deprecated = deprecated
+        self.replacement = replacement
     }
 }
 

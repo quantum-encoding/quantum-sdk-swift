@@ -58,6 +58,24 @@ final class CoreDecodeFixtureTests: XCTestCase {
         XCTAssertEqual(b.ticksPerUsd, 10_000_000_000)
     }
 
+    func testTheModelListReadsDeprecationAndReplacement() throws {
+        // routes_meta.go writes deprecated / replacement only on a deprecated
+        // model (omitempty), so a served model and an older gateway carry neither.
+        let body = """
+        {"schema_version":1,"count":2,"models":[
+          {"id":"claude-sonnet-4-6","provider":"Anthropic","category":"Text","display_name":"Claude Sonnet 4.6",
+           "deprecated":true,"replacement":"claude-sonnet-5-5"},
+          {"id":"claude-sonnet-5-5","provider":"Anthropic","category":"Text","display_name":"Claude Sonnet 5.5"}]}
+        """
+        let models = try decode(ModelsResponse.self, body).models
+        XCTAssertEqual(models[0].deprecated, true)
+        XCTAssertTrue(models[0].isDeprecated)
+        XCTAssertEqual(models[0].replacement, "claude-sonnet-5-5")
+        XCTAssertNil(models[1].deprecated)
+        XCTAssertFalse(models[1].isDeprecated)
+        XCTAssertNil(models[1].replacement)
+    }
+
     func testPricingIsAMapKeyedByModelId() throws {
         // routes_meta.go writes {"pricing": {<id>: entry}, "count", "margin"}.
         let body = """
